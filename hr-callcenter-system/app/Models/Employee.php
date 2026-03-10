@@ -11,6 +11,7 @@ class Employee extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'user_id',
         'employee_id',
         'first_name_am',
         'last_name_am',
@@ -68,6 +69,11 @@ class Employee extends Model
         return $this->belongsTo(SubCity::class);
     }
 
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
     public function woreda()
     {
         return $this->belongsTo(Woreda::class);
@@ -76,6 +82,11 @@ class Employee extends Model
     public function uniformDistributions()
     {
         return $this->hasMany(UniformDistribution::class);
+    }
+
+    public function disciplineHistories()
+    {
+        return $this->hasMany(EmployeeDisciplineHistory::class);
     }
 
     public function getFullNameAmAttribute()

@@ -163,13 +163,21 @@
                   </div>
                   <div class="col-md-4">
                     <label class="form-label fw-semibold">Sub-City</label>
-                    <input type="text" name="sub_city" class="form-control form-control-lg" value="{{ old('sub_city') }}"
-                      placeholder="e.g. Bole">
+                    <select name="sub_city" id="sub_city" class="form-select form-select-lg">
+                      <option value="">-- Select Sub-City --</option>
+                      @foreach (\App\Models\Tip::getAddisAbabaSubCities() as $value => $label)
+                        <option value="{{ $value }}" {{ old('sub_city') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                      @endforeach
+                    </select>
                   </div>
                   <div class="col-md-4">
                     <label class="form-label fw-semibold">Woreda</label>
-                    <input type="text" name="woreda" class="form-control form-control-lg" value="{{ old('woreda') }}"
-                      placeholder="e.g. Woreda 3">
+                    <select name="woreda" id="woreda" class="form-select form-select-lg">
+                      <option value="">-- Select Woreda --</option>
+                      @foreach (\App\Models\Tip::getWoredaOptions() as $value => $label)
+                        <option value="{{ $value }}" {{ old('woreda') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                      @endforeach
+                    </select>
                   </div>
                   <div class="col-12">
                     <label class="form-label fw-semibold">Detailed Description <span class="text-danger">*</span></label>
@@ -236,6 +244,8 @@
         const typeSelect = document.getElementById('tip_type');
         const otherContainer = document.getElementById('other_type_container');
         const otherInput = otherContainer.querySelector('input');
+        const subCitySelect = document.getElementById('sub_city');
+        const woredaSelect = document.getElementById('woreda');
 
         if (typeSelect) {
           typeSelect.addEventListener('change', function () {
@@ -247,6 +257,25 @@
               otherInput.removeAttribute('required');
             }
           });
+        }
+
+        if (subCitySelect && woredaSelect) {
+          const options = Array.from(woredaSelect.options);
+
+          const resetWoredaOptions = function () {
+            woredaSelect.innerHTML = '';
+
+            options.forEach(function (option) {
+              woredaSelect.appendChild(option.cloneNode(true));
+            });
+          };
+
+          subCitySelect.addEventListener('change', function () {
+            resetWoredaOptions();
+            woredaSelect.disabled = this.value === '';
+          });
+
+          woredaSelect.disabled = subCitySelect.value === '';
         }
       });
     </script>

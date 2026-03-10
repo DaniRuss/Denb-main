@@ -2,6 +2,7 @@
 
 namespace App\Widgets;
 
+use App\Models\Tip;
 use Filament\Widgets\Widget;
 
 class CaseManagementWidget extends Widget
@@ -20,17 +21,17 @@ class CaseManagementWidget extends Widget
             ->count();
     }
 
-    public function getUnassignedTipsCount()
+    public function getSupervisorQueueCount()
     {
-        return \App\Models\Tip::whereNull('assigned_to')
-            ->where('status', 'pending')
+        return Tip::where('tip_source', Tip::SOURCE_CALL_CENTER)
+            ->where('status', Tip::STATUS_PENDING_SUPERVISOR_REVIEW)
             ->count();
     }
 
-    public function getImmediateTipsCount()
+    public function getDirectorQueueCount()
     {
-        return \App\Models\Tip::where('urgency_level', 'immediate')
-            ->where('status', 'pending')
+        return Tip::where('tip_source', Tip::SOURCE_CALL_CENTER)
+            ->where('status', Tip::STATUS_PENDING_DIRECTOR_REVIEW)
             ->count();
     }
 }

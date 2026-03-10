@@ -1,6 +1,7 @@
 <?php
 // routes/web.php
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Admin\CallTipWorkflowController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\ComplaintController;
 use App\Http\Controllers\Public\TipController;
@@ -52,6 +53,13 @@ Route::post('/contact', [HomeController::class, 'sendContact'])->name('contact.s
 */
 // Filament handles these automatically at /admin
 // No need to define them here
+
+Route::middleware('auth')->prefix('admin/call-tips')->name('admin.call-tips.')->group(function () {
+    Route::post('/', [CallTipWorkflowController::class, 'store'])->name('store');
+    Route::patch('/{tip}/supervisor-review', [CallTipWorkflowController::class, 'supervisorReview'])->name('supervisor-review');
+    Route::patch('/{tip}/director-review', [CallTipWorkflowController::class, 'directorReview'])->name('director-review');
+    Route::patch('/{tip}/investigation', [CallTipWorkflowController::class, 'updateInvestigation'])->name('investigation');
+});
 
 /*
 |--------------------------------------------------------------------------

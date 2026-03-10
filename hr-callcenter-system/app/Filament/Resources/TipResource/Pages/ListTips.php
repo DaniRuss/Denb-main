@@ -13,7 +13,9 @@ class ListTips extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            // No CreateAction here
+            Actions\CreateAction::make()
+                ->label('Record New Tip')
+                ->visible(fn (): bool => TipResource::canCreate()),
         ];
     }
 }

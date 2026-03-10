@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\UserResource\Pages;
+use App\Models\Tip;
 use App\Models\User;
 use Filament\Forms;
 use Filament\Schemas\Schema;
@@ -33,6 +34,12 @@ class UserResource extends Resource
                     ->required()
                     ->maxLength(255)
                     ->unique(ignoreRecord: true),
+                Forms\Components\Select::make('sub_city')
+                    ->label('Assigned Sub City')
+                    ->options(Tip::getAddisAbabaSubCities())
+                    ->searchable()
+                    ->placeholder('Select sub city for sub-city officers')
+                    ->nullable(),
                 Forms\Components\TextInput::make('password')
                     ->password()
                     ->dehydrateStateUsing(fn($state) => Hash::make($state))
@@ -56,6 +63,10 @@ class UserResource extends Resource
                 Tables\Columns\TextColumn::make('roles.name')
                     ->badge()
                     ->searchable(),
+                Tables\Columns\TextColumn::make('sub_city')
+                    ->label('Sub City')
+                    ->badge()
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

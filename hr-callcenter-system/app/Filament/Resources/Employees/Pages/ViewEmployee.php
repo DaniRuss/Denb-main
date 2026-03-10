@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Employees\Pages;
 use App\Filament\Resources\Employees\EmployeeResource;
 use Filament\Actions\EditAction;
 use Filament\Resources\Pages\ViewRecord;
+use Filament\Support\Enums\Width;
 
 class ViewEmployee extends ViewRecord
 {
@@ -12,7 +13,7 @@ class ViewEmployee extends ViewRecord
 
     public function getMaxContentWidth(): \Filament\Support\Enums\Width|string|null
     {
-        return 'full';
+        return Width::FiveExtraLarge;
     }
 
     protected function getHeaderActions(): array

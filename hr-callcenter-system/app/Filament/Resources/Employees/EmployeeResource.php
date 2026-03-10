@@ -9,11 +9,13 @@ use App\Filament\Resources\Employees\Pages\ViewEmployee;
 use App\Filament\Resources\Employees\Schemas\EmployeeForm;
 use App\Filament\Resources\Employees\Schemas\EmployeeInfolist;
 use App\Filament\Resources\Employees\Tables\EmployeesTable;
+use App\Filament\Resources\Employees\RelationManagers\DisciplineHistoryRelationManager;
 use App\Filament\Resources\Employees\RelationManagers\UniformDistributionRelationManager;
 use App\Models\Employee;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -27,7 +29,7 @@ class EmployeeResource extends Resource
 
     public static function getMaxContentWidth(): \Filament\Support\Enums\Width|string|null
     {
-        return 'full';
+        return Width::FiveExtraLarge;
     }
 
     public static function form(Schema $schema): Schema
@@ -49,6 +51,7 @@ class EmployeeResource extends Resource
     {
         return [
             UniformDistributionRelationManager::class,
+            DisciplineHistoryRelationManager::class,
         ];
     }
 

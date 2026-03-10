@@ -31,7 +31,7 @@ class AddisAbabaLocationSeeder extends Seeder
             ['code' => 2, 'name_en' => 'Akaki Kaliti', 'name_am' => 'አቃቂ ቃሊቲ', 'woredas' => 11],
             ['code' => 3, 'name_en' => 'Arada', 'name_am' => 'አራዳ', 'woredas' => 10],
             ['code' => 4, 'name_en' => 'Bole', 'name_am' => 'ቦሌ', 'woredas' => 15],
-            ['code' => 5, 'name_en' => 'Gullele', 'name_am' => 'ጉለሌ', 'woredas' => 10],
+            ['code' => 5, 'name_en' => 'Gulele', 'name_am' => 'ጉለሌ', 'woredas' => 10],
             ['code' => 6, 'name_en' => 'Kirkos', 'name_am' => 'ቂርቆስ', 'woredas' => 11],
             ['code' => 7, 'name_en' => 'Kolfe Keranio', 'name_am' => 'ኮልፈ ቀራኒዮ', 'woredas' => 15],
             ['code' => 8, 'name_en' => 'Lemi Kura', 'name_am' => 'ለሚ ኩራ', 'woredas' => 14],

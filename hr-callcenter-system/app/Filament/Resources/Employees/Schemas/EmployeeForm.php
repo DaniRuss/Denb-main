@@ -8,6 +8,9 @@ use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Components\Section;
 use App\Models\SubCity;
 use App\Models\Woreda;
+use App\Models\User;
+use Spatie\Permission\Models\Role;
+use Illuminate\Database\Eloquent\Model;
 
 class EmployeeForm
 {
@@ -18,7 +21,7 @@ class EmployeeForm
                 Tabs::make('Employee Information')
                     ->columnSpanFull()
                     ->tabs([
-                        Tab::make('Personal Information')
+                        Tab::make('Personal')
                             ->icon('heroicon-o-user')
                             ->schema([
                                 Section::make('Name in Amharic')
@@ -69,7 +72,8 @@ class EmployeeForm
                                         \Filament\Forms\Components\TextInput::make('email')
                                             ->email()
                                             ->required()
-                                            ->maxLength(255),
+                                            ->maxLength(255)
+                                            ->unique(ignoreRecord: true),
                                         \Filament\Forms\Components\TextInput::make('phone')
                                             ->required()
                                             ->tel()
@@ -120,7 +124,7 @@ class EmployeeForm
                                     ->maxLength(255),
                             ])->columns(2),
 
-                        Tab::make('Employment')
+                        Tab::make('Job')
                             ->icon('heroicon-o-briefcase')
                             ->schema([
                                 \Filament\Forms\Components\TextInput::make('employee_id')
@@ -144,10 +148,11 @@ class EmployeeForm
                                     ]),
 
                                 \Filament\Forms\Components\Select::make('employee_type')
+                                    ->required()
                                     ->options([
-                                        'permanent' => 'Permanent',
-                                        'contract' => 'Contract',
-                                        'temporary' => 'Temporary',
+                                        'para_military_officer' => 'Para Military Officer',
+                                        'civil_employee' => 'Civil Employee',
+                                        'district_para_military' => 'District Para Military',
                                     ]),
 
                                 \Filament\Forms\Components\TextInput::make('salary')
@@ -160,10 +165,10 @@ class EmployeeForm
                                 \Filament\Forms\Components\Select::make('status')
                                     ->options([
                                         'active' => 'Active',
-                                        'inactive' => 'Inactive',
-                                        'on_leave' => 'On Leave',
-                                        'terminated' => 'Terminated',
                                         'suspended' => 'Suspended',
+                                        'on_leave' => 'On Leave',
+                                        'retired' => 'Retired',
+                                        'terminated' => 'Terminated',
                                     ])
                                     ->required()
                                     ->default('active')
@@ -181,17 +186,78 @@ class EmployeeForm
 
                             ])->columns(2),
 
+                        Tab::make('Account')
+                            ->icon('heroicon-o-key')
+                            ->schema([
+                                Section::make('Login & Role')
+                                    ->schema([
+                                        \Filament\Forms\Components\Toggle::make('create_system_user')
+                                            ->label('Create system login for this employee')
+                                            ->default(true)
+                                            ->reactive()
+                                            ->afterStateHydrated(function ($state, callable $set, ?Model $record) {
+                                                if ($record) {
+                                                    $set('create_system_user', (bool) $record->user);
+                                                }
+                                            }),
+                                        \Filament\Forms\Components\TextInput::make('user_username')
+                                            ->label('Username')
+                                            ->helperText('Used to sign in to the admin dashboard.')
+                                            ->default(fn (callable $get) => $get('employee_id') ?: $get('email'))
+                                            ->afterStateHydrated(function ($state, callable $set, ?Model $record) {
+                                                if ($record?->user?->username) {
+                                                    $set('user_username', $record->user->username);
+                                                }
+                                            })
+                                            ->maxLength(255)
+                                            ->required(fn (callable $get) => (bool) $get('create_system_user'))
+                                            ->unique(
+                                                table: User::class,
+                                                column: 'username',
+                                                ignorable: fn (?Model $record) => $record?->user
+                                            )
+                                            ->visible(fn (callable $get) => (bool) $get('create_system_user')),
+                                        \Filament\Forms\Components\Placeholder::make('login_username')
+                                            ->label('Login')
+                                            ->content(fn (callable $get) => $get('user_username') ?: ($get('email') ?: '-'))
+                                            ->helperText('You can sign in using username or email.'),
+                                        \Filament\Forms\Components\TextInput::make('user_password')
+                                            ->label('Password')
+                                            ->password()
+                                            ->revealable()
+                                            ->required(fn (callable $get, ?Model $record) => (bool) $get('create_system_user') && ! $record?->user)
+                                            ->dehydrated()
+                                            ->minLength(6)
+                                            ->visible(fn (callable $get) => (bool) $get('create_system_user')),
+                                        \Filament\Forms\Components\Select::make('user_roles')
+                                            ->label('Role(s)')
+                                            ->multiple()
+                                            ->options(fn () => Role::query()->orderBy('name')->pluck('name', 'name')->all())
+                                            ->preload()
+                                            ->afterStateHydrated(function ($state, callable $set, ?Model $record) {
+                                                if ($record?->user) {
+                                                    $set('user_roles', $record->user->getRoleNames()->toArray());
+                                                }
+                                            })
+                                            ->dehydrated()
+                                            ->visible(fn (callable $get) => (bool) $get('create_system_user')),
+                                    ])
+                                    ->columns(2),
+                            ]),
+
                         Tab::make('Education')
                             ->icon('heroicon-o-academic-cap')
                             ->schema([
                                 \Filament\Forms\Components\Select::make('education_level')
+                                    ->required()
                                     ->options([
-                                        'high_school' => 'High School',
+                                        'below_12' => 'Below Grade 12',
+                                        'complete_12' => 'Completed Grade 12',
                                         'certificate' => 'Certificate',
                                         'diploma' => 'Diploma',
-                                        'degree' => 'Bachelor\'s Degree',
+                                        'degree' => 'Bachelor Degree',
                                         'masters' => 'Master\'s Degree',
-                                        'phd' => 'PHD',
+                                        'phd' => 'PhD',
                                     ]),
                                 \Filament\Forms\Components\TextInput::make('field_of_study')
                                     ->maxLength(255),
@@ -200,7 +266,7 @@ class EmployeeForm
                                     ->maxLength(255),
                             ])->columns(2),
 
-                        Tab::make('Uniform Sizes')
+                        Tab::make('Uniform')
                             ->icon('heroicon-o-puzzle-piece')
                             ->schema([
                                 \Filament\Forms\Components\TextInput::make('shirt_size')->label('Shirt Size'),
