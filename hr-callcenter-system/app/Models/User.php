@@ -24,6 +24,7 @@ class User extends Authenticatable
         'email',
         'username',
         'sub_city',
+        'woreda',
         'password',
     ];
 

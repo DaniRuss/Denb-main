@@ -6,6 +6,7 @@ use App\Filament\Resources\UserResource\Pages;
 use App\Models\Tip;
 use App\Models\User;
 use Filament\Forms;
+use Filament\Forms\Get;
 use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -38,8 +39,16 @@ class UserResource extends Resource
                     ->label('Assigned Sub City')
                     ->options(Tip::getAddisAbabaSubCities())
                     ->searchable()
-                    ->placeholder('Select sub city for sub-city officers')
-                    ->nullable(),
+                    ->placeholder('Select sub city for sub-city/woreda officers')
+                    ->nullable()
+                    ->live(),
+                Forms\Components\Select::make('woreda')
+                    ->label('Assigned Woreda')
+                    ->options(Tip::getWoredaOptions())
+                    ->searchable()
+                    ->placeholder('Select woreda for woreda officers')
+                    ->nullable()
+                    ->visible(fn(Get $get) => filled($get('sub_city'))),
                 Forms\Components\TextInput::make('password')
                     ->password()
                     ->dehydrateStateUsing(fn($state) => Hash::make($state))
@@ -65,6 +74,10 @@ class UserResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('sub_city')
                     ->label('Sub City')
+                    ->badge()
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('woreda')
+                    ->label('Woreda')
                     ->badge()
                     ->toggleable(),
                 Tables\Columns\TextColumn::make('created_at')

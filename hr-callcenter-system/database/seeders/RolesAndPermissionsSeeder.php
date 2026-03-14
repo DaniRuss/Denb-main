@@ -28,6 +28,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'review_supervisor_call_tips',
             'review_director_call_tips',
             'manage_sub_city_call_tips',
+            'manage_woreda_call_tips',
             'manage_call_tip_workflow',
             'manage_penalty_action',
             'view_reports',
@@ -62,6 +63,9 @@ class RolesAndPermissionsSeeder extends Seeder
 
         $subCityOfficer = Role::findOrCreate('sub_city_officer');
         $subCityOfficer->givePermissionTo(['manage_sub_city_call_tips']);
+
+        $woredaOfficer = Role::findOrCreate('woreda_officer');
+        $woredaOfficer->givePermissionTo(['manage_woreda_call_tips']);
 
         $penaltyActionOfficer = Role::findOrCreate('penalty_action_officer');
         $penaltyActionOfficer->givePermissionTo(['manage_penalty_action']);
