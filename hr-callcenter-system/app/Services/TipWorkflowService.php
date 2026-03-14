@@ -71,12 +71,14 @@ class TipWorkflowService
     public function updateInvestigation(Tip $tip, array $data): Tip
     {
         $this->ensureCallTip($tip);
-        $this->ensureStatus($tip, [Tip::STATUS_DISPATCHED, Tip::STATUS_UNDER_INVESTIGATION, Tip::STATUS_CLOSED]);
+        $this->ensureStatus($tip, [Tip::STATUS_DISPATCHED, Tip::STATUS_UNDER_INVESTIGATION, Tip::STATUS_CLOSED, Tip::STATUS_ESCALATED_TO_SUB_CITY]);
 
         $investigationStatus = $data['investigation_status'];
-        $status = $investigationStatus === Tip::STATUS_CLOSED
-            ? Tip::STATUS_CLOSED
-            : Tip::STATUS_UNDER_INVESTIGATION;
+        $status = match ($investigationStatus) {
+            Tip::STATUS_CLOSED => Tip::STATUS_CLOSED,
+            Tip::STATUS_ESCALATED_TO_SUB_CITY => Tip::STATUS_ESCALATED_TO_SUB_CITY,
+            default => Tip::STATUS_UNDER_INVESTIGATION,
+        };
 
         $tip->update([
             'status' => $status,
