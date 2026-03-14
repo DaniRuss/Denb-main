@@ -128,9 +128,9 @@ class IncidentReportResource extends Resource
                     ]),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                // Tables\Actions\ViewAction::make(),
+                // Tables\Actions\EditAction::make(),
+                // Tables\Actions\DeleteAction::make(),
             ]);
     }
 
@@ -163,4 +163,3 @@ class IncidentReportResource extends Resource
         return parent::getEloquentQuery()->with(['employee', 'reportedBy']);
     }
 }
-

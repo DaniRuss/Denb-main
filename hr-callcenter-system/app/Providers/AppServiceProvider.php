@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\ShiftSwap;
+use App\Observers\ShiftSwapObserver;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +21,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        ShiftSwap::observe(ShiftSwapObserver::class);
+
         \Filament\Support\Facades\FilamentView::registerRenderHook(
             \Filament\View\PanelsRenderHook::HEAD_END,
             fn(): string => new \Illuminate\Support\HtmlString('

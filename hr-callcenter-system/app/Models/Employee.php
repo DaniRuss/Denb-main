@@ -89,6 +89,21 @@ class Employee extends Model
         return $this->hasMany(EmployeeDisciplineHistory::class);
     }
 
+    public function shiftAssignments()
+    {
+        return $this->hasMany(ShiftAssignment::class);
+    }
+
+    public function attendances()
+    {
+        return $this->hasMany(Attendance::class);
+    }
+
+    public function dailyShiftReports()
+    {
+        return $this->hasMany(DailyShiftReport::class);
+    }
+
     public function getFullNameAmAttribute()
     {
         return $this->first_name_am . ' ' . $this->last_name_am;

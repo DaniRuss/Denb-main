@@ -27,6 +27,12 @@ class EmployeeResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
+    protected static string|\UnitEnum|null $navigationGroup = 'Shift Management';
+
+    protected static ?string $navigationLabel = 'Employees';
+
+    protected static ?int $navigationSort = 1;
+
     public static function getMaxContentWidth(): \Filament\Support\Enums\Width|string|null
     {
         return Width::FiveExtraLarge;
@@ -71,5 +77,26 @@ class EmployeeResource extends Resource
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);
+    }
+
+    /** Shift Management: only roles that assign shifts see Employees. */
+    public static function canViewAny(): bool
+    {
+        return (bool) auth()->user()?->can('assign_shifts');
+    }
+
+    public static function canCreate(): bool
+    {
+        return (bool) auth()->user()?->can('assign_shifts');
+    }
+
+    public static function canEdit($record): bool
+    {
+        return (bool) auth()->user()?->can('assign_shifts');
+    }
+
+    public static function canDelete($record): bool
+    {
+        return (bool) auth()->user()?->can('assign_shifts');
     }
 }
