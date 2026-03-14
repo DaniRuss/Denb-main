@@ -73,7 +73,8 @@ class EmployeeForm
                                             ->email()
                                             ->required()
                                             ->maxLength(255)
-                                            ->unique(ignoreRecord: true),
+                                            ->unique(ignoreRecord: true)
+                                            ->unique(table: User::class, column: 'email', ignoreRecord: true),
                                         \Filament\Forms\Components\TextInput::make('phone')
                                             ->required()
                                             ->tel()
