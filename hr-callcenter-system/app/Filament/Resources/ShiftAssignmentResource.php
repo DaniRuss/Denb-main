@@ -37,7 +37,17 @@ class ShiftAssignmentResource extends Resource
                         ->label('Employee')
                         ->options(function () {
                             $user = auth()->user();
-                            $query = Employee::query()->active()->orderBy('first_name_am');
+                            $query = Employee::query()
+                                ->active()
+                                ->orderBy('first_name_am');
+
+                            // Always hide officers who already have an active 30-day assignment (scheduled).
+                            $query->whereDoesntHave('shiftAssignments', function ($q) {
+                                $today = now()->toDateString();
+                                $q->where('status', 'scheduled')
+                                  ->whereDate('assigned_date', '<=', $today)
+                                  ->whereDate('end_date', '>=', $today);
+                            });
 
                             // If user is a supervisor, filter employees by their woreda_id
                             if ($user && $user->hasRole('supervisor')) {
