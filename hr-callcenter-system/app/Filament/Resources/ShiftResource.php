@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Models\Shift;
+use App\Models\Employee;
 use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
@@ -55,10 +56,52 @@ class ShiftResource extends Resource
                 Tables\Columns\TextColumn::make('start_time')->time('H:i')->sortable(),
                 Tables\Columns\TextColumn::make('end_time')->time('H:i')->sortable(),
                 Tables\Columns\IconColumn::make('is_active')->boolean()->label('Active'),
-                Tables\Columns\TextColumn::make('shift_assignments_count')->counts('shiftAssignments')->label('Assignments')->sortable(),
+                Tables\Columns\TextColumn::make('shift_assignments_count')
+                    ->label('Assignments')
+                    ->sortable(),
             ])
             ->defaultSort('start_time')
-            ->filters([]);
+            ->filters([])
+            ->modifyQueryUsing(function ($query) {
+                $user = auth()->user();
+
+                if (! $user) {
+                    return $query->withCount('shiftAssignments');
+                }
+
+                // Supervisor: count only assignments they can manage in their woreda, for officers.
+                if ($user->hasRole('supervisor')) {
+                    $supervisor = Employee::where('user_id', $user->id)->first();
+
+                    if ($supervisor && $supervisor->woreda_id) {
+                        return $query->withCount(['shiftAssignments as shift_assignments_count' => function ($q) use ($supervisor) {
+                            $q->whereHas('employee', function ($employeeQuery) use ($supervisor) {
+                                $employeeQuery
+                                    ->where('woreda_id', $supervisor->woreda_id)
+                                    ->whereHas('user', fn ($u) => $u->role('officer'));
+                            });
+                        }]);
+                    }
+
+                    return $query->withCount('shiftAssignments');
+                }
+
+                // Officer: count only their own assignments.
+                if ($user->hasRole('officer')) {
+                    $employee = Employee::where('user_id', $user->id)->first();
+
+                    if ($employee) {
+                        return $query->withCount(['shiftAssignments as shift_assignments_count' => function ($q) use ($employee) {
+                            $q->where('employee_id', $employee->id);
+                        }]);
+                    }
+
+                    return $query->withCount('shiftAssignments');
+                }
+
+                // Admins / others: count all assignments.
+                return $query->withCount('shiftAssignments');
+            });
     }
 
     public static function getPages(): array
@@ -77,7 +120,18 @@ class ShiftResource extends Resource
 
     public static function canCreate(): bool
     {
-        return (bool) auth()->user()?->can('manage_shifts');
+        $user = auth()->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        // Officers and supervisors are read-only for shift types.
+        if ($user->hasRole('officer') || $user->hasRole('supervisor')) {
+            return false;
+        }
+
+        return (bool) $user->can('manage_shifts');
     }
 
     public static function canEdit($record): bool

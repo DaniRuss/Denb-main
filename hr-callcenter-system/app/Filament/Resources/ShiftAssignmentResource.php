@@ -35,14 +35,26 @@ class ShiftAssignmentResource extends Resource
                 ->schema([
                     Forms\Components\Select::make('employee_id')
                         ->label('Employee')
-                        ->options(
-                            Employee::query()
-                                ->active()
-                                ->orderBy('first_name_am')
-                                ->get()
-                                ->mapWithKeys(fn ($e) => [$e->id => $e->employee_id . ' – ' . $e->full_name_am])
-                                ->all()
-                        )
+                        ->options(function () {
+                            $user = auth()->user();
+                            $query = Employee::query()->active()->orderBy('first_name_am');
+
+                            // If user is a supervisor, filter employees by their woreda_id
+                            if ($user && $user->hasRole('supervisor')) {
+                                $supervisor = Employee::where('user_id', $user->id)->first();
+
+                                if ($supervisor && $supervisor->woreda_id) {
+                                    $query
+                                        ->where('woreda_id', $supervisor->woreda_id)
+                                        ->where('id', '!=', $supervisor->id)
+                                        ->whereHas('user', fn ($q) => $q->role('officer'));
+                                }
+                            }
+                            
+                            return $query->get()
+                                ->mapWithKeys(fn ($e) => [$e->id => $e->employee_id . ' - ' . $e->full_name_am])
+                                ->all();
+                        })
                         ->searchable()
                         ->required()
                         ->live(),
@@ -61,24 +73,45 @@ class ShiftAssignmentResource extends Resource
                         ->required()
                         ->maxLength(120),
                     Forms\Components\DatePicker::make('assigned_date')
+                        ->label('Start date')
                         ->required()
                         ->default(now())
+                        ->minDate(now())
+                        ->afterStateUpdated(function ($state, callable $set) {
+                            if (! $state) {
+                                return;
+                            }
+
+                            $start = \Illuminate\Support\Carbon::parse($state)->startOfDay();
+                            // exactly 30 days: start + 29
+                            $set('end_date', $start->copy()->addDays(29));
+                        })
                         ->rule(function (Get $get, ?ShiftAssignment $record): \Closure {
                             return function (string $attribute, $value, \Closure $fail) use ($get, $record) {
                                 $employeeId = $get('employee_id');
                                 if (! $employeeId || ! $value) {
                                     return;
                                 }
+
+                                $date = \Illuminate\Support\Carbon::parse($value)->toDateString();
+
+                                // Prevent duplicate assignment starting this date for same employee
                                 $exists = ShiftAssignment::query()
                                     ->where('employee_id', $employeeId)
-                                    ->where('assigned_date', $value)
+                                    ->whereDate('assigned_date', $date)
                                     ->when($record, fn ($q) => $q->where('id', '!=', $record->id))
                                     ->exists();
+
                                 if ($exists) {
-                                    $fail(__('This employee already has a shift assigned on this date.'));
+                                    $fail(__('This employee already has a shift assigned starting on this date.'));
                                 }
                             };
                         }),
+                    Forms\Components\DatePicker::make('end_date')
+                        ->label('End date')
+                        ->disabled()
+                        ->dehydrated()
+                        ->required(),
                     Forms\Components\Select::make('status')
                         ->options([
                             'scheduled' => 'Scheduled',
@@ -124,6 +157,31 @@ class ShiftAssignmentResource extends Resource
                         ->when($data['until'], fn ($q, $v) => $q->whereDate('assigned_date', '<=', $v));
                 }),
             ])
+            ->modifyQueryUsing(function ($query) {
+                $user = auth()->user();
+                
+                if ($user) {
+                    // If user is a supervisor, filter by their woreda_id
+                    if ($user->hasRole('supervisor')) {
+                        $supervisor = Employee::where('user_id', $user->id)->first();
+                        if ($supervisor && $supervisor->woreda_id) {
+                            $query->whereHas('employee', function ($q) use ($supervisor) {
+                                $q->where('woreda_id', $supervisor->woreda_id);
+                            });
+                        }
+                    }
+                    
+                    // If user is an officer, show only their own assignments
+                    if ($user->hasRole('officer')) {
+                        $employee = Employee::where('user_id', $user->id)->first();
+                        if ($employee) {
+                            $query->where('employee_id', $employee->id);
+                        }
+                    }
+                }
+                
+                return $query;
+            })
             ->actions([
                 Action::make('check_in')
                     ->label('Check in')
@@ -168,7 +226,19 @@ class ShiftAssignmentResource extends Resource
 
     public static function canCreate(): bool
     {
-        return (bool) auth()->user()?->can('assign_shifts');
+        $user = auth()->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        // Officers are read-only for shift assignments.
+        if ($user->hasRole('officer')) {
+            return false;
+        }
+
+        // Supervisors (and other roles) may create if they have the permission.
+        return (bool) $user->can('assign_shifts');
     }
 
     public static function canEdit($record): bool

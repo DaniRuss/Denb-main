@@ -15,12 +15,14 @@ class ShiftAssignment extends Model
         'shift_id',
         'zone',
         'assigned_date',
+        'end_date',
         'assigned_by',
         'status',
     ];
 
     protected $casts = [
         'assigned_date' => 'date',
+        'end_date' => 'date',
     ];
 
     public function employee()

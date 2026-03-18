@@ -13,7 +13,21 @@ class ListShifts extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\CreateAction::make()
+                ->visible(function (): bool {
+                    $user = auth()->user();
+
+                    if (! $user) {
+                        return false;
+                    }
+
+                    // Officers and supervisors cannot create shift types.
+                    if ($user->hasRole('officer') || $user->hasRole('supervisor')) {
+                        return false;
+                    }
+
+                    return (bool) $user->can('manage_shifts');
+                }),
         ];
     }
 }
