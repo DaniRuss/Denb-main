@@ -21,10 +21,10 @@ use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Actions\Action;
-use Filament\Actions\EditAction;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\BulkActionGroup;
+use Filament\Tables\Actions\Action;
+use Filament\Tables\Actions\EditAction;
+use Filament\Tables\Actions\DeleteBulkAction;
+use Filament\Tables\Actions\BulkActionGroup;
 use Illuminate\Database\Eloquent\Builder;
 
 class IllegalAssetResource extends Resource
@@ -85,15 +85,17 @@ class IllegalAssetResource extends Resource
                 Tables\Columns\TextColumn::make('asset_type')->searchable(),
                 Tables\Columns\TextColumn::make('date_confiscated')->date()->sortable(),
                 Tables\Columns\TextColumn::make('location_found')->searchable(),
-                Tables\Columns\BadgeColumn::make('status')
-                    ->colors([
-                        'primary' => 'Registered',
-                        'warning' => 'Handed Over',
-                        'info' => 'Estimated',
-                        'purple' => 'Transferred',
-                        'success' => 'Sold',
-                        'danger' => 'Disposed',
-                    ]),
+                Tables\Columns\TextColumn::make('status')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'Registered'  => 'primary',
+                        'Handed Over' => 'warning',
+                        'Estimated'   => 'info',
+                        'Transferred' => 'gray',
+                        'Sold'        => 'success',
+                        'Disposed'    => 'danger',
+                        default       => 'secondary',
+                    }),
                 Tables\Columns\TextColumn::make('department.name_en')->label('Department')->searchable(),
             ])
             ->filters([
@@ -122,11 +124,11 @@ class IllegalAssetResource extends Resource
                     ->form([
                         Forms\Components\Select::make('department_id')
                             ->label('Hand Over To Department')
-                            ->relationship('department', 'name_en')
+                            ->options(Department::pluck('name_en', 'id')->toArray())
                             ->required(),
                         Forms\Components\Select::make('handed_over_to_officer_id')
                             ->label('To Officer')
-                            ->relationship('officer', 'badge_number')
+                            ->options(Officer::pluck('badge_number', 'id')->toArray())
                             ->required(),
                         Forms\Components\DatePicker::make('handover_date')
                             ->default(now())->required(),
@@ -164,14 +166,17 @@ class IllegalAssetResource extends Resource
                     ->form([
                         Forms\Components\Select::make('from_department_id')
                             ->label('From Dept')
-                            ->relationship('department', 'name_en')->required(),
+                            ->options(Department::pluck('name_en', 'id')->toArray())
+                            ->required(),
                         Forms\Components\Select::make('to_department_id')
                             ->label('To Dept')
-                            ->relationship('department', 'name_en')->required(),
+                            ->options(Department::pluck('name_en', 'id')->toArray())
+                            ->required(),
                         Forms\Components\TextInput::make('from_storage_facility')->label('From Facility'),
                         Forms\Components\TextInput::make('to_storage_facility')->label('To Facility'),
                         Forms\Components\Select::make('transferred_by_officer_id')
-                            ->relationship('officer', 'badge_number')->label('Transferred By')->required(),
+                            ->options(Officer::pluck('badge_number', 'id')->toArray())
+                            ->label('Transferred By')->required(),
                         Forms\Components\DatePicker::make('transfer_date')->default(now())->required(),
                         Forms\Components\Textarea::make('notes'),
                     ])
@@ -191,7 +196,8 @@ class IllegalAssetResource extends Resource
                         Forms\Components\TextInput::make('buyer_contact'),
                         Forms\Components\TextInput::make('sale_price')->numeric()->prefix('$')->required(),
                         Forms\Components\Select::make('sold_by_officer_id')
-                            ->relationship('officer', 'badge_number')->label('Sold By')->required(),
+                            ->options(Officer::pluck('badge_number', 'id')->toArray())
+                            ->label('Sold By')->required(),
                         Forms\Components\DatePicker::make('sale_date')->default(now())->required(),
                         Forms\Components\Textarea::make('notes'),
                     ])
@@ -215,7 +221,8 @@ class IllegalAssetResource extends Resource
                                 'Other' => 'Other',
                             ])->required(),
                         Forms\Components\Select::make('disposed_by_officer_id')
-                            ->relationship('officer', 'badge_number')->label('Disposed By')->required(),
+                            ->options(Officer::pluck('badge_number', 'id')->toArray())
+                            ->label('Disposed By')->required(),
                         Forms\Components\DatePicker::make('disposal_date')->default(now())->required(),
                         Forms\Components\Textarea::make('notes'),
                     ])
