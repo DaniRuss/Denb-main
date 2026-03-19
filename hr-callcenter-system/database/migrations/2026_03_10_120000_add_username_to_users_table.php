@@ -41,6 +41,10 @@ return new class extends Migration
 
     private function indexExists(string $table, string $index): bool
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return collect(DB::select("PRAGMA index_list('{$table}')"))->pluck('name')->contains($index);
+        }
+
         return DB::table('information_schema.statistics')
             ->where('table_schema', DB::getDatabaseName())
             ->where('table_name', $table)
