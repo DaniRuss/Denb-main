@@ -58,6 +58,11 @@ class ShiftResource extends Resource
                 Tables\Columns\IconColumn::make('is_active')->boolean()->label('Active'),
                 Tables\Columns\TextColumn::make('shift_assignments_count')
                     ->label('Assignments')
+                    ->visible(function (): bool {
+                        $user = auth()->user();
+                        // Officers should not see assignment counts; supervisors/admins can.
+                        return (bool) $user && ! $user->hasRole('officer');
+                    })
                     ->sortable(),
             ])
             ->defaultSort('start_time')

@@ -6,6 +6,7 @@ use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\ShiftAssignment;
 use App\Models\User;
+use App\Support\EthiopianDate;
 use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
@@ -13,6 +14,8 @@ use Filament\Schemas\Schema;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 
 class AttendanceResource extends Resource
 {
@@ -26,9 +29,58 @@ class AttendanceResource extends Resource
 
     protected static ?int $navigationSort = 4;
 
+    public static function getEloquentQuery(): Builder
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        $query = parent::getEloquentQuery();
+
+        if (! $user) {
+            return $query;
+        }
+
+        // Officers should only ever see their own attendance.
+        if ($user->hasRole('officer')) {
+            $employee = Employee::query()->where('user_id', $user->id)->first();
+
+            return $employee
+                ? $query->where('employee_id', $employee->id)
+                : $query->whereRaw('1 = 0');
+        }
+
+        // Supervisors should only ever see attendance within their sub_city/woreda,
+        // for officer employees only.
+        if ($user->hasRole('supervisor')) {
+            $supervisor = Employee::query()->where('user_id', $user->id)->first();
+
+            if (! $supervisor) {
+                return $query->whereRaw('1 = 0');
+            }
+
+            return $query->whereHas('employee', function (Builder $employeeQuery) use ($supervisor) {
+                $employeeQuery->whereHas('user', fn ($q) => $q->role('officer'));
+
+                if ($supervisor->sub_city_id) {
+                    $employeeQuery->where('sub_city_id', $supervisor->sub_city_id);
+                }
+
+                if ($supervisor->woreda_id) {
+                    $employeeQuery->where('woreda_id', $supervisor->woreda_id);
+                }
+
+                // Avoid showing the supervisor as an officer even if data overlaps.
+                $employeeQuery->where('id', '!=', $supervisor->id);
+            });
+        }
+
+        return $query;
+    }
+
     public static function form(Schema $schema): Schema
     {
-        $user = auth()->user();
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
         $employee = $user instanceof User
             ? Employee::query()->where('user_id', $user->id)->first()
             : null;
@@ -39,19 +91,53 @@ class AttendanceResource extends Resource
                 ->schema([
                     Forms\Components\Select::make('employee_id')
                         ->label('Employee')
-                        ->options(
-                            Employee::query()
+                        ->options(function () {
+                            /** @var \App\Models\User|null $user */
+                            $user = Auth::user();
+
+                            $query = Employee::query()
                                 ->active()
-                                ->orderBy('first_name_am')
+                                ->orderBy('first_name_am');
+
+                            if ($user && $user->hasRole('officer')) {
+                                // Officers can only select themselves.
+                                $query->where('user_id', $user->id);
+                            }
+
+                            if ($user && $user->hasRole('supervisor')) {
+                                $supervisor = Employee::query()->where('user_id', $user->id)->first();
+
+                                if ($supervisor) {
+                                    if ($supervisor->sub_city_id) {
+                                        $query->where('sub_city_id', $supervisor->sub_city_id);
+                                    }
+
+                                    if ($supervisor->woreda_id) {
+                                        $query->where('woreda_id', $supervisor->woreda_id);
+                                    }
+
+                                    $query->whereHas('user', fn ($q) => $q->role('officer'));
+                                    $query->where('id', '!=', $supervisor->id);
+                                } else {
+                                    $query->whereRaw('1 = 0');
+                                }
+                            }
+
+                            return $query
                                 ->get()
                                 ->mapWithKeys(fn ($e) => [$e->id => $e->employee_id . ' – ' . $e->full_name_am])
-                                ->all()
-                        )
+                                ->all();
+                        })
                         ->searchable()
                         ->default($defaultEmployeeId)
                         ->required()
                         ->live()
-                        ->disabled(fn () => auth()->user()?->hasRole('officer') && $defaultEmployeeId),
+                        ->disabled(function () use ($defaultEmployeeId): bool {
+                            /** @var \App\Models\User|null $user */
+                            $user = Auth::user();
+
+                            return (bool) ($user?->hasRole('officer') && $defaultEmployeeId);
+                        }),
                     Forms\Components\Select::make('shift_assignment_id')
                         ->label('Shift Assignment')
                         ->options(fn (Get $get) => ShiftAssignment::query()
@@ -59,11 +145,16 @@ class AttendanceResource extends Resource
                             ->whereIn('status', ['scheduled', 'completed'])
                             ->orderBy('assigned_date', 'desc')
                             ->get()
-                            ->mapWithKeys(fn ($a) => [$a->id => $a->assigned_date->format('Y-m-d') . ' – ' . $a->shift?->name . ' (Zone ' . $a->zone . ')'])
+                            ->mapWithKeys(fn ($a) => [$a->id => (EthiopianDate::toEcYmd($a->assigned_date) ?? $a->assigned_date->format('Y-m-d')) . ' – ' . $a->shift?->name . ' (Zone ' . $a->zone . ')'])
                             ->all())
                         ->searchable()
                         ->required()
-                        ->disabled(fn () => auth()->user()?->hasRole('officer') && $defaultEmployeeId),
+                        ->disabled(function () use ($defaultEmployeeId): bool {
+                            /** @var \App\Models\User|null $user */
+                            $user = Auth::user();
+
+                            return (bool) ($user?->hasRole('officer') && $defaultEmployeeId);
+                        }),
                     Forms\Components\DateTimePicker::make('check_in')
                         ->seconds(false)
                         ->default(now())
@@ -83,10 +174,19 @@ class AttendanceResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('employee.employee_id')->label('Employee ID')->sortable()->searchable(),
                 Tables\Columns\TextColumn::make('employee.full_name_am')->label('Employee')->searchable(['first_name_am', 'last_name_am']),
-                Tables\Columns\TextColumn::make('shiftAssignment.assigned_date')->date()->label('Shift date')->sortable(),
+                Tables\Columns\TextColumn::make('shiftAssignment.assigned_date')
+                    ->label('Shift date (EC)')
+                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmd($state) ?? '-')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('shiftAssignment.shift.name')->label('Shift'),
-                Tables\Columns\TextColumn::make('check_in')->dateTime()->sortable(),
-                Tables\Columns\TextColumn::make('check_out')->dateTime()->sortable(),
+                Tables\Columns\TextColumn::make('check_in')
+                    ->label('Check in (EC)')
+                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmdHi($state) ?? '-')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('check_out')
+                    ->label('Check out (EC)')
+                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmdHi($state) ?? '-')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('attendance_status')->badge()
                     ->color(fn (string $state): string => match ($state) {
                         'present' => 'success',
@@ -109,11 +209,34 @@ class AttendanceResource extends Resource
                     ]),
             ])
             ->modifyQueryUsing(function ($query) {
-                $user = auth()->user();
+                /** @var \App\Models\User|null $user */
+                $user = Auth::user();
                 if ($user && $user->hasRole('officer')) {
                     $employee = Employee::query()->where('user_id', $user->id)->first();
                     if ($employee) {
                         $query->where('employee_id', $employee->id);
+                    }
+                }
+
+                if ($user && $user->hasRole('supervisor')) {
+                    $supervisor = Employee::query()->where('user_id', $user->id)->first();
+
+                    if ($supervisor) {
+                        $query->whereHas('employee', function (Builder $employeeQuery) use ($supervisor) {
+                            $employeeQuery->whereHas('user', fn ($q) => $q->role('officer'));
+
+                            if ($supervisor->sub_city_id) {
+                                $employeeQuery->where('sub_city_id', $supervisor->sub_city_id);
+                            }
+
+                            if ($supervisor->woreda_id) {
+                                $employeeQuery->where('woreda_id', $supervisor->woreda_id);
+                            }
+
+                            $employeeQuery->where('id', '!=', $supervisor->id);
+                        });
+                    } else {
+                        $query->whereRaw('1 = 0');
                     }
                 }
                 return $query;
@@ -132,18 +255,23 @@ class AttendanceResource extends Resource
 
     public static function canViewAny(): bool
     {
-        $user = auth()->user();
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
         return (bool) $user && ($user->can('view_attendance') || $user->can('manage_attendance'));
     }
 
     public static function canCreate(): bool
     {
-        return (bool) auth()->user()?->can('manage_attendance');
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return (bool) $user?->can('manage_attendance');
     }
 
     public static function canEdit($record): bool
     {
-        $user = auth()->user();
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
 
         if (! $user) {
             return false;
@@ -158,7 +286,8 @@ class AttendanceResource extends Resource
 
     public static function canDelete($record): bool
     {
-        $user = auth()->user();
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
 
         if (! $user) {
             return false;

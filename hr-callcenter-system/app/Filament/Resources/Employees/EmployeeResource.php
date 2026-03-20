@@ -20,6 +20,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Auth;
 
 class EmployeeResource extends Resource
 {
@@ -27,7 +28,7 @@ class EmployeeResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Shift Management';
+    protected static string|\UnitEnum|null $navigationGroup = 'Human Resources';
 
     protected static ?string $navigationLabel = 'Employees';
 
@@ -82,21 +83,33 @@ class EmployeeResource extends Resource
     /** Shift Management: only roles that assign shifts see Employees. */
     public static function canViewAny(): bool
     {
-        return (bool) auth()->user()?->can('assign_shifts');
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return (bool) $user?->can('assign_shifts');
     }
 
     public static function canCreate(): bool
     {
-        return (bool) auth()->user()?->can('assign_shifts');
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return (bool) $user?->can('assign_shifts');
     }
 
     public static function canEdit($record): bool
     {
-        return (bool) auth()->user()?->can('assign_shifts');
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return (bool) $user?->can('assign_shifts');
     }
 
     public static function canDelete($record): bool
     {
-        return (bool) auth()->user()?->can('assign_shifts');
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return (bool) $user?->can('assign_shifts');
     }
 }

@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Models\Employee;
 use App\Models\ShiftAssignment;
 use App\Models\ShiftSwap;
+use App\Support\EthiopianDate;
 use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
@@ -12,6 +13,7 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
 
 class ShiftSwapResource extends Resource
 {
@@ -71,7 +73,7 @@ class ShiftSwapResource extends Resource
                                 ->with('shift')
                                 ->orderBy('assigned_date', 'asc')
                                 ->get()
-                                ->mapWithKeys(fn ($a) => [$a->id => $a->assigned_date->format('Y-m-d') . ' – ' . ($a->shift?->name ?? '') . ' (Zone ' . $a->zone . ')'])
+                                ->mapWithKeys(fn ($a) => [$a->id => (EthiopianDate::toEcYmd($a->assigned_date) ?? $a->assigned_date->format('Y-m-d')) . ' – ' . ($a->shift?->name ?? '') . ' (Zone ' . $a->zone . ')'])
                                 ->all();
                         })
                         ->required()
@@ -123,7 +125,9 @@ class ShiftSwapResource extends Resource
                 Tables\Columns\TextColumn::make('employeeFrom.full_name_am')->label('From'),
                 Tables\Columns\TextColumn::make('employeeTo.employee_id')->label('To (ID)')->sortable(),
                 Tables\Columns\TextColumn::make('employeeTo.full_name_am')->label('To'),
-                Tables\Columns\TextColumn::make('shiftAssignment.assigned_date')->date()->label('Shift date'),
+                Tables\Columns\TextColumn::make('shiftAssignment.assigned_date')
+                    ->label('Shift date (EC)')
+                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmd($state) ?? '-'),
                 Tables\Columns\TextColumn::make('shiftAssignment.shift.name')->label('Shift'),
                 Tables\Columns\TextColumn::make('status')->badge()
                     ->color(fn (string $state): string => match ($state) {
@@ -136,7 +140,8 @@ class ShiftSwapResource extends Resource
             ])
             ->defaultSort('created_at', 'desc')
             ->modifyQueryUsing(function ($query) {
-                $user = auth()->user();
+                /** @var \App\Models\User|null $user */
+                $user = Auth::user();
                 if ($user && ! $user->can('approve_shift_swap')) {
                     $employee = Employee::query()->where('user_id', $user->id)->first();
                     if ($employee) {
@@ -166,23 +171,35 @@ class ShiftSwapResource extends Resource
     /** Shift Swap is hidden from officers; only supervisors/admins see and manage it. */
     public static function canViewAny(): bool
     {
-        return (bool) auth()->user()?->can('approve_shift_swap');
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return (bool) $user?->can('approve_shift_swap');
     }
 
     /** Only supervisors/admins create and approve swaps; officers can only view. */
     public static function canCreate(): bool
     {
-        return (bool) auth()->user()?->can('approve_shift_swap');
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return (bool) $user?->can('approve_shift_swap');
     }
 
     /** Only supervisors/admins can approve or reject. */
     public static function canEdit($record): bool
     {
-        return (bool) auth()->user()?->can('approve_shift_swap');
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return (bool) $user?->can('approve_shift_swap');
     }
 
     public static function canDelete($record): bool
     {
-        return (bool) auth()->user()?->can('approve_shift_swap');
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return (bool) $user?->can('approve_shift_swap');
     }
 }

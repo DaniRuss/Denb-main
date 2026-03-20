@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Employee extends Model
@@ -64,42 +66,42 @@ class Employee extends Model
         'is_suspended_payment' => 'boolean',
     ];
 
-    public function subCity()
+    public function subCity(): BelongsTo
     {
         return $this->belongsTo(SubCity::class);
     }
 
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    public function woreda()
+    public function woreda(): BelongsTo
     {
         return $this->belongsTo(Woreda::class);
     }
 
-    public function uniformDistributions()
+    public function uniformDistributions(): HasMany
     {
         return $this->hasMany(UniformDistribution::class);
     }
 
-    public function disciplineHistories()
+    public function disciplineHistories(): HasMany
     {
         return $this->hasMany(EmployeeDisciplineHistory::class);
     }
 
-    public function shiftAssignments()
+    public function shiftAssignments(): HasMany
     {
         return $this->hasMany(ShiftAssignment::class);
     }
 
-    public function attendances()
+    public function attendances(): HasMany
     {
         return $this->hasMany(Attendance::class);
     }
 
-    public function dailyShiftReports()
+    public function dailyShiftReports(): HasMany
     {
         return $this->hasMany(DailyShiftReport::class);
     }
