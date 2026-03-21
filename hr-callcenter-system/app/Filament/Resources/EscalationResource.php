@@ -29,6 +29,25 @@ class EscalationResource extends Resource
                         ->label('Complaint')
                         ->options(Complaint::pluck('ticket_number', 'id'))
                         ->searchable()
+                        ->nullable(),
+
+                    \Filament\Forms\Components\Select::make('caseable_type')
+                        ->label('Case Type')
+                        ->options([
+                            'App\Models\Complaint' => 'Complaint',
+                            'App\Models\Tip' => 'Tip',
+                        ])
+                        ->required()
+                        ->reactive(),
+
+                    \Filament\Forms\Components\Select::make('caseable_id')
+                        ->label('Case ID')
+                        ->options(function (callable $get) {
+                            $type = $get('caseable_type');
+                            if (!$type) return [];
+                            return $type::pluck($type === 'App\Models\Complaint' ? 'ticket_number' : 'tip_number', 'id');
+                        })
+                        ->searchable()
                         ->required(),
 
                     \Filament\Forms\Components\Select::make('escalated_by')
@@ -39,29 +58,26 @@ class EscalationResource extends Resource
 
                     \Filament\Forms\Components\Select::make('escalated_to')
                         ->label('Escalated To')
-                        ->options(User::whereHas('roles', fn($q) => $q->whereIn('name', ['admin', 'supervisor', 'director']))->pluck('name', 'id'))
+                        ->options(User::pluck('name', 'id'))
                         ->searchable()
                         ->nullable(),
 
-                    \Filament\Forms\Components\Select::make('level')
-                        ->label('Escalation Level')
-                        ->options([
-                            '1' => 'Level 1 — Team Lead',
-                            '2' => 'Level 2 — Supervisor',
-                            '3' => 'Level 3 — Director',
-                            '4' => 'Level 4 — Commissioner',
-                        ])
+                    \Filament\Forms\Components\TextInput::make('from_level')
+                        ->numeric()
+                        ->required(),
+
+                    \Filament\Forms\Components\TextInput::make('to_level')
+                        ->numeric()
                         ->required(),
 
                     \Filament\Forms\Components\Select::make('status')
                         ->label('Status')
                         ->options([
-                            'open' => 'Open',
-                            'in_review' => 'In Review',
+                            'pending' => 'Pending',
+                            'reviewed' => 'Reviewed',
                             'resolved' => 'Resolved',
-                            'closed' => 'Closed',
                         ])
-                        ->default('open')
+                        ->default('pending')
                         ->required(),
 
                     \Filament\Forms\Components\Textarea::make('reason')
@@ -69,9 +85,20 @@ class EscalationResource extends Resource
                         ->required()
                         ->columnSpanFull(),
 
+                    \Filament\Forms\Components\Textarea::make('reason_details')
+                        ->label('Detailed Reason')
+                        ->required()
+                        ->columnSpanFull(),
+
                     \Filament\Forms\Components\Textarea::make('notes')
                         ->label('Additional Notes')
                         ->columnSpanFull(),
+
+                    \Filament\Forms\Components\DateTimePicker::make('escalated_at')
+                        ->default(now())
+                        ->required(),
+
+                    \Filament\Forms\Components\DateTimePicker::make('responded_at'),
                 ])->columns(2),
         ]);
     }
@@ -80,34 +107,35 @@ class EscalationResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('complaint.ticket_number')
-                    ->label('Ticket #')
-                    ->searchable()
-                    ->sortable(),
+                Tables\Columns\TextColumn::make('caseable_type')
+                    ->label('Type')
+                    ->formatStateUsing(fn($state) => str($state)->afterLast('\\')->toString()),
+
+                Tables\Columns\TextColumn::make('caseable_id')
+                    ->label('ID'),
 
                 Tables\Columns\TextColumn::make('escalatedBy.name')
-                    ->label('Escalated By'),
+                    ->label('By'),
 
                 Tables\Columns\TextColumn::make('escalatedTo.name')
-                    ->label('Escalated To'),
+                    ->label('To'),
 
-                Tables\Columns\TextColumn::make('level')
-                    ->label('Level')
-                    ->badge()
-                    ->formatStateUsing(fn($state) => "Level $state"),
+                Tables\Columns\TextColumn::make('from_level')
+                    ->label('From'),
+
+                Tables\Columns\TextColumn::make('to_level')
+                    ->label('To'),
 
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
                     ->color(fn($state) => match ($state) {
-                        'open' => 'danger',
-                        'in_review' => 'warning',
+                        'pending' => 'danger',
+                        'reviewed' => 'warning',
                         'resolved' => 'success',
-                        'closed' => 'gray',
                         default => 'secondary',
                     }),
 
-                Tables\Columns\TextColumn::make('created_at')
-                    ->label('Escalated On')
+                Tables\Columns\TextColumn::make('escalated_at')
                     ->dateTime()
                     ->sortable(),
             ])

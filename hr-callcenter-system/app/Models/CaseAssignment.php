@@ -10,19 +10,40 @@ class CaseAssignment extends Model
     use HasFactory;
 
     protected $fillable = [
+        'caseable_type',
+        'caseable_id',
         'complaint_id',
-        'officer_id',
         'assigned_by',
-        'status',
-        'notes',
-        'due_date',
+        'assigned_to',
+        'department_id',
+        'assignment_type',
+        'assignment_notes',
+        'assigned_at',
+        'deadline',
         'completed_at',
+        'status',
     ];
 
     protected $casts = [
-        'due_date' => 'date',
+        'assigned_at' => 'datetime',
+        'deadline' => 'datetime',
         'completed_at' => 'datetime',
     ];
+
+    public function caseable()
+    {
+        return $this->morphTo();
+    }
+
+    public function assignedTo()
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    public function department()
+    {
+        return $this->belongsTo(Department::class);
+    }
 
     public function complaint()
     {
