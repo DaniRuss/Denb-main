@@ -32,14 +32,14 @@ class SqlImportSeeder extends Seeder
             $statement = trim($statement);
             if (empty($statement)) continue;
 
-            // Remove comments from the beginning of the statement
-            $statement = preg_replace('/^(\s*--.*?\n|\s*\/\*.*?\*\/)+/s', '', $statement);
+            // More aggressive comment removal
+            $statement = preg_replace('/(\/\*.*?\*\/|--.*?\n|#.*?\n)/s', '', $statement);
             $statement = trim($statement);
 
             if (empty($statement)) continue;
 
-            // Check if it's an INSERT statement
-            if (preg_match('/^INSERT INTO/i', $statement)) {
+            // Match INSERT INTO anywhere at the start of the cleaned statement
+            if (preg_match('/^\s*INSERT\s+INTO/i', $statement)) {
                 try {
                     // SQLite specific cleaning
                     $cleanStatement = str_replace('`', '"', $statement);
@@ -47,6 +47,12 @@ class SqlImportSeeder extends Seeder
                     // Remove MySQL specific bits
                     $cleanStatement = preg_replace('/CHARACTER SET \w+/i', '', $cleanStatement);
                     
+                    // For model_has_roles, ensure the model_type matches the current project
+                    // The project uses App\Models\User. If SQL has App\User, we should fix it.
+                    if (strpos($cleanStatement, '"model_has_roles"') !== false) {
+                        $cleanStatement = str_replace('App\\\\User', 'App\\\\Models\\\\User', $cleanStatement);
+                    }
+
                     \Illuminate\Support\Facades\DB::unprepared($cleanStatement);
                     $this->command->info("Ran: " . substr($statement, 0, 50) . "...");
                 } catch (\Exception $e) {
@@ -54,7 +60,7 @@ class SqlImportSeeder extends Seeder
                     $this->command->error($e->getMessage());
                 }
             } else {
-                $this->command->line("Skipping (not an INSERT): " . substr($statement, 0, 30) . "...");
+                // $this->command->line("Skipping (not an INSERT): " . substr($statement, 0, 30) . "...");
             }
         }
         } finally {
