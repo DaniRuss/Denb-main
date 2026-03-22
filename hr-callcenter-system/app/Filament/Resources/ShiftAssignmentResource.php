@@ -6,6 +6,7 @@ use App\Models\Employee;
 use App\Models\Shift;
 use App\Models\Attendance;
 use App\Models\ShiftAssignment;
+use App\Models\SubCity;
 use App\Models\User;
 use App\Support\EthiopianDate;
 use Filament\Forms;
@@ -34,6 +35,101 @@ class ShiftAssignmentResource extends Resource
 
     protected static ?int $navigationSort = 3;
 
+    /**
+     * Employee row linked to this supervisor login (for self-exclusion, etc.).
+     */
+    public static function resolveSupervisorEmployee(?User $user = null): ?Employee
+    {
+        $user = $user ?? Auth::user();
+
+        if (! $user instanceof User || ! $user->hasRole('supervisor')) {
+            return null;
+        }
+
+        $byUserId = Employee::query()->where('user_id', $user->id)->first();
+        if ($byUserId) {
+            return $byUserId;
+        }
+
+        if (filled($user->email)) {
+            $byEmail = Employee::query()->where('email', $user->email)->first();
+            if ($byEmail) {
+                return $byEmail;
+            }
+        }
+
+        if (filled($user->username)) {
+            return Employee::query()->where('employee_id', $user->username)->first();
+        }
+
+        return null;
+    }
+
+    /**
+     * Geographic scope for supervisor shift roster: sub_city / woreda + optional self row to exclude.
+     * Uses employee record when present; otherwise maps User.sub_city (string) to sub_cities.id.
+     *
+     * @return array{sub_city_id: ?int, woreda_id: ?int, exclude_employee_id: ?int}|null
+     */
+    public static function resolveSupervisorGeography(?User $user = null): ?array
+    {
+        $user = $user ?? Auth::user();
+
+        if (! $user instanceof User || ! $user->hasRole('supervisor')) {
+            return null;
+        }
+
+        $employee = static::resolveSupervisorEmployee($user);
+
+        $subCityId = $employee?->sub_city_id;
+        $woredaId = $employee?->woreda_id;
+        $excludeId = $employee?->id;
+
+        if (! $subCityId && filled($user->sub_city)) {
+            $needle = trim((string) $user->sub_city);
+            $lower = mb_strtolower($needle);
+
+            $subCityId = SubCity::query()
+                ->where(function ($q) use ($needle, $lower) {
+                    $q->where('name_en', $needle)
+                        ->orWhere('name_am', $needle)
+                        ->orWhereRaw('LOWER(name_en) = ?', [$lower])
+                        ->orWhereRaw('LOWER(name_am) = ?', [$lower]);
+                })
+                ->value('id');
+        }
+
+        if (! $subCityId && ! $woredaId) {
+            return null;
+        }
+
+        return [
+            'sub_city_id' => $subCityId,
+            'woreda_id' => $woredaId,
+            'exclude_employee_id' => $excludeId,
+        ];
+    }
+
+    /**
+     * Roster: active staff in supervisor geography who are not admin/supervisor app users.
+     * Includes officers without login (user_id null) and field staff who are not elevated roles.
+     */
+    protected static function applySupervisorRosterStaffFilter(Builder $query, string $guard): Builder
+    {
+        return $query->where(function (Builder $q) use ($guard) {
+            $q->whereNull('employees.user_id')
+                ->orWhereNotExists(function ($sub) use ($guard) {
+                    $sub->select(DB::raw(1))
+                        ->from('model_has_roles')
+                        ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                        ->whereColumn('model_has_roles.model_id', 'employees.user_id')
+                        ->where('model_has_roles.model_type', '=', User::class)
+                        ->whereIn('roles.name', ['admin', 'supervisor'])
+                        ->where('roles.guard_name', '=', $guard);
+                });
+        });
+    }
+
     public static function getEloquentQuery(): Builder
     {
         /** @var \App\Models\User|null $user */
@@ -56,11 +152,17 @@ class ShiftAssignmentResource extends Resource
         // Supervisors should see all officers in their sub_city/woreda, even if
         // they do not currently have a scheduled assignment.
         if ($user->hasRole('supervisor')) {
-            $supervisor = Employee::query()->where('user_id', $user->id)->first();
-            if ($supervisor) {
-                $today = now()->toDateString();
+            $geo = static::resolveSupervisorGeography($user);
 
-                return ShiftAssignment::query()
+            if (! $geo) {
+                return ShiftAssignment::query()->whereRaw('1 = 0');
+            }
+
+            $today = now()->toDateString();
+            $guard = (string) config('auth.defaults.guard', 'web');
+
+            return static::applySupervisorRosterStaffFilter(
+                ShiftAssignment::query()
                     ->from('employees')
                     ->leftJoin('shift_assignments', function ($join) use ($today) {
                         $join->on('shift_assignments.employee_id', '=', 'employees.id')
@@ -79,19 +181,12 @@ class ShiftAssignmentResource extends Resource
                         'shift_assignments.assigned_by',
                         DB::raw("CASE WHEN shift_assignments.id IS NULL THEN 'unassigned' ELSE 'assigned' END as status"),
                     ])
-                    ->where('employees.id', '!=', $supervisor->id)
                     ->where('employees.status', 'active')
-                    ->when($supervisor->sub_city_id, fn ($q, $v) => $q->where('employees.sub_city_id', $v))
-                    ->when($supervisor->woreda_id, fn ($q, $v) => $q->where('employees.woreda_id', $v))
-                    ->join('users', 'users.id', '=', 'employees.user_id')
-                    ->join('model_has_roles', function ($join) {
-                        $join->on('model_has_roles.model_id', '=', 'users.id')
-                            ->where('model_has_roles.model_type', User::class);
-                    })
-                    ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
-                    ->where('roles.name', 'officer')
-                    ->distinct();
-            }
+                    ->when($geo['exclude_employee_id'], fn ($q, $id) => $q->where('employees.id', '!=', $id))
+                    ->when($geo['sub_city_id'], fn ($q, $v) => $q->where('employees.sub_city_id', $v))
+                    ->when($geo['woreda_id'], fn ($q, $v) => $q->where('employees.woreda_id', $v)),
+                $guard
+            )->distinct();
         }
 
         return $query;
@@ -117,18 +212,28 @@ class ShiftAssignmentResource extends Resource
         }
 
         if ($user->hasRole('supervisor')) {
-            $supervisor = Employee::query()->where('user_id', $user->id)->first();
+            $geo = static::resolveSupervisorGeography($user);
 
-            if (! $supervisor) {
+            if (! $geo) {
                 return $query->whereRaw('1 = 0');
             }
 
-            return $query->whereHas('employee', function ($q) use ($supervisor) {
-                $q->where('id', '!=', $supervisor->id)
-                    ->where('status', 'active')
-                    ->when($supervisor->sub_city_id, fn ($sq, $v) => $sq->where('sub_city_id', $v))
-                    ->when($supervisor->woreda_id, fn ($sq, $v) => $sq->where('woreda_id', $v))
-                    ->whereHas('user', fn ($uq) => $uq->role('officer'));
+            $guard = (string) config('auth.defaults.guard', 'web');
+
+            return $query->whereHas('employee', function ($q) use ($geo, $guard) {
+                $q->where('status', 'active')
+                    ->when($geo['exclude_employee_id'], fn ($sq, $id) => $sq->where('id', '!=', $id))
+                    ->when($geo['sub_city_id'], fn ($sq, $id) => $sq->where('sub_city_id', $id))
+                    ->when($geo['woreda_id'], fn ($sq, $id) => $sq->where('woreda_id', $id))
+                    ->where(function ($eq) use ($guard) {
+                        $eq->whereNull('user_id')
+                            ->orWhereHas('user', function ($uq) use ($guard) {
+                                $uq->whereDoesntHave('roles', function ($rq) use ($guard) {
+                                    $rq->whereIn('name', ['admin', 'supervisor'])
+                                        ->where('guard_name', $guard);
+                                });
+                            });
+                    });
             });
         }
 

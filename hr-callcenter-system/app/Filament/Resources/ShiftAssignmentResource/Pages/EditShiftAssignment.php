@@ -29,18 +29,28 @@ class EditShiftAssignment extends EditRecord
 
             $query->where('employee_id', $employee?->id ?? 0);
         } elseif ($user->hasRole('supervisor')) {
-            $supervisor = Employee::query()->where('user_id', $user->id)->first();
+            $geo = ShiftAssignmentResource::resolveSupervisorGeography($user);
 
-            if (! $supervisor) {
+            if (! $geo) {
                 abort(403);
             }
 
-            $query->whereHas('employee', function ($q) use ($supervisor) {
-                $q->where('id', '!=', $supervisor->id)
-                    ->where('status', 'active')
-                    ->when($supervisor->sub_city_id, fn ($sq, $v) => $sq->where('sub_city_id', $v))
-                    ->when($supervisor->woreda_id, fn ($sq, $v) => $sq->where('woreda_id', $v))
-                    ->whereHas('user', fn ($uq) => $uq->role('officer'));
+            $guard = (string) config('auth.defaults.guard', 'web');
+
+            $query->whereHas('employee', function ($q) use ($geo, $guard) {
+                $q->where('status', 'active')
+                    ->when($geo['exclude_employee_id'], fn ($sq, $id) => $sq->where('id', '!=', $id))
+                    ->when($geo['sub_city_id'], fn ($sq, $id) => $sq->where('sub_city_id', $id))
+                    ->when($geo['woreda_id'], fn ($sq, $id) => $sq->where('woreda_id', $id))
+                    ->where(function ($eq) use ($guard) {
+                        $eq->whereNull('user_id')
+                            ->orWhereHas('user', function ($uq) use ($guard) {
+                                $uq->whereDoesntHave('roles', function ($rq) use ($guard) {
+                                    $rq->whereIn('name', ['admin', 'supervisor'])
+                                        ->where('guard_name', $guard);
+                                });
+                            });
+                    });
             });
         }
 
