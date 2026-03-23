@@ -280,7 +280,7 @@ class ShiftAssignmentResource extends Resource
                                         ->whereHas('user', fn ($q) => $q->role('officer'));
                                 }
                             }
-                            
+
                             return $query->get()
                                 ->mapWithKeys(fn ($e) => [$e->id => $e->employee_id . ' - ' . $e->full_name_am])
                                 ->all();
@@ -405,18 +405,18 @@ class ShiftAssignmentResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('employee.employee_id')->label('Employee ID')->searchable(),
-                Tables\Columns\TextColumn::make('employee.full_name_am')->label('Employee')->searchable(['first_name_am', 'last_name_am']),
-                Tables\Columns\TextColumn::make('shift.name')->sortable(),
-                Tables\Columns\TextColumn::make('zone')->searchable()->sortable(),
+                Tables\Columns\TextColumn::make('employee.employee_id')->label('Employee ID')->searchable()->placeholder('---'),
+                Tables\Columns\TextColumn::make('employee.full_name_am')->label('Employee')->searchable(['first_name_am', 'last_name_am'])->placeholder('---'),
+                Tables\Columns\TextColumn::make('shift.name')->sortable()->placeholder('---'),
+                Tables\Columns\TextColumn::make('zone')->searchable()->sortable()->placeholder('---'),
                 Tables\Columns\TextColumn::make('assigned_date')
                     ->label('Start (EC)')
                     ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmd($state) ?? '-')
-                    ->sortable(),
+                    ->sortable()->placeholder('---'),
                 Tables\Columns\TextColumn::make('end_date')
                     ->label('End (EC)')
                     ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmd($state) ?? '-')
-                    ->sortable(),
+                    ->sortable()->placeholder('---'),
                 Tables\Columns\TextColumn::make('status')->badge()
                     ->color(fn (string $state): string => match ($state) {
                         'assigned' => 'success',
@@ -427,7 +427,7 @@ class ShiftAssignmentResource extends Resource
                         'no_show' => 'danger',
                         default => 'gray',
                     }),
-                Tables\Columns\TextColumn::make('assignedBy.name')->label('Assigned by')->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('assignedBy.name')->label('Assigned by')->toggleable(isToggledHiddenByDefault: true)->placeholder('---'),
             ])
             ->defaultSort('employee_id')
             ->recordUrl(function (ShiftAssignment $record): ?string {
@@ -488,12 +488,12 @@ class ShiftAssignmentResource extends Resource
             ->modifyQueryUsing(function ($query) {
                 /** @var \App\Models\User|null $user */
                 $user = Auth::user();
-                
+
                 if ($user) {
                     if ($user->hasRole('supervisor')) {
                         return $query;
                     }
-                    
+
                     // If user is an officer, show only their own assignments
                     if ($user->hasRole('officer')) {
                         $employee = Employee::where('user_id', $user->id)->first();
@@ -502,7 +502,7 @@ class ShiftAssignmentResource extends Resource
                         }
                     }
                 }
-                
+
                 return $query;
             })
             ->actions([
