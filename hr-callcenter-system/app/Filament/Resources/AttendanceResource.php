@@ -6,8 +6,11 @@ use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\ShiftAssignment;
 use App\Models\User;
+use App\Filament\Resources\ShiftReportResource;
 use App\Support\EthiopianDate;
+use Filament\Actions\Action;
 use Filament\Forms;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -16,6 +19,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Carbon;
 
 class AttendanceResource extends Resource
 {
@@ -145,7 +149,7 @@ class AttendanceResource extends Resource
                             ->whereIn('status', ['scheduled', 'completed'])
                             ->orderBy('assigned_date', 'desc')
                             ->get()
-                            ->mapWithKeys(fn ($a) => [$a->id => (EthiopianDate::toEcYmd($a->assigned_date) ?? $a->assigned_date->format('Y-m-d')) . ' – ' . $a->shift?->name . ' (Zone ' . $a->zone . ')'])
+                            ->mapWithKeys(fn ($a) => [$a->id => (EthiopianDate::toEcYmd($a->assigned_date) ?? $a->assigned_date->format('Y-m-d')) . ' – ' . $a->shift?->name . ' (Block ' . $a->block . ')'])
                             ->all())
                         ->searchable()
                         ->required()
@@ -196,6 +200,11 @@ class AttendanceResource extends Resource
                         'half_day' => 'info',
                         default => 'gray',
                     }),
+                Tables\Columns\TextColumn::make('remarks')
+                    ->label('Reasons')
+                    ->limit(80)
+                    ->wrap()
+                    ->toggleable(isToggledHiddenByDefault: false),
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
@@ -215,6 +224,12 @@ class AttendanceResource extends Resource
                     $employee = Employee::query()->where('user_id', $user->id)->first();
                     if ($employee) {
                         $query->where('employee_id', $employee->id);
+                        // Officers should only see today's shift rows.
+                        $query->whereHas('shiftAssignment', function (Builder $shiftAssignmentQuery) {
+                            $shiftAssignmentQuery
+                                ->whereDate('assigned_date', Carbon::today())
+                                ->where('status', 'scheduled');
+                        });
                     }
                 }
 
@@ -241,7 +256,195 @@ class AttendanceResource extends Resource
                 }
                 return $query;
             })
-            ->actions([]);
+            ->actions([
+                Action::make('check_in')
+                    ->label('Check in')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->visible(function (Attendance $record): bool {
+                        /** @var \App\Models\User|null $user */
+                        $user = Auth::user();
+                        if (! $user?->hasRole('officer')) {
+                            return false;
+                        }
+
+                        $assignment = $record->shiftAssignment;
+                        $shift = $assignment?->shift;
+                        if (! $assignment || ! $shift) {
+                            return false;
+                        }
+
+                        if ($record->check_in) {
+                            return false;
+                        }
+
+                        if (($assignment->status ?? null) !== 'scheduled') {
+                            return false;
+                        }
+
+                        // Past shifts should not allow check-in.
+                        $assignedDate = Carbon::parse($assignment->assigned_date)->format('Y-m-d');
+                        $start = Carbon::parse($assignedDate . ' ' . $shift->start_time);
+                        $end = Carbon::parse($assignedDate . ' ' . $shift->end_time);
+                        if ($end->lessThanOrEqualTo($start)) {
+                            $end->addDay();
+                        }
+
+                        return ! now()->greaterThan($end);
+                    })
+                    ->disabled(function (Attendance $record): bool {
+                        $assignment = $record->shiftAssignment;
+                        if (! $assignment) {
+                            return true;
+                        }
+
+                        // Disabled until shift becomes active.
+                        return ! $assignment->isWithinShift();
+                    })
+                    ->action(function (Attendance $record): void {
+                        $assignment = $record->shiftAssignment;
+
+                        if (! $assignment || ! $assignment->isWithinShift()) {
+                            Notification::make()
+                                ->title('Check-in is available only during the active shift window.')
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+
+                        if ($record->check_in) {
+                            Notification::make()
+                                ->title('Already checked in.')
+                                ->warning()
+                                ->send();
+                            return;
+                        }
+
+                        $record->check_in = Carbon::parse(now());
+                        $record->check_in_location = null;
+                        $record->save();
+
+                        Notification::make()
+                            ->title('Check-in recorded successfully.')
+                            ->success()
+                            ->send();
+                    }),
+
+                Action::make('check_out')
+                    ->label('Check out & go to report')
+                    ->icon('heroicon-o-arrow-right-on-rectangle')
+                    ->color('primary')
+                    ->form([
+                        Forms\Components\Textarea::make('earlyCheckoutReason')
+                            ->label('Reason for early checkout')
+                            ->rows(3)
+                            ->maxLength(2000),
+                        Forms\Components\Textarea::make('lateReason')
+                            ->label('Reason for late check-in')
+                            ->rows(3)
+                            ->maxLength(2000),
+                    ])
+                    ->visible(function (Attendance $record): bool {
+                        /** @var \App\Models\User|null $user */
+                        $user = Auth::user();
+                        if (! $user?->hasRole('officer')) {
+                            return false;
+                        }
+
+                        $assignment = $record->shiftAssignment;
+                        if (! $assignment || ! $assignment->shift) {
+                            return false;
+                        }
+
+                        if (! $record->check_in || $record->check_out) {
+                            return false;
+                        }
+
+                        if (($assignment->status ?? null) !== 'scheduled') {
+                            return false;
+                        }
+
+                        // Only show while shift is active.
+                        return $assignment->isWithinShift();
+                    })
+                    ->action(function (Attendance $record, array $data) {
+                        $assignment = $record->shiftAssignment;
+                        $shift = $assignment?->shift;
+
+                        if (! $assignment || ! $shift) {
+                            return;
+                        }
+
+                        if (! $record->check_in || $record->check_out) {
+                            return;
+                        }
+
+                        if (! $assignment->isWithinShift()) {
+                            Notification::make()
+                                ->title('Check-out is available only during the active shift window.')
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+
+                        $now = now();
+                        $assignedDate = Carbon::parse($assignment->assigned_date)->format('Y-m-d');
+                        $shiftStart = Carbon::parse($assignedDate . ' ' . $shift->start_time);
+                        $shiftEnd = Carbon::parse($assignedDate . ' ' . $shift->end_time);
+                        if ($shiftEnd->lessThanOrEqualTo($shiftStart)) {
+                            $shiftEnd->addDay();
+                        }
+
+                        // Late means late check-in (beyond grace period).
+                        $graceEnd = $shiftStart->copy()->addMinutes(\App\Models\Attendance::GRACE_MINUTES);
+                        $isLate = $record->check_in->greaterThan($graceEnd);
+
+                        // Early checkout check (mirrors Attendance's intent).
+                        $workedHours = $now->diffInHours(Carbon::parse($record->check_in));
+                        $isEarly = $now->lessThan($shiftEnd->copy()->subHours(\App\Models\Attendance::HALF_DAY_THRESHOLD_HOURS))
+                            || $workedHours < \App\Models\Attendance::HALF_DAY_THRESHOLD_HOURS;
+
+                        if ($isEarly && ! filled(trim((string) ($data['earlyCheckoutReason'] ?? '')))) {
+                            Notification::make()
+                                ->title('Early checkout reason is required.')
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+
+                        if ($isLate && ! filled(trim((string) ($data['lateReason'] ?? '')))) {
+                            Notification::make()
+                                ->title('Late check-in reason is required.')
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+
+                        $reasons = [];
+                        if ($isEarly) {
+                            $reasons[] = 'Early checkout: ' . trim((string) $data['earlyCheckoutReason']);
+                        }
+                        if ($isLate) {
+                            $reasons[] = 'Late check-in: ' . trim((string) $data['lateReason']);
+                        }
+
+                        $existingRemarks = trim((string) $record->remarks);
+                        $record->remarks = $existingRemarks !== ''
+                            ? trim($existingRemarks . "\n" . implode("\n", $reasons))
+                            : implode("\n", $reasons);
+
+                        $record->check_out = Carbon::parse($now);
+                        $record->check_out_location = null;
+                        $record->save();
+
+                        $reportUrl = ShiftReportResource::getUrl('create') . '?' . http_build_query([
+                            'employee_id' => $assignment->employee_id,
+                            'shift_assignment_id' => $assignment->id,
+                        ]);
+
+                        return redirect()->to($reportUrl);
+                    }),
+            ]);
     }
 
     public static function getPages(): array

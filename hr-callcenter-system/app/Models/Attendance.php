@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 class Attendance extends Model
 {
@@ -33,6 +34,17 @@ class Attendance extends Model
         'auto_generated' => 'boolean',
     ];
 
+    // Constants for better maintainability
+    const STATUS_PENDING = 'pending';
+    const STATUS_PRESENT = 'present';
+    const STATUS_ABSENT = 'absent';
+    const STATUS_LATE = 'late';
+    const STATUS_HALF_DAY = 'half_day';
+    const STATUS_OVERTIME = 'overtime';
+
+    const GRACE_MINUTES = 10;
+    const HALF_DAY_THRESHOLD_HOURS = 4; // Consider half day if work time is less than this
+
     public function employee()
     {
         return $this->belongsTo(Employee::class);
@@ -46,55 +58,199 @@ class Attendance extends Model
     protected static function booted(): void
     {
         static::saving(function (Attendance $attendance): void {
-            // Do not recalculate status once locked.
+            // Do not recalculate status once locked
             if ($attendance->status_locked) {
                 return;
             }
 
-            $status = 'pending';
-
-            $assignment = $attendance->shiftAssignment;
-            $shift = $assignment?->shift;
-
-            $checkIn = $attendance->check_in instanceof Carbon
-                ? $attendance->check_in
-                : ($attendance->check_in ? Carbon::parse($attendance->check_in) : null);
-
-            $checkOut = $attendance->check_out instanceof Carbon
-                ? $attendance->check_out
-                : ($attendance->check_out ? Carbon::parse($attendance->check_out) : null);
-
-            if (! $assignment || ! $shift) {
-                // Fallback: keep whatever is already set.
-                $attendance->attendance_status = $attendance->attendance_status ?: 'pending';
-                return;
-            }
-
-            // Build shift start & end as full DateTimes on assigned date.
-            $assignedDate = Carbon::parse($assignment->assigned_date);
-            $shiftStart = Carbon::parse($assignedDate->format('Y-m-d') . ' ' . $shift->start_time);
-            $shiftEnd = Carbon::parse($assignedDate->format('Y-m-d') . ' ' . $shift->end_time);
-
-            // 10 minute grace period.
-            $graceEnd = $shiftStart->copy()->addMinutes(10);
-
-            if (! $checkIn) {
-                // No check-in at all.
-                $status = 'absent';
-            } else {
-                if ($checkIn->lessThanOrEqualTo($graceEnd)) {
-                    $status = 'present';
-                } else {
-                    $status = 'late';
-                }
-
-                // Early leave -> half day (if checked out significantly before scheduled end).
-                if ($checkOut && $checkOut->lessThan($shiftEnd)) {
-                    $status = 'half_day';
-                }
-            }
-
-            $attendance->attendance_status = $status;
+            $attendance->calculateAttendanceStatus();
         });
+
+        static::saving(function (Attendance $attendance): void {
+            // Validate check-out is after check-in
+            if ($attendance->check_in && $attendance->check_out) {
+                if ($attendance->check_out->lessThanOrEqualTo($attendance->check_in)) {
+                    throw ValidationException::withMessages([
+                        'check_out' => 'Check-out time must be after check-in time.',
+                    ]);
+                }
+            }
+        });
+    }
+
+    /**
+     * Calculate attendance status based on check-in/out times
+     */
+    public function calculateAttendanceStatus(): void
+    {
+        $assignment = $this->shiftAssignment;
+        $shift = $assignment?->shift;
+
+        $checkIn = $this->normalizeDateTime($this->check_in);
+        $checkOut = $this->normalizeDateTime($this->check_out);
+
+        if (! $assignment || ! $shift) {
+            $this->attendance_status = $this->attendance_status ?: self::STATUS_PENDING;
+            return;
+        }
+
+        // Calculate shift boundaries with timezone consideration
+        $shiftBoundaries = $this->calculateShiftBoundaries($assignment, $shift);
+
+        // No check-in at all
+        if (! $checkIn) {
+            $this->attendance_status = self::STATUS_ABSENT;
+            return;
+        }
+
+        // Determine base status
+        $status = $this->determineBaseStatus($checkIn, $shiftBoundaries);
+
+        // Check if employee checked out early
+        if ($checkOut && $this->isEarlyCheckout($checkOut, $shiftBoundaries['end'])) {
+            $status = self::STATUS_HALF_DAY;
+        }
+
+        // Check for overtime
+        if ($checkOut && $this->isOvertime($checkOut, $shiftBoundaries['end'])) {
+            $status = self::STATUS_OVERTIME;
+        }
+
+        $this->attendance_status = $status;
+    }
+
+    /**
+     * Calculate shift boundaries handling midnight crossovers
+     */
+    private function calculateShiftBoundaries($assignment, $shift): array
+    {
+        $reference = $this->normalizeDateTime($this->check_in)
+            ?? $this->normalizeDateTime($this->check_out)
+            ?? now();
+
+        $assignedStart = Carbon::parse($assignment->assigned_date)->startOfDay();
+        $assignedEnd = Carbon::parse($assignment->end_date)->startOfDay();
+        $candidateDate = $reference->copy()->startOfDay();
+
+        if ($candidateDate->lt($assignedStart)) {
+            $candidateDate = $assignedStart->copy();
+        } elseif ($candidateDate->gt($assignedEnd)) {
+            $candidateDate = $assignedEnd->copy();
+        }
+
+        // Parse shift times
+        $startTime = Carbon::parse($shift->start_time);
+        $endTime = Carbon::parse($shift->end_time);
+
+        // Build boundaries using the effective shift-start date.
+        $shiftStart = Carbon::parse(
+            $candidateDate->format('Y-m-d') . ' ' . $startTime->format('H:i:s')
+        );
+
+        $shiftEnd = $endTime->lessThan($startTime)
+            ? Carbon::parse($candidateDate->format('Y-m-d') . ' ' . $endTime->format('H:i:s'))->addDay()
+            : Carbon::parse($candidateDate->format('Y-m-d') . ' ' . $endTime->format('H:i:s'));
+
+        // For overnight shifts, early-morning punches belong to the previous shift day.
+        if ($endTime->lessThan($startTime) && $reference->lessThan($shiftStart)) {
+            $previousDay = $candidateDate->copy()->subDay();
+
+            if ($previousDay->greaterThanOrEqualTo($assignedStart)) {
+                $shiftStart = Carbon::parse($previousDay->format('Y-m-d') . ' ' . $startTime->format('H:i:s'));
+                $shiftEnd = Carbon::parse($previousDay->format('Y-m-d') . ' ' . $endTime->format('H:i:s'))->addDay();
+            }
+        }
+
+        return [
+            'start' => $shiftStart,
+            'end' => $shiftEnd,
+            'grace_end' => $shiftStart->copy()->addMinutes(self::GRACE_MINUTES),
+        ];
+    }
+
+    /**
+     * Determine base attendance status (present, late)
+     */
+    private function determineBaseStatus($checkIn, array $boundaries): string
+    {
+        if ($checkIn->lessThanOrEqualTo($boundaries['grace_end'])) {
+            return self::STATUS_PRESENT;
+        }
+
+        return self::STATUS_LATE;
+    }
+
+    /**
+     * Check if employee checked out early
+     */
+    private function isEarlyCheckout($checkOut, $shiftEnd): bool
+    {
+        // Calculate worked hours
+        $workedHours = $checkOut->diffInHours($this->check_in);
+
+        // Check if checkout is significantly before shift end or worked hours are less than threshold
+        return $checkOut->lessThan($shiftEnd->copy()->subHours(self::HALF_DAY_THRESHOLD_HOURS))
+            || $workedHours < self::HALF_DAY_THRESHOLD_HOURS;
+    }
+
+    /**
+     * Check if employee worked overtime
+     */
+    private function isOvertime($checkOut, $shiftEnd): bool
+    {
+        return $checkOut->greaterThan($shiftEnd);
+    }
+
+    /**
+     * Normalize datetime fields
+     */
+    private function normalizeDateTime($value): ?Carbon
+    {
+        if ($value instanceof Carbon) {
+            return $value;
+        }
+
+        if ($value) {
+            return Carbon::parse($value);
+        }
+
+        return null;
+    }
+
+    /**
+     * Helper method to get formatted work duration
+     */
+    public function getWorkDurationAttribute(): ?string
+    {
+        if (! $this->check_in || ! $this->check_out) {
+            return null;
+        }
+
+        $duration = $this->check_out->diff($this->check_in);
+        return $duration->format('%H:%I:%S');
+    }
+
+    /**
+     * Scope for attendance by date range
+     */
+    public function scopeBetweenDates($query, $startDate, $endDate)
+    {
+        return $query->whereBetween('created_at', [$startDate, $endDate]);
+    }
+
+    /**
+     * Scope for attendance by status
+     */
+    public function scopeWithStatus($query, $status)
+    {
+        return $query->where('attendance_status', $status);
+    }
+
+    /**
+     * Scope for verified attendance
+     */
+    public function scopeVerified($query)
+    {
+        return $query->whereNotNull('verified_at');
     }
 }

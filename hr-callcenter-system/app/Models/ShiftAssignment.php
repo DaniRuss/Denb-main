@@ -13,7 +13,7 @@ class ShiftAssignment extends Model
     protected $fillable = [
         'employee_id',
         'shift_id',
-        'zone',
+        'block',
         'assigned_date',
         'end_date',
         'assigned_by',
@@ -24,6 +24,19 @@ class ShiftAssignment extends Model
         'assigned_date' => 'date',
         'end_date' => 'date',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (ShiftAssignment $assignment): void {
+            if (! $assignment->assigned_date) {
+                return;
+            }
+
+            // Always derive end_date from assigned_date in Gregorian calendar.
+            $start = Carbon::parse($assignment->assigned_date)->startOfDay();
+            $assignment->attributes['end_date'] = $start->copy()->addDays(29)->toDateString();
+        });
+    }
 
     public function employee()
     {
@@ -66,14 +79,29 @@ class ShiftAssignment extends Model
             return false;
         }
 
-        $date = Carbon::parse($this->assigned_date->format('Y-m-d'));
-        $start = Carbon::parse($date->format('Y-m-d') . ' ' . $shift->start_time);
-        $end = Carbon::parse($date->format('Y-m-d') . ' ' . $shift->end_time);
+        $assignedStart = Carbon::parse($this->assigned_date)->startOfDay();
+        $assignedEnd = Carbon::parse($this->end_date)->startOfDay();
 
-        if ($end->lessThanOrEqualTo($start)) {
-            $end->addDay();
+        // Check both same-day and previous-day windows to support overnight shifts.
+        foreach ([0, 1] as $dayOffset) {
+            $shiftStartDate = $at->copy()->subDays($dayOffset)->startOfDay();
+
+            if ($shiftStartDate->lt($assignedStart) || $shiftStartDate->gt($assignedEnd)) {
+                continue;
+            }
+
+            $start = Carbon::parse($shiftStartDate->format('Y-m-d') . ' ' . $shift->start_time);
+            $end = Carbon::parse($shiftStartDate->format('Y-m-d') . ' ' . $shift->end_time);
+
+            if ($end->lessThanOrEqualTo($start)) {
+                $end->addDay();
+            }
+
+            if ($at->between($start, $end)) {
+                return true;
+            }
         }
 
-        return $at->between($start, $end);
+        return false;
     }
 }

@@ -4,7 +4,6 @@ namespace App\Filament\Resources\ShiftAssignmentResource\Pages;
 
 use App\Filament\Resources\ShiftAssignmentResource;
 use App\Models\ShiftAssignment;
-use App\Support\EthiopianDate;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Carbon;
 use Illuminate\Database\Eloquent\Model;
@@ -23,24 +22,14 @@ class CreateShiftAssignment extends CreateRecord
             return;
         }
 
-        $ecNow = EthiopianDate::toEcYmd(now());
-        $parts = EthiopianDate::splitEcYmd($ecNow);
-
-        if (! $parts) {
-            return;
-        }
-
         $start = Carbon::today();
         $end = $start->copy()->addDays(29);
 
         $this->form->fill([
             'employee_id' => $employeeId,
-            'assigned_ec_year' => (string) $parts['y'],
-            'assigned_ec_month' => (string) $parts['m'],
-            'assigned_ec_day' => (string) $parts['d'],
             'assigned_date' => $start->toDateString(),
             'end_date' => $end->toDateString(),
-            'end_date_ec' => EthiopianDate::toEcYmd($end),
+            'end_date_display' => $end->toDateString(),
             'status' => 'scheduled',
         ]);
     }

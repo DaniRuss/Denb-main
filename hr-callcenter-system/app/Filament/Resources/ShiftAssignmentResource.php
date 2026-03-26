@@ -36,6 +36,29 @@ class ShiftAssignmentResource extends Resource
     protected static ?int $navigationSort = 3;
 
     /**
+     * Zones that supervisors should not be able to process attendance for
+     * from the Shift Management screen.
+     */
+    protected static array $blockedZones = ['ከተና'];
+
+    protected static function isZoneBlocked(ShiftAssignment $record): bool
+    {
+        $zone = trim((string) ($record->zone ?? ''));
+        if ($zone === '') {
+            return false;
+        }
+
+        $zoneLower = mb_strtolower($zone);
+        foreach (static::$blockedZones as $blocked) {
+            if ($zoneLower === mb_strtolower(trim((string) $blocked))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Employee row linked to this supervisor login (for self-exclusion, etc.).
      */
     public static function resolveSupervisorEmployee(?User $user = null): ?Employee
@@ -299,93 +322,81 @@ class ShiftAssignmentResource extends Resource
                                 ->all()
                         )
                         ->required(),
-                    Forms\Components\TextInput::make('zone')
+                    Forms\Components\TextInput::make('Block')
+                        ->label('Block')
                         ->required()
-                        ->maxLength(120),
-                    Forms\Components\Select::make('assigned_ec_year')
-                        ->label('Start year (EC)')
-                        ->options(function () {
-                            $ecNow = EthiopianDate::toEcYmd(now());
-                            $y = EthiopianDate::splitEcYmd($ecNow)['y'] ?? 2018;
+                        ->maxLength(120)
+                        ->afterStateHydrated(function ($state, callable $set, ?ShiftAssignment $record): void {
+                            $zone = trim((string) ($state ?? ''));
 
-                            $options = [];
-                            foreach (range($y - 1, $y + 2) as $year) {
-                                $options[(string) $year] = (string) $year;
+                            if ($record && static::isZoneBlocked($record)) {
+                                $set('zone', 'Block');
+                                return;
                             }
 
-                            return $options;
+                            if (mb_strtolower($zone) === mb_strtolower('ከተና')) {
+                                $set('zone', 'Block');
+                            }
                         })
-                        ->searchable()
+                        ->afterStateUpdated(function ($state, callable $set): void {
+                            $zone = trim((string) ($state ?? ''));
+                            if (mb_strtolower($zone) === mb_strtolower('ከተና')) {
+                                $set('zone', 'Block');
+                            }
+                        })
+                        ->dehydrateStateUsing(function ($state, ?ShiftAssignment $record) {
+                            // Display "Blocked" in the UI, but persist the actual blocked zone value.
+                            if ($record && static::isZoneBlocked($record)) {
+                                return $record->zone;
+                            }
+
+                            $zone = trim((string) ($state ?? ''));
+                            if (mb_strtolower($zone) === mb_strtolower('block')) {
+                                return 'ከተና';
+                            }
+
+                            return $state;
+                        })
+                        ->disabled(function (?ShiftAssignment $record): bool {
+                            return (bool) ($record && static::isZoneBlocked($record));
+                        }),
+                    Forms\Components\DatePicker::make('assigned_date')
+                        ->label('Start date')
+                        ->native(false)
+                        ->displayFormat('Y-m-d')
                         ->live()
                         ->afterStateHydrated(function ($state, callable $set, ?ShiftAssignment $record) {
-                            if (! $record?->assigned_date) {
+                            $sourceDate = $state ?: $record?->assigned_date;
+                            if (! $sourceDate) {
                                 return;
                             }
 
-                            $parts = EthiopianDate::splitEcYmd(EthiopianDate::toEcYmd($record->assigned_date));
-                            if ($parts) {
-                                $set('assigned_ec_year', (string) $parts['y']);
-                                $set('assigned_ec_month', (string) $parts['m']);
-                                $set('assigned_ec_day', (string) $parts['d']);
-                            }
-
-                            if ($record?->end_date) {
-                                $set('end_date_ec', EthiopianDate::toEcYmd($record->end_date));
-                            }
-                        }),
-                    Forms\Components\Select::make('assigned_ec_month')
-                        ->label('Start month (EC)')
-                        ->options(collect(EthiopianDate::MONTHS_AM)->mapWithKeys(fn ($name, $num) => [(string) $num => $name])->all())
-                        ->searchable()
-                        ->live()
-                        ->afterStateUpdated(function ($state, callable $set) {
-                            // reset day when month changes
-                            $set('assigned_ec_day', null);
-                        }),
-                    Forms\Components\Select::make('assigned_ec_day')
-                        ->label('Start day (EC)')
-                        ->options(function (callable $get) {
-                            $y = (int) ($get('assigned_ec_year') ?: 0);
-                            $m = (int) ($get('assigned_ec_month') ?: 0);
-
-                            if (! $y || ! $m) {
-                                return [];
-                            }
-
-                            $max = EthiopianDate::daysInEcMonth($y, $m);
-                            $options = [];
-                            foreach (range(1, $max) as $d) {
-                                $options[(string) $d] = (string) $d;
-                            }
-
-                            return $options;
-                        })
-                        ->live()
-                        ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                            $y = (int) ($get('assigned_ec_year') ?: 0);
-                            $m = (int) ($get('assigned_ec_month') ?: 0);
-                            $d = (int) ($state ?: 0);
-
-                            if (! $y || ! $m || ! $d) {
-                                $set('assigned_date', null);
-                                $set('end_date', null);
-                                $set('end_date_ec', null);
-                                return;
-                            }
-
-                            $ec = sprintf('%04d-%02d-%02d', $y, $m, $d);
-                            $start = EthiopianDate::fromEcYmd($ec);
+                            $start = Carbon::parse($sourceDate);
                             $end = $start->copy()->addDays(29);
 
                             $set('assigned_date', $start->toDateString());
                             $set('end_date', $end->toDateString());
-                            $set('end_date_ec', EthiopianDate::toEcYmd($end));
+                            $set('end_date_display', $end->toDateString());
+                        })
+                        ->afterStateUpdated(function ($state, callable $set) {
+                            if (! $state) {
+                                $set('end_date', null);
+                                $set('end_date_display', null);
+                                return;
+                            }
+
+                            $start = Carbon::parse($state);
+                            $end = $start->copy()->addDays(29);
+
+                            $set('assigned_date', $start->toDateString());
+                            $set('end_date', $end->toDateString());
+                            $set('end_date_display', $end->toDateString());
                         })
                         ->required(),
-                    Forms\Components\TextInput::make('end_date_ec')
-                        ->label('End date (EC)')
-                        ->disabled(),
-                    Forms\Components\Hidden::make('assigned_date')->required(),
+                    Forms\Components\TextInput::make('end_date_display')
+                        ->label('End date (Gregorian)')
+                        ->disabled()
+                        ->dehydrated(false),
                     Forms\Components\Hidden::make('end_date')->required(),
                     Forms\Components\Select::make('status')
                         ->options([
@@ -408,7 +419,18 @@ class ShiftAssignmentResource extends Resource
                 Tables\Columns\TextColumn::make('employee.employee_id')->label('Employee ID')->searchable()->placeholder('---'),
                 Tables\Columns\TextColumn::make('employee.full_name_am')->label('Employee')->searchable(['first_name_am', 'last_name_am'])->placeholder('---'),
                 Tables\Columns\TextColumn::make('shift.name')->sortable()->placeholder('---'),
-                Tables\Columns\TextColumn::make('zone')->searchable()->sortable()->placeholder('---'),
+                Tables\Columns\TextColumn::make('zone')
+                    ->label('Block')
+                    ->searchable()
+                    ->sortable()
+                    ->placeholder('---')
+                    ->formatStateUsing(function (?string $state, ShiftAssignment $record): string {
+                        if (static::isZoneBlocked($record)) {
+                            return 'Block';
+                        }
+
+                        return (string) ($state ?? '---');
+                    }),
                 Tables\Columns\TextColumn::make('assigned_date')
                     ->label('Start (EC)')
                     ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmd($state) ?? '-')
@@ -549,8 +571,42 @@ class ShiftAssignmentResource extends Resource
                             )
                             ->required(),
                         Forms\Components\TextInput::make('zone')
+                            ->label('Block')
                             ->required()
-                            ->maxLength(120),
+                            ->maxLength(120)
+                            ->afterStateHydrated(function ($state, callable $set, ?ShiftAssignment $record): void {
+                                $zone = trim((string) ($state ?? ''));
+
+                                if ($record && static::isZoneBlocked($record)) {
+                                    $set('zone', 'Block');
+                                    return;
+                                }
+
+                                if (mb_strtolower($zone) === mb_strtolower('ከተና')) {
+                                    $set('zone', 'Block');
+                                }
+                            })
+                            ->afterStateUpdated(function ($state, callable $set): void {
+                                $zone = trim((string) ($state ?? ''));
+                                if (mb_strtolower($zone) === mb_strtolower('ከተና')) {
+                                    $set('zone', 'Block');
+                                }
+                            })
+                            ->dehydrateStateUsing(function ($state, ?ShiftAssignment $record) {
+                                if ($record && static::isZoneBlocked($record)) {
+                                    return $record->zone;
+                                }
+
+                                $zone = trim((string) ($state ?? ''));
+                                if (mb_strtolower($zone) === mb_strtolower('block')) {
+                                    return 'ከተና';
+                                }
+
+                                return $state;
+                            })
+                            ->disabled(function (?ShiftAssignment $record): bool {
+                                return (bool) ($record && static::isZoneBlocked($record));
+                            }),
                     ])
                     ->action(function (ShiftAssignment $record, array $data): void {
                         $assignment = ShiftAssignment::find($record->id);
@@ -575,6 +631,10 @@ class ShiftAssignmentResource extends Resource
                     }),
                 Action::make('check_in')
                     ->label(function (ShiftAssignment $record): string {
+                        if (static::isZoneBlocked($record)) {
+                            return 'Block';
+                        }
+
                         if ($record->status === 'unassigned' || $record->id <= 0) {
                             return 'Check in';
                         }
@@ -609,6 +669,11 @@ class ShiftAssignmentResource extends Resource
                             return false;
                         }
 
+                        // If the zone is blocked, we still show the action (disabled).
+                        if (static::isZoneBlocked($record)) {
+                            return true;
+                        }
+
                         // Button is only available during the shift window and while the shift is scheduled.
                         if (! $record->isWithinShift() || $record->status !== 'scheduled') {
                             return false;
@@ -622,11 +687,23 @@ class ShiftAssignmentResource extends Resource
 
                         return ! ($attendance && $attendance->check_out);
                     })
+                    ->disabled(function (ShiftAssignment $record): bool {
+                        return static::isZoneBlocked($record);
+                    })
                     ->action(function (ShiftAssignment $record): void {
                         if ($record->status === 'unassigned' || $record->id <= 0) {
                             Notification::make()
                                 ->title('This officer has no active assignment.')
                                 ->warning()
+                                ->send();
+
+                            return;
+                        }
+
+                        if (static::isZoneBlocked($record)) {
+                            Notification::make()
+                                ->title('This zone is blocked for shift attendance processing.')
+                                ->danger()
                                 ->send();
 
                             return;

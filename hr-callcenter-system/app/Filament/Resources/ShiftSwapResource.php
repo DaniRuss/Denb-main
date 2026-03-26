@@ -73,7 +73,7 @@ class ShiftSwapResource extends Resource
                                 ->with('shift')
                                 ->orderBy('assigned_date', 'asc')
                                 ->get()
-                                ->mapWithKeys(fn ($a) => [$a->id => (EthiopianDate::toEcYmd($a->assigned_date) ?? $a->assigned_date->format('Y-m-d')) . ' – ' . ($a->shift?->name ?? '') . ' (Zone ' . $a->zone . ')'])
+                                ->mapWithKeys(fn ($a) => [$a->id => (EthiopianDate::toEcYmd($a->assigned_date) ?? $a->assigned_date->format('Y-m-d')) . ' – ' . ($a->shift?->name ?? '') . ' (Block ' . $a->block . ')'])
                                 ->all();
                         })
                         ->required()

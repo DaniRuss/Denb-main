@@ -34,7 +34,7 @@ class RotateOfficerShifts extends Command
                     ShiftAssignment::create([
                         'employee_id'   => $assignment->employee_id,
                         'shift_id'      => $nextShift->id,
-                        'zone'          => $assignment->zone,
+                        'block'         => $assignment->block,
                         'assigned_date' => $start,
                         'end_date'      => $end,
                         'assigned_by'   => $assignment->assigned_by,

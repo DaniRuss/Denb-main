@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('employee_id')->constrained('employees')->cascadeOnDelete();
             $table->foreignId('shift_id')->constrained('shifts')->cascadeOnDelete();
-            $table->string('zone');
+            $table->string('block');
             $table->date('assigned_date');
             $table->foreignId('assigned_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('status')->default('scheduled'); // scheduled, completed, cancelled, no_show
