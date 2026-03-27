@@ -36,7 +36,9 @@ class VolunteerTipResource extends Resource
         return $schema
             ->schema([
                 Forms\Components\Select::make('engagement_id')
-                    ->relationship('engagement', 'engagement_code')->label('Linked Engagement (optional)')->searchable(),
+                    ->relationship('engagement', 'engagement_code', fn ($query) => $query->forUser(auth()->user()))
+                    ->label('Linked Engagement (optional)')
+                    ->searchable(),
                 Forms\Components\TextInput::make('suspect_name')->label('Suspect Name (ስም)'),
                 Forms\Components\Select::make('violation_type')
                     ->options(AwarenessEngagement::violationLabels())->required(),
