@@ -33,4 +33,11 @@ class CreateAwarenessEngagement extends CreateRecord
             ->body('Your Woreda Coordinator will review your submission.')
             ->success();
     }
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            \App\Filament\Widgets\OfflineCreateWidget::class,
+        ];
+    }
 }

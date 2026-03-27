@@ -73,6 +73,6 @@ class VolunteerTip extends Model
 
     public function scopeForOfficer($q)
     {
-        return $q->whereIn('status', ['verified', 'investigating', 'action_taken']);
+        return $q->whereIn('status', ['verified', 'resolved']);
     }
 }

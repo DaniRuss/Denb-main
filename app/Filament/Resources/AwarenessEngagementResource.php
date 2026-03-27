@@ -109,7 +109,6 @@ class AwarenessEngagementResource extends Resource
                     ->live()
                     ->searchable()
                     ->placeholder('Select Sub-City (ክፍለ ከተማ ይምረጡ)')
-                    ->default(fn () => auth()->user()?->sub_city_id)
                     ->afterStateUpdated(fn (Set $set) => $set('woreda_id', null)),
                 Forms\Components\Select::make('woreda_id')
                     ->label('Woreda (ወረዳ)')
@@ -126,8 +125,7 @@ class AwarenessEngagementResource extends Resource
                     ->required()
                     ->live()
                     ->searchable()
-                    ->placeholder('Select Woreda (ወረዳ ይምረጡ)')
-                    ->default(fn () => auth()->user()?->woreda_id),
+                    ->placeholder('Select Woreda (ወረዳ ይምረጡ)'),
 
                 Forms\Components\TextInput::make('block_number')->label('Block No. (ብሎክ ቁጥር)'),
 

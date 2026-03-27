@@ -1,0 +1,30 @@
+{
+  "name": "Denb Field App | ዴንብ",
+  "short_name": "ዴንብ ‐ Field",
+  "description": "Offline awareness engagement logger for Addis Ababa paramilitary officers",
+  "start_url": "/admin",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "lang": "am",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/icons/pwa-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/pwa-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["government", "productivity"],
+  "prefer_related_applications": false
+}
