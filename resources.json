@@ -1,0 +1,14 @@
+{
+    "C:\\xampp\\htdocs\\Denb\\hr-callcenter-system\\app\\Filament\\Resources\\CaseAssignmentResource.php": "App\\Filament\\Resources\\CaseAssignmentResource",
+    "C:\\xampp\\htdocs\\Denb\\hr-callcenter-system\\app\\Filament\\Resources\\Complaints\\ComplaintResource.php": "App\\Filament\\Resources\\Complaints\\ComplaintResource",
+    "C:\\xampp\\htdocs\\Denb\\hr-callcenter-system\\app\\Filament\\Resources\\Departments\\DepartmentResource.php": "App\\Filament\\Resources\\Departments\\DepartmentResource",
+    "C:\\xampp\\htdocs\\Denb\\hr-callcenter-system\\app\\Filament\\Resources\\Employees\\EmployeeResource.php": "App\\Filament\\Resources\\Employees\\EmployeeResource",
+    "C:\\xampp\\htdocs\\Denb\\hr-callcenter-system\\app\\Filament\\Resources\\EscalationResource.php": "App\\Filament\\Resources\\EscalationResource",
+    "C:\\xampp\\htdocs\\Denb\\hr-callcenter-system\\app\\Filament\\Resources\\OfficerResource.php": "App\\Filament\\Resources\\OfficerResource",
+    "C:\\xampp\\htdocs\\Denb\\hr-callcenter-system\\app\\Filament\\Resources\\PermissionResource.php": "App\\Filament\\Resources\\PermissionResource",
+    "C:\\xampp\\htdocs\\Denb\\hr-callcenter-system\\app\\Filament\\Resources\\QuarterlyReportResource.php": "App\\Filament\\Resources\\QuarterlyReportResource",
+    "C:\\xampp\\htdocs\\Denb\\hr-callcenter-system\\app\\Filament\\Resources\\RoleResource.php": "App\\Filament\\Resources\\RoleResource",
+    "C:\\xampp\\htdocs\\Denb\\hr-callcenter-system\\app\\Filament\\Resources\\Tips\\TipResource.php": "App\\Filament\\Resources\\Tips\\TipResource",
+    "C:\\xampp\\htdocs\\Denb\\hr-callcenter-system\\app\\Filament\\Resources\\UniformInventoryResource.php": "App\\Filament\\Resources\\UniformInventoryResource",
+    "C:\\xampp\\htdocs\\Denb\\hr-callcenter-system\\app\\Filament\\Resources\\UserResource.php": "App\\Filament\\Resources\\UserResource"
+}
