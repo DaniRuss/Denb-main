@@ -15,22 +15,18 @@ class ConfiscatedAssetsTable
     {
         return $table
             ->columns([
-                TextColumn::make('volunteerTip.tip_code')
-                    ->label('Tip Code')
-                    ->sortable()
-                    ->searchable(),
+                TextColumn::make('volunteer_tip_id')
+                    ->numeric()
+                    ->sortable(),
                 TextColumn::make('item_description')
-                    ->label('Item')
                     ->searchable(),
                 TextColumn::make('estimated_value')
-                    ->label('Value')
                     ->numeric()
                     ->sortable(),
                 TextColumn::make('seizure_location')
-                    ->label('Location')
                     ->searchable(),
-                TextColumn::make('seizedBy.name')
-                    ->label('Officer')
+                TextColumn::make('seized_by')
+                    ->numeric()
                     ->sortable(),
                 TextColumn::make('seizure_date')
                     ->date()

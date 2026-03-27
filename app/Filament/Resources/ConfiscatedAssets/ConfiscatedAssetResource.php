@@ -20,18 +20,9 @@ class ConfiscatedAssetResource extends Resource
 {
     protected static ?string $model = ConfiscatedAsset::class;
 
-    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-archive-box';
-    
-    protected static string|\UnitEnum|null $navigationGroup = 'Awareness Management';
-    
-    protected static ?int $navigationSort = 4;
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
     protected static ?string $recordTitleAttribute = 'item_description';
-    
-    public static function canCreate(): bool
-    {
-        return auth()->user()->hasAnyRole(['admin', 'super_admin', 'officer']);
-    }
 
     public static function form(Schema $schema): Schema
     {
