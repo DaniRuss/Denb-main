@@ -180,6 +180,19 @@ class AwarenessEngagementResource extends Resource
                 // ── Section 6: Timestamp ──
                 Forms\Components\DateTimePicker::make('session_datetime')
                     ->label('Session Date/Time (ሰዓት፣ ቀን)')->required(),
+
+                // ── Section 7: Media & Verification ──
+                Section::make('Verification & Media / ማረጋገጫ')
+                    ->schema([
+                        Forms\Components\ViewField::make('officer_signature')
+                            ->view('filament.forms.components.offline-signature')
+                            ->label('Officer Signature / ፊርማ')
+                            ->required(),
+                        Forms\Components\ViewField::make('violation_photo_path')
+                            ->view('filament.forms.components.offline-photo')
+                            ->label('Optional Photo / ፎቶ')
+                            ->helperText('Photo will be compressed automatically.'),
+                    ])->columns(2),
                 
                 Forms\Components\Hidden::make('created_by')->default(fn() => auth()->id()),
             ]);
