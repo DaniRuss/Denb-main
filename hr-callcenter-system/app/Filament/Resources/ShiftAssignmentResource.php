@@ -39,18 +39,18 @@ class ShiftAssignmentResource extends Resource
      * Zones that supervisors should not be able to process attendance for
      * from the Shift Management screen.
      */
-    protected static array $blockedZones = ['ከተና'];
+    protected static array $blockedBlocks = ['ከተና'];
 
-    protected static function isZoneBlocked(ShiftAssignment $record): bool
+    protected static function isBlockBlocked(ShiftAssignment $record): bool
     {
-        $zone = trim((string) ($record->zone ?? ''));
-        if ($zone === '') {
+        $block = trim((string) ($record->block ?? ''));
+        if ($block === '') {
             return false;
         }
 
-        $zoneLower = mb_strtolower($zone);
-        foreach (static::$blockedZones as $blocked) {
-            if ($zoneLower === mb_strtolower(trim((string) $blocked))) {
+        $blockLower = mb_strtolower($block);
+        foreach (static::$blockedBlocks as $blocked) {
+            if ($blockLower === mb_strtolower(trim((string) $blocked))) {
                 return true;
             }
         }
@@ -198,7 +198,7 @@ class ShiftAssignmentResource extends Resource
                         'shift_assignments.id as assignment_id',
                         'employees.id as employee_id',
                         'shift_assignments.shift_id',
-                        'shift_assignments.zone',
+                        'shift_assignments.block',
                         'shift_assignments.assigned_date',
                         'shift_assignments.end_date',
                         'shift_assignments.assigned_by',
@@ -322,43 +322,43 @@ class ShiftAssignmentResource extends Resource
                                 ->all()
                         )
                         ->required(),
-                    Forms\Components\TextInput::make('Block')
+                    Forms\Components\TextInput::make('block')
                         ->label('Block')
                         ->required()
                         ->maxLength(120)
                         ->afterStateHydrated(function ($state, callable $set, ?ShiftAssignment $record): void {
-                            $zone = trim((string) ($state ?? ''));
+                            $block = trim((string) ($state ?? ''));
 
-                            if ($record && static::isZoneBlocked($record)) {
-                                $set('zone', 'Block');
+                            if ($record && static::isBlockBlocked($record)) {
+                                $set('block', 'Block');
                                 return;
                             }
 
-                            if (mb_strtolower($zone) === mb_strtolower('ከተና')) {
-                                $set('zone', 'Block');
+                            if (mb_strtolower($block) === mb_strtolower('ከተና')) {
+                                $set('block', 'Block');
                             }
                         })
                         ->afterStateUpdated(function ($state, callable $set): void {
-                            $zone = trim((string) ($state ?? ''));
-                            if (mb_strtolower($zone) === mb_strtolower('ከተና')) {
-                                $set('zone', 'Block');
+                            $block = trim((string) ($state ?? ''));
+                            if (mb_strtolower($block) === mb_strtolower('ከተና')) {
+                                $set('block', 'Block');
                             }
                         })
                         ->dehydrateStateUsing(function ($state, ?ShiftAssignment $record) {
                             // Display "Blocked" in the UI, but persist the actual blocked zone value.
-                            if ($record && static::isZoneBlocked($record)) {
-                                return $record->zone;
+                            if ($record && static::isBlockBlocked($record)) {
+                                return $record->block;
                             }
 
-                            $zone = trim((string) ($state ?? ''));
-                            if (mb_strtolower($zone) === mb_strtolower('block')) {
+                            $block = trim((string) ($state ?? ''));
+                            if (mb_strtolower($block) === mb_strtolower('block')) {
                                 return 'ከተና';
                             }
 
                             return $state;
                         })
                         ->disabled(function (?ShiftAssignment $record): bool {
-                            return (bool) ($record && static::isZoneBlocked($record));
+                            return (bool) ($record && static::isBlockBlocked($record));
                         }),
                     Forms\Components\DatePicker::make('assigned_date')
                         ->label('Start date')
@@ -419,13 +419,13 @@ class ShiftAssignmentResource extends Resource
                 Tables\Columns\TextColumn::make('employee.employee_id')->label('Employee ID')->searchable()->placeholder('---'),
                 Tables\Columns\TextColumn::make('employee.full_name_am')->label('Employee')->searchable(['first_name_am', 'last_name_am'])->placeholder('---'),
                 Tables\Columns\TextColumn::make('shift.name')->sortable()->placeholder('---'),
-                Tables\Columns\TextColumn::make('zone')
+                Tables\Columns\TextColumn::make('block')
                     ->label('Block')
                     ->searchable()
                     ->sortable()
                     ->placeholder('---')
                     ->formatStateUsing(function (?string $state, ShiftAssignment $record): string {
-                        if (static::isZoneBlocked($record)) {
+                        if (static::isBlockBlocked($record)) {
                             return 'Block';
                         }
 
@@ -570,42 +570,42 @@ class ShiftAssignmentResource extends Resource
                                     ->all()
                             )
                             ->required(),
-                        Forms\Components\TextInput::make('zone')
+                        Forms\Components\TextInput::make('block')
                             ->label('Block')
                             ->required()
                             ->maxLength(120)
                             ->afterStateHydrated(function ($state, callable $set, ?ShiftAssignment $record): void {
-                                $zone = trim((string) ($state ?? ''));
+                                $block = trim((string) ($state ?? ''));
 
-                                if ($record && static::isZoneBlocked($record)) {
-                                    $set('zone', 'Block');
+                                if ($record && static::isBlockBlocked($record)) {
+                                    $set('block', 'Block');
                                     return;
                                 }
 
-                                if (mb_strtolower($zone) === mb_strtolower('ከተና')) {
-                                    $set('zone', 'Block');
+                                if (mb_strtolower($block) === mb_strtolower('ከተና')) {
+                                    $set('block', 'Block');
                                 }
                             })
                             ->afterStateUpdated(function ($state, callable $set): void {
-                                $zone = trim((string) ($state ?? ''));
-                                if (mb_strtolower($zone) === mb_strtolower('ከተና')) {
-                                    $set('zone', 'Block');
+                                $block = trim((string) ($state ?? ''));
+                                if (mb_strtolower($block) === mb_strtolower('ከተና')) {
+                                    $set('block', 'Block');
                                 }
                             })
                             ->dehydrateStateUsing(function ($state, ?ShiftAssignment $record) {
-                                if ($record && static::isZoneBlocked($record)) {
-                                    return $record->zone;
+                                if ($record && static::isBlockBlocked($record)) {
+                                    return $record->block;
                                 }
 
-                                $zone = trim((string) ($state ?? ''));
-                                if (mb_strtolower($zone) === mb_strtolower('block')) {
+                                $block = trim((string) ($state ?? ''));
+                                if (mb_strtolower($block) === mb_strtolower('block')) {
                                     return 'ከተና';
                                 }
 
                                 return $state;
                             })
                             ->disabled(function (?ShiftAssignment $record): bool {
-                                return (bool) ($record && static::isZoneBlocked($record));
+                                return (bool) ($record && static::isBlockBlocked($record));
                             }),
                     ])
                     ->action(function (ShiftAssignment $record, array $data): void {
@@ -620,7 +620,7 @@ class ShiftAssignmentResource extends Resource
 
                         $assignment->update([
                             'shift_id' => $data['shift_id'],
-                            'zone' => $data['zone'],
+                            'block' => $data['block'],
                             'assigned_by' => Auth::id(),
                         ]);
 
@@ -631,7 +631,7 @@ class ShiftAssignmentResource extends Resource
                     }),
                 Action::make('check_in')
                     ->label(function (ShiftAssignment $record): string {
-                        if (static::isZoneBlocked($record)) {
+                        if (static::isBlockBlocked($record)) {
                             return 'Block';
                         }
 
@@ -669,8 +669,8 @@ class ShiftAssignmentResource extends Resource
                             return false;
                         }
 
-                        // If the zone is blocked, we still show the action (disabled).
-                        if (static::isZoneBlocked($record)) {
+                        // If the block is blocked, we still show the action (disabled).
+                        if (static::isBlockBlocked($record)) {
                             return true;
                         }
 
@@ -688,7 +688,7 @@ class ShiftAssignmentResource extends Resource
                         return ! ($attendance && $attendance->check_out);
                     })
                     ->disabled(function (ShiftAssignment $record): bool {
-                        return static::isZoneBlocked($record);
+                        return static::isBlockBlocked($record);
                     })
                     ->action(function (ShiftAssignment $record): void {
                         if ($record->status === 'unassigned' || $record->id <= 0) {
@@ -700,7 +700,7 @@ class ShiftAssignmentResource extends Resource
                             return;
                         }
 
-                        if (static::isZoneBlocked($record)) {
+                        if (static::isBlockBlocked($record)) {
                             Notification::make()
                                 ->title('This zone is blocked for shift attendance processing.')
                                 ->danger()

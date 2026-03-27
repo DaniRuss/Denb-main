@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class Attendance extends Model
@@ -14,6 +15,7 @@ class Attendance extends Model
     protected $fillable = [
         'employee_id',
         'shift_assignment_id',
+        'attendance_date',
         'check_in',
         'check_out',
         'attendance_status',
@@ -27,6 +29,7 @@ class Attendance extends Model
     ];
 
     protected $casts = [
+        'attendance_date' => 'date',
         'check_in' => 'datetime',
         'check_out' => 'datetime',
         'verified_at' => 'datetime',
@@ -57,6 +60,27 @@ class Attendance extends Model
 
     protected static function booted(): void
     {
+        static::saving(function (Attendance $attendance): void {
+            // Some databases include a required attendances.attendance_date column.
+            // Keep compatibility by auto-filling it when present.
+            if (! static::hasAttendanceDateColumn()) {
+                return;
+            }
+
+            if ($attendance->getAttribute('attendance_date')) {
+                return;
+            }
+
+            $reference = $attendance->check_in
+                ?? $attendance->check_out
+                ?? now();
+
+            $attendance->setAttribute(
+                'attendance_date',
+                static::asCarbon($reference)->toDateString()
+            );
+        });
+
         static::saving(function (Attendance $attendance): void {
             // Do not recalculate status once locked
             if ($attendance->status_locked) {
@@ -215,6 +239,24 @@ class Attendance extends Model
         }
 
         return null;
+    }
+
+    private static function asCarbon(mixed $value): Carbon
+    {
+        return $value instanceof Carbon ? $value : Carbon::parse($value);
+    }
+
+    private static function hasAttendanceDateColumn(): bool
+    {
+        static $hasColumn;
+
+        if ($hasColumn !== null) {
+            return $hasColumn;
+        }
+
+        $hasColumn = Schema::hasColumn((new static())->getTable(), 'attendance_date');
+
+        return $hasColumn;
     }
 
     /**
