@@ -44,6 +44,7 @@ class VolunteerTipResource extends Resource
                 Forms\Components\Select::make('sub_city_id')
                     ->relationship('subCity', 'name_am')
                     ->required()
+                    ->default(fn() => auth()->user()->sub_city_id)
                     ->live(),
                 Forms\Components\Select::make('woreda_id')
                     ->label('Woreda (ወረዳ)')
@@ -55,6 +56,7 @@ class VolunteerTipResource extends Resource
                         }
                         return [];
                     })
+                    ->default(fn() => auth()->user()->woreda_id)
                     ->required(),
 
                 Forms\Components\TextInput::make('block_number')->label('Block No.'),
