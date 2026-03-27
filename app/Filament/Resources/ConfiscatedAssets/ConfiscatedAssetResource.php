@@ -22,7 +22,7 @@ class ConfiscatedAssetResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-archive-box';
     
-    protected static ?string $navigationGroup = 'Awareness Management';
+    protected static string|\UnitEnum|null $navigationGroup = 'Awareness Management';
     
     protected static ?int $navigationSort = 4;
 
