@@ -72,9 +72,25 @@
                     const wireData = await this.$wire.get('data');
                     if (!wireData) return;
 
-                    // Extremely basic validation to ensure they at least selected type
-                    if (!wireData.campaign_id || !wireData.engagement_type || !wireData.session_datetime) {
-                        window.DenbUI && window.DenbUI.showToast('Please fill the required form fields (Campaign, Type, Session Date)', 'error');
+                    // 1. Core Field Validation
+                    if (!wireData.campaign_id || !wireData.engagement_type || !wireData.sub_city_id || !wireData.woreda_id || !wireData.session_datetime || !wireData.violation_type) {
+                        window.DenbUI && window.DenbUI.showToast('Please fill all required core fields (Campaign, Type, Location, Violation, Date)', 'error');
+                        return;
+                    }
+
+                    // 2. Type-Specific Validation
+                    if (wireData.engagement_type === 'house_to_house' && !wireData.citizen_name) {
+                        window.DenbUI && window.DenbUI.showToast('House-to-House requires Citizen Name!', 'error');
+                        return;
+                    }
+                    if (wireData.engagement_type === 'coffee_ceremony' && !wireData.headcount) {
+                        window.DenbUI && window.DenbUI.showToast('Coffee Ceremony requires Headcount!', 'error');
+                        return;
+                    }
+
+                    // 3. Signature Validation
+                    if (!wireData.officer_signature) {
+                        window.DenbUI && window.DenbUI.showToast('Please draw your signature before saving.', 'error');
                         return;
                     }
 
