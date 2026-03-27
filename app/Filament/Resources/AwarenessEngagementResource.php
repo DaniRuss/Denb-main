@@ -41,46 +41,31 @@ class AwarenessEngagementResource extends Resource
         return $schema
             ->schema([
                 Forms\Components\Select::make('campaign_id')
-                    ->relationship('campaign', 'name_am', function (\Illuminate\Database\Eloquent\Builder $query) {
-                        $query->active();
-                        
+                    ->label(__('Campaign (ዘመቻ)'))
+                    ->options(function () {
+                        $query = \App\Models\Campaign::active();
                         $user = auth()->user();
-                        // If the user is Field (paramilitary) or Coordinator, restrict to their Woreda
                         if (($user->hasRole('paramilitary') || $user->hasRole('woreda_coordinator')) && $user->woreda_id) {
                             $query->where('woreda_id', $user->woreda_id);
                         }
-                        
-                        return $query;
+                        return $query->pluck('name_am', 'id')->toArray();
                     })
-                    ->label(__('Campaign (ዘመቻ)'))
                     ->required()
-                    ->searchable(true, false)
-                    ->preload()
-                    ->live()
-                    ->placeholder(null)
+                    ->searchable()
+                    ->placeholder('Select Campaign')
                     ->disablePlaceholderSelection()
                     ->afterStateUpdated(function ($state, Set $set) {
                         if ($state) {
                             $campaign = \App\Models\Campaign::find($state);
                             if ($campaign) {
-                                // Always sync engagement type from campaign
                                 if ($campaign->category) {
                                     $set('engagement_type', $campaign->category);
                                 }
-
-                                // Only sync geography if the user is NOT a locked paramilitary user
-                                // (paramilitary location is forced from their profile — don't let campaign override it)
                                 $user = auth()->user();
-                                $isLockedParamilitary = $user->hasRole('paramilitary')
-                                    && $user->woreda_id !== null;
-
+                                $isLockedParamilitary = $user->hasRole('paramilitary') && $user->woreda_id !== null;
                                 if (! $isLockedParamilitary) {
-                                    if ($campaign->sub_city_id) {
-                                        $set('sub_city_id', $campaign->sub_city_id);
-                                    }
-                                    if ($campaign->woreda_id) {
-                                        $set('woreda_id', $campaign->woreda_id);
-                                    }
+                                    if ($campaign->sub_city_id) $set('sub_city_id', $campaign->sub_city_id);
+                                    if ($campaign->woreda_id) $set('woreda_id', $campaign->woreda_id);
                                 }
                             }
                         }
@@ -94,36 +79,22 @@ class AwarenessEngagementResource extends Resource
                         'organization'    => 'በአደረጃጀት (Organization)',
                     ])
                     ->required()
-                    ->live()
-                    ->placeholder('Select Engagement Type (የግንዛቤ ዓይነት ይምረጡ)')
-                    ->afterStateUpdated(function ($set) {
-                        // Clear attendees state when switching types
-                        $set('attendees', []);
-                    }),
+                    ->placeholder('Select Engagement Type (የግንዛቤ ዓይነት ይምረጡ)'),
 
                 // ── Section 3: Geography ──
                 Forms\Components\Select::make('sub_city_id')
                     ->label('Sub-City (ክፍለ ከተማ)')
                     ->options(SubCity::orderBy('name_am')->pluck('name_am', 'id')->toArray())
                     ->required()
-                    ->live()
                     ->searchable()
-                    ->placeholder('Select Sub-City (ክፍለ ከተማ ይምረጡ)')
-                    ->afterStateUpdated(fn (Set $set) => $set('woreda_id', null)),
+                    ->placeholder('Select Sub-City (ክፍለ ከተማ ይምረጡ)'),
+                
                 Forms\Components\Select::make('woreda_id')
                     ->label('Woreda (ወረዳ)')
-                    ->options(function (callable $get) {
-                        $subCityId = $get('sub_city_id');
-                        if ($subCityId) {
-                            return Woreda::where('sub_city_id', $subCityId)
-                                ->orderBy('name_am')
-                                ->pluck('name_am', 'id')
-                                ->toArray();
-                        }
-                        return [];
-                    })
+                    // Load ALL woredas upfront so the form works offline, grouped by Sub-City is ideal but simple flat list is safest for offline caching.
+                    // When offline, live() dependent queries fail. By pre-filling all or removing live() dependency, JS can still submit.
+                    ->options(Woreda::orderBy('name_am')->pluck('name_am', 'id')->toArray())
                     ->required()
-                    ->live()
                     ->searchable()
                     ->placeholder('Select Woreda (ወረዳ ይምረጡ)'),
 
@@ -142,7 +113,6 @@ class AwarenessEngagementResource extends Resource
 
                 // ── Section 5A: House-to-House Fields ──
                 Section::make('ቤት ለቤት — Citizen Details')
-
                     ->schema([
                         Forms\Components\TextInput::make('citizen_name')
                             ->label('Primary Citizen Name (ዋና ተሳታፊ ስም)')
@@ -153,20 +123,18 @@ class AwarenessEngagementResource extends Resource
                             ->placeholder('Select Gender (ጾታ ይምረጡ)'),
                         Forms\Components\TextInput::make('citizen_age')->label('Age (እድሜ)')->numeric(),
                     ])
-                    ->visible(fn($get) => $get('engagement_type') === 'house_to_house'),
+                    ->extraAttributes(['x-show' => "data.engagement_type === 'house_to_house'"]),
 
                 // ── Section 5B: Coffee Ceremony Fields ──
                 Section::make('ቡና ጠጡ — Group Details')
-
                     ->schema([
                         Forms\Components\TextInput::make('headcount')->label('Total Headcount (ብዛት)')->numeric()->requiredWith('stakeholder_partner'),
                         Forms\Components\TextInput::make('stakeholder_partner')->label('Stakeholder Partner (ባለድርሻ አካል)'),
                     ])
-                    ->visible(fn($get) => $get('engagement_type') === 'coffee_ceremony'),
+                    ->extraAttributes(['x-show' => "data.engagement_type === 'coffee_ceremony'"]),
 
                 // ── Section 5C: Organization Fields ──
                 Section::make('በአደረጃጀት — Organization Details')
-
                     ->schema([
                         Forms\Components\Select::make('organization_type')
                             ->label('Organization (አደረጃጀት ስም)')
@@ -184,7 +152,7 @@ class AwarenessEngagementResource extends Resource
                         Forms\Components\TextInput::make('org_headcount_male')->label('Male Headcount')->numeric(),
                         Forms\Components\TextInput::make('org_headcount_female')->label('Female Headcount')->numeric(),
                     ])
-                    ->visible(fn($get) => $get('engagement_type') === 'organization'),
+                    ->extraAttributes(['x-show' => "data.engagement_type === 'organization'"]),
 
                 // ── Unified Attendees Repeater (H2H & Coffee) ──
                 Forms\Components\Repeater::make('attendees')
@@ -207,7 +175,7 @@ class AwarenessEngagementResource extends Resource
                     ->minItems(0)
                     ->defaultItems(0)
                     ->addActionLabel('Add Attendee / ተጨማሪ ጨምር')
-                    ->visible(fn ($get) => in_array($get('engagement_type'), ['house_to_house', 'coffee_ceremony'])),
+                    ->extraAttributes(['x-show' => "['house_to_house', 'coffee_ceremony'].includes(data.engagement_type)"]),
 
                 // ── Section 6: Timestamp ──
                 Forms\Components\DateTimePicker::make('session_datetime')

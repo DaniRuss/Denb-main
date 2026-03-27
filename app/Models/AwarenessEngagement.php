@@ -17,6 +17,8 @@ class AwarenessEngagement extends Model
         'approved_at', 'rejection_note',
         // Offline sync fields
         'local_uuid', 'created_at_mobile', 'synced_at', 'is_offline_draft',
+        // Media
+        'violation_photo_path', 'officer_signature',
     ];
 
     protected $casts = [
