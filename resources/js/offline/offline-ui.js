@@ -67,7 +67,7 @@ function updateStatusPill(elements, isOnline, pendingCount) {
 
 // ── Toast Notification ────────────────────────────────────────────────────────
 
-function showToast(message, type = 'info', duration = 4000) {
+export function showToast(message, type = 'info', duration = 4000) {
     const colors = {
         success: { bg: '#052e16', border: '#16a34a', text: '#86efac', icon: '✓' },
         warning: { bg: '#1c1209', border: '#d97706', text: '#fcd34d', icon: '⚠' },
@@ -109,7 +109,7 @@ function showToast(message, type = 'info', duration = 4000) {
 
 // ── Outbox Badge (count on nav item) ─────────────────────────────────────────
 
-async function updateOutboxBadge() {
+export async function updateOutboxBadge() {
     const drafts = await getAllDrafts();
     const pending = drafts.filter((d) => d._outbox_status === 'pending' || d._outbox_status === 'failed').length;
 
