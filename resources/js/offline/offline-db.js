@@ -111,6 +111,24 @@ export function updateDraftStatus(localUuid, status) {
     }));
 }
 
+export function updateDraftError(localUuid, status, errorMsg) {
+    return openDB().then((db) => new Promise((resolve, reject) => {
+        const tx    = db.transaction('outbox', 'readwrite');
+        const store = tx.objectStore('outbox');
+        const getReq = store.get(localUuid);
+        getReq.onsuccess = () => {
+            const record = getReq.result;
+            if (!record) return resolve(null);
+            record._outbox_status = status;
+            record._sync_error = errorMsg;
+            const putReq = store.put(record);
+            putReq.onsuccess = () => resolve(record);
+            putReq.onerror   = () => reject(putReq.error);
+        };
+        getReq.onerror = () => reject(getReq.error);
+    }));
+}
+
 export function deleteDraft(localUuid) {
     return txPromise('outbox', 'readwrite', (s) => s.delete(localUuid));
 }

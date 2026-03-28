@@ -11,6 +11,7 @@
 import {
     getAllDrafts,
     updateDraftStatus,
+    updateDraftError,
     deleteDraft,
     saveMasterData,
 } from './offline-db.js';
@@ -76,6 +77,10 @@ export async function syncOutbox({ onProgress } = {}) {
                     // Remove from IndexedDB once confirmed on server — protect citizen privacy
                     await deleteDraft(r.local_uuid);
                     synced++;
+                } else if (r.status === 'error') {
+                    // Specific validation error from our new per-record controller logic Look at UpdateSyncController
+                    await updateDraftError(r.local_uuid, 'error_needs_fix', r.reason);
+                    failed++;
                 } else {
                     await updateDraftStatus(r.local_uuid, 'failed');
                     failed++;
