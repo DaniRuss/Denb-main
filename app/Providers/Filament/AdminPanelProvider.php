@@ -74,6 +74,7 @@ class AdminPanelProvider extends PanelProvider
                     <meta name="apple-mobile-web-app-title" content="ዴንብ">
                 '
             )
+
             ->renderHook(
                 \Filament\View\PanelsRenderHook::USER_MENU_BEFORE,
                 fn (): string => '<div class="flex items-center gap-x-4 px-4 py-2 text-sm font-semibold">

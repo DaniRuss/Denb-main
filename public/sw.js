@@ -4,7 +4,7 @@
  * Falls back to /offline.html for navigation requests when offline.
  */
 
-const CACHE_VERSION = 'denb-v5';
+const CACHE_VERSION = 'denb-v6';
 const OFFLINE_URL   = '/offline.html';
 
 // Assets to pre-cache on install (fully confirmed items)
@@ -13,12 +13,8 @@ const PRECACHE_ASSETS = [
     '/offline.html',
     '/manifest.json',
     '/favicon.ico',
-    '/js/offline/offline-db.js',
-    '/js/offline/offline-sync.js',
-    '/js/offline/offline-ui.js',
     '/admin/volunteer-tips/create',
     '/admin/awareness-engagements/create',
-    '/admin/outbox',
 ];
 
 // ─────────────────────────────────────────
@@ -95,23 +91,7 @@ self.addEventListener('fetch', (event) => {
     );
 });
 
-// ─────────────────────────────────────────
-// BACKGROUND SYNC — "outbox-sync" tag
-// Triggered automatically when connection restores
-// ─────────────────────────────────────────
-self.addEventListener('sync', (event) => {
-    if (event.tag === 'outbox-sync') {
-        event.waitUntil(syncOutbox());
-    }
-});
 
-async function syncOutbox() {
-    // Notify all open clients to run the sync
-    const clients = await self.clients.matchAll({ type: 'window' });
-    for (const client of clients) {
-        client.postMessage({ type: 'TRIGGER_SYNC' });
-    }
-}
 
 // ─────────────────────────────────────────
 // MESSAGE — Handle manual trigger from UI
