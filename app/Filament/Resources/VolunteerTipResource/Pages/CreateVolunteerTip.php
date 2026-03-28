@@ -10,10 +10,5 @@ class CreateVolunteerTip extends CreateRecord
 {
     protected static string $resource = VolunteerTipResource::class;
 
-    protected function getHeaderWidgets(): array
-    {
-        return [
-            \App\Filament\Widgets\OfflineCreateWidget::class,
-        ];
-    }
+
 }

@@ -25,12 +25,7 @@ class CreateAwarenessEngagement extends CreateRecord
             ->success();
     }
 
-    protected function getHeaderWidgets(): array
-    {
-        return [
-            \App\Filament\Widgets\OfflineCreateWidget::class,
-        ];
-    }
+
 
     protected function getRedirectUrl(): string
     {
