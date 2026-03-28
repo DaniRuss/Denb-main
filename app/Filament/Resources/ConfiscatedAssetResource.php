@@ -52,7 +52,7 @@ class ConfiscatedAssetResource extends Resource
 
     public static function canCreate(): bool
     {
-        return auth()->user()?->hasAnyRole(['officer', 'admin', 'super_admin']) ?? false;
+        return false;
     }
 
     public static function form(Schema $schema): Schema
@@ -200,7 +200,6 @@ class ConfiscatedAssetResource extends Resource
     {
         return [
             'index'  => Pages\ListConfiscatedAssets::route('/'),
-            'create' => Pages\CreateConfiscatedAsset::route('/create'),
             'view'   => Pages\ViewConfiscatedAsset::route('/{record}'),
             'edit'   => Pages\EditConfiscatedAsset::route('/{record}/edit'),
         ];
