@@ -78,9 +78,9 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(
                 \Filament\View\PanelsRenderHook::USER_MENU_BEFORE,
                 fn (): string => '<div class="flex items-center gap-x-4 px-4 py-2 text-sm font-semibold">
-                    <a href="/language/en" class="' . (app()->getLocale() === 'en' ? 'text-primary-600' : 'text-gray-500 hover:text-gray-700') . '">English</a>
+                    <a href="' . route('language.switch', 'en') . '" class="' . (app()->getLocale() === 'en' ? 'text-primary-600 font-bold' : 'text-gray-500 hover:text-gray-700') . '">English</a>
                     <span class="text-gray-300">|</span>
-                    <a href="/language/am" class="' . (app()->getLocale() === 'am' ? 'text-primary-600' : 'text-gray-500 hover:text-gray-700') . '">አማርኛ</a>
+                    <a href="' . route('language.switch', 'am') . '" class="' . (app()->getLocale() === 'am' ? 'text-primary-600 font-bold' : 'text-gray-500 hover:text-gray-700') . '">አማርኛ</a>
                 </div>'
             );
     }
