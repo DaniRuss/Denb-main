@@ -5,9 +5,9 @@ import './bootstrap';
 // Import is conditional so it doesn't break the public-facing portal pages.
 if (document.querySelector('[data-filament-panel]') || window.location.pathname.startsWith('/admin')) {
     Promise.all([
-        import('./offline/offline-db.js'),
-        import('./offline/offline-sync.js'),
-        import('./offline/offline-ui.js'),
+        import('/js/offline/offline-db.js'),
+        import('/js/offline/offline-sync.js'),
+        import('/js/offline/offline-ui.js'),
     ]).then(([db, sync, ui]) => {
         // Expose modules globally so Alpine.js components can use them
         window.DenbDB   = db;

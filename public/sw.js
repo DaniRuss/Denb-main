@@ -4,29 +4,47 @@
  * Falls back to /offline.html for navigation requests when offline.
  */
 
-const CACHE_VERSION = 'denb-v1';
+const CACHE_VERSION = 'denb-v5';
 const OFFLINE_URL   = '/offline.html';
 
-// Assets to pre-cache on install (shell caching)
+// Assets to pre-cache on install (fully confirmed items)
 const PRECACHE_ASSETS = [
     '/',
     '/offline.html',
     '/manifest.json',
+    '/favicon.ico',
+    '/js/offline/offline-db.js',
+    '/js/offline/offline-sync.js',
+    '/js/offline/offline-ui.js',
+    '/admin/volunteer-tips/create',
+    '/admin/awareness-engagements/create',
+    '/admin/outbox',
 ];
 
 // ─────────────────────────────────────────
-// INSTALL — Pre-cache shell assets
+// INSTALL — Force immediate takeover
 // ─────────────────────────────────────────
 self.addEventListener('install', (event) => {
+    console.log('[SW] Installing v4...');
+    self.skipWaiting(); // Force active immediately
+    
     event.waitUntil(
-        caches.open(CACHE_VERSION).then((cache) => {
-            return cache.addAll(PRECACHE_ASSETS);
-        }).then(() => self.skipWaiting())
+        caches.open(CACHE_VERSION).then(async (cache) => {
+            console.log('[SW] Pre-caching shell...');
+            for (const asset of PRECACHE_ASSETS) {
+                try {
+                    await cache.add(asset);
+                    console.log(`[SW] Cached: ${asset}`);
+                } catch (err) {
+                    console.warn(`[SW] Skip caching: ${asset}`, err);
+                }
+            }
+        })
     );
 });
 
 // ─────────────────────────────────────────
-// ACTIVATE — Clean up old caches
+// ACTIVATE — Clean up old caches immediately
 // ─────────────────────────────────────────
 self.addEventListener('activate', (event) => {
     event.waitUntil(
