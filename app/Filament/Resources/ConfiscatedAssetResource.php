@@ -22,9 +22,27 @@ class ConfiscatedAssetResource extends Resource
     protected static ?string $model = ConfiscatedAsset::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-archive-box';
-    protected static string|\UnitEnum|null  $navigationGroup  = 'Awareness Management';
-    protected static ?string $navigationLabel = 'Confiscated Assets | ሙሌቀት';
     protected static ?int    $navigationSort   = 4;
+
+    public static function getNavigationLabel(): string
+    {
+        return __('Confiscated Assets');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('Confiscated Asset');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Confiscated Assets');
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Awareness Management');
+    }
 
     // Only Officers and Admins can manage confiscated assets
     public static function canViewAny(): bool
@@ -41,12 +59,12 @@ class ConfiscatedAssetResource extends Resource
     {
         return $schema->schema([
 
-            Section::make('Seized Item Details | የተወረሰ ዕቃ መረጃ')
+            Section::make(__('Seized Item Details'))
                 ->icon('heroicon-o-archive-box')
                 ->schema([
                     Grid::make(2)->schema([
                         Forms\Components\Select::make('volunteer_tip_id')
-                            ->label('Linked Volunteer Tip / ጥቆማ')
+                            ->label(__('Linked Volunteer Tip'))
                             ->options(
                                 VolunteerTip::whereIn('status', ['verified', 'resolved'])
                                     ->get()
@@ -57,43 +75,43 @@ class ConfiscatedAssetResource extends Resource
                             ->prefixIcon('heroicon-m-light-bulb'),
 
                         Forms\Components\TextInput::make('item_description')
-                            ->label('Item Description / ዕቃ መግለጫ')
+                            ->label(__('Item Description'))
                             ->required()
                             ->maxLength(255),
                     ]),
 
                     Grid::make(2)->schema([
                         Forms\Components\TextInput::make('seizure_location')
-                            ->label('Seizure Location / ሙሌቀት ቦታ')
+                            ->label(__('Seizure Location'))
                             ->required()
                             ->maxLength(255),
 
                         Forms\Components\DatePicker::make('seizure_date')
-                            ->label('Date of Seizure / ሙሌቀት ቀን')
+                            ->label(__('Date of Seizure'))
                             ->required()
                             ->default(now()),
                     ]),
 
                     Grid::make(2)->schema([
                         Forms\Components\TextInput::make('estimated_value')
-                            ->label('Estimated Value (ETB) / ግምታዊ ዋጋ')
+                            ->label(__('Estimated Value (ETB)'))
                             ->numeric()
                             ->prefix('ETB'),
 
                         Forms\Components\Select::make('handover_status')
-                            ->label('Handover Status / የሙሌቀት ሁኔታ')
+                            ->label(__('Handover Status'))
                             ->options([
-                                'impounded'  => 'Impounded — ተከማችቷል',
-                                'auctioned'  => 'Auctioned — ተሸጧል',
-                                'destroyed'  => 'Destroyed — ተደምስሷል',
-                                'returned'   => 'Returned — ተመልሷል',
+                                'impounded'  => __('Impounded'),
+                                'auctioned'  => __('Auctioned'),
+                                'destroyed'  => __('Destroyed'),
+                                'returned'   => __('Returned'),
                             ])
                             ->default('impounded')
                             ->required(),
                     ]),
 
                     Forms\Components\Textarea::make('notes')
-                        ->label('Notes / ማስታወሻ')
+                        ->label(__('Notes'))
                         ->rows(3)
                         ->columnSpanFull(),
 
@@ -109,31 +127,31 @@ class ConfiscatedAssetResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('volunteerTip.tip_code')
-                    ->label('Tip Ref.')
+                    ->label(__('Tip Ref.'))
                     ->searchable()
                     ->copyable(),
 
                 Tables\Columns\TextColumn::make('item_description')
-                    ->label('Item')
+                    ->label(__('Item'))
                     ->searchable()
                     ->limit(40),
 
                 Tables\Columns\TextColumn::make('seizure_location')
-                    ->label('Location')
+                    ->label(__('Location'))
                     ->searchable(),
 
                 Tables\Columns\TextColumn::make('seizure_date')
-                    ->label('Seizure Date')
+                    ->label(__('Seizure Date'))
                     ->date()
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('estimated_value')
-                    ->label('Value (ETB)')
+                    ->label(__('Value (ETB)'))
                     ->numeric(decimalPlaces: 2)
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('handover_status')
-                    ->label('Status')
+                    ->label(__('Status'))
                     ->badge()
                     ->color(fn ($state) => match ($state) {
                         'impounded'  => 'warning',
@@ -144,11 +162,11 @@ class ConfiscatedAssetResource extends Resource
                     }),
 
                 Tables\Columns\TextColumn::make('seizedBy.name')
-                    ->label('Seized By')
+                    ->label(__('Seized By'))
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('created_at')
-                    ->label('Recorded At')
+                    ->label(__('Recorded At'))
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -156,10 +174,10 @@ class ConfiscatedAssetResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('handover_status')
                     ->options([
-                        'impounded'  => 'Impounded',
-                        'auctioned'  => 'Auctioned',
-                        'destroyed'  => 'Destroyed',
-                        'returned'   => 'Returned',
+                        'impounded'  => __('Impounded'),
+                        'auctioned'  => __('Auctioned'),
+                        'destroyed'  => __('Destroyed'),
+                        'returned'   => __('Returned'),
                     ]),
             ])
             ->actions([

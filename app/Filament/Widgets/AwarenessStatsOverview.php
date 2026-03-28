@@ -42,25 +42,25 @@ class AwarenessStatsOverview extends BaseWidget
         $personalLogs = AwarenessEngagement::where('created_by', $user->id)->count();
 
         $stats = [
-            Stat::make('Active Campaigns (ዘመቻዎች)', $campaignCount)
-                ->description('Current active education programs')
+            Stat::make(__('Active Campaigns'), $campaignCount)
+                ->description(__('Current active education programs'))
                 ->descriptionIcon('heroicon-m-megaphone')
                 ->color('info'),
 
-            Stat::make('Pending Approvals (ምዝገባዎች)', $pendingApprovals)
-                ->description('Engagement logs awaiting review')
+            Stat::make(__('Pending Approvals'), $pendingApprovals)
+                ->description(__('Engagement logs awaiting review'))
                 ->descriptionIcon('heroicon-m-clock')
                 ->color($pendingApprovals > 0 ? 'warning' : 'success'),
 
-            Stat::make('Verified Tips (ጥቆማዎች)', $verifiedTipsCount)
-                ->description('Verified community tips for action')
+            Stat::make(__('Verified Tips'), $verifiedTipsCount)
+                ->description(__('Verified community tips for action'))
                 ->descriptionIcon('heroicon-m-check-badge')
                 ->color('success'),
         ];
 
         if ($user->hasRole('paramilitary')) {
-            $stats[] = Stat::make('My Contributions', $personalLogs)
-                ->description('Your logged awareness sessions')
+            $stats[] = Stat::make(__('My Contributions'), $personalLogs)
+                ->description(__('Your logged awareness sessions'))
                 ->descriptionIcon('heroicon-m-user')
                 ->color('primary');
         }

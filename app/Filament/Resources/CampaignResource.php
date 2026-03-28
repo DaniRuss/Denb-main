@@ -22,9 +22,27 @@ class CampaignResource extends Resource
     protected static ?string $model = Campaign::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-megaphone';
-    protected static string|\UnitEnum|null $navigationGroup  = 'Awareness Management';
-    protected static ?string $navigationLabel = 'Campaigns | ዘመቻዎች';
     protected static ?int $navigationSort = 1;
+
+    public static function getNavigationLabel(): string
+    {
+        return __('Campaigns');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('Campaign');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Campaigns');
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Awareness Management');
+    }
 
     public static function canCreate(): bool
     {
@@ -36,61 +54,61 @@ class CampaignResource extends Resource
         return $schema
             ->schema([
                 // ── Section 1: Campaign Identity ──
-                Section::make('Campaign Identity | ዘመቻ መለያ')
+                Section::make(__('Campaign Identity'))
                     ->icon('heroicon-o-megaphone')
                     ->schema([
                         Forms\Components\TextInput::make('name_am')
-                            ->label('Campaign Name (አማርኛ)')
+                            ->label(__('Campaign Name (Amharic)'))
                             ->required()
                             ->maxLength(255),
                         Forms\Components\TextInput::make('name_en')
-                            ->label('Campaign Name (English)')
+                            ->label(__('Campaign Name (English)'))
                             ->required()
                             ->maxLength(255),
                         Forms\Components\Textarea::make('description_am')
-                            ->label('Description (አማርኛ ዝርዝር)')
+                            ->label(__('Description (Amharic)'))
                             ->rows(3),
                         Forms\Components\Textarea::make('description_en')
-                            ->label('Description (English)')
+                            ->label(__('Description (English)'))
                             ->rows(3),
                     ])->columns(2),
 
                 // ── Section 2: Campaign Category ──
-                Section::make('Campaign Category | ዘመቻ ዓይነት')
+                Section::make(__('Campaign Category'))
                     ->icon('heroicon-o-squares-2x2')
-                    ->description('Select the type of awareness campaign to be conducted / ዘመቻው እንዴት እንደሚካሄድ ይምረጡ')
+                    ->description(__('Select the type of awareness campaign to be conducted'))
                     ->schema([
                         Forms\Components\Select::make('category')
-                            ->label('Campaign Category (ዘመቻ ዓይነት)')
+                            ->label(__('Category'))
                             ->options([
-                                'house_to_house'  => 'ቤት ለቤት — House to House',
-                                'coffee_ceremony' => 'ቡና ጠጡ — Coffee Ceremony',
-                                'organization'    => 'በአደረጃጀት — Organizational / Community',
+                                'house_to_house'  => __('House to House'),
+                                'coffee_ceremony' => __('Coffee Ceremony'),
+                                'organization'    => __('Organization'),
                             ])
                             ->required()
                             ->live()
-                            ->helperText('House to House: One-on-one citizen visits | Coffee Ceremony: Group sessions | Organizational: Community associations'),
+                            ->helperText(__('House to House: One-on-one citizen visits | Coffee Ceremony: Group sessions | Organizational: Community associations')),
                     ]),
 
                 // ── Section 3: Timeline ──
-                Section::make('Campaign Timeline | የዘመቻ ጊዜ ሰሌዳ')
+                Section::make(__('Campaign Timeline'))
                     ->icon('heroicon-o-calendar')
                     ->schema([
                         Forms\Components\DatePicker::make('start_date')
-                            ->label('Start Date (መጀመሪያ ቀን)')
+                            ->label(__('Start Date'))
                             ->required(),
                         Forms\Components\DatePicker::make('end_date')
-                            ->label('End Date (ማጠናቀቂያ ቀን)')
+                            ->label(__('End Date'))
                             ->required()
                             ->after('start_date'),
                     ])->columns(2),
 
                 // ── Section 4: Target Location (all campaign types) ──
-                Section::make('Target Location | ዒላማ አካባቢ')
+                Section::make(__('Target Location'))
                     ->icon('heroicon-o-map-pin')
                     ->schema([
                         Forms\Components\Select::make('sub_city_id')
-                            ->label('Sub-City (ክፍለ ከተማ)')
+                            ->label(__('Sub-City'))
                             ->options(
                                 SubCity::orderBy('name_am')->pluck('name_am', 'id')->toArray()
                             )
@@ -99,7 +117,7 @@ class CampaignResource extends Resource
                             ->afterStateUpdated(fn (callable $set) => $set('woreda_id', null))
                             ->required(),
                         Forms\Components\Select::make('woreda_id')
-                            ->label('Woreda (ወረዳ)')
+                            ->label(__('Woreda'))
                             ->options(function (callable $get) {
                                 $subCityId = $get('sub_city_id');
                                 if (!$subCityId) {
@@ -116,41 +134,41 @@ class CampaignResource extends Resource
 
                         // ── Block + Specific Place: shown for all campaigns ──
                         Forms\Components\TextInput::make('block')
-                            ->label('Block / ብሎክ')
-                            ->placeholder('e.g. Block 5 / ብሎክ 5'),
+                            ->label(__('Block'))
+                            ->placeholder(__('e.g. Block 5')),
 
                         Forms\Components\Textarea::make('specific_place')
-                            ->label('Specific Place Name (ዝርዝር ቦታ)')
-                            ->placeholder('e.g. Near the main market, behind the school / ዋናው ገበያ አጠገብ ትምህርት ቤቱ ጀርባ')
+                            ->label(__('Specific Place Name'))
+                            ->placeholder(__('e.g. Near the main market, behind the school'))
                             ->rows(2)
                             ->columnSpanFull(),
                     ])->columns(2),
 
                 // ── Section 5: Target Audience — only for Organizational campaigns ──
-                Section::make('Target Audience | ዒላማ ህብረተሰብ')
+                Section::make(__('Target Audience'))
                     ->icon('heroicon-o-users')
-                    ->description('Specify the community groups or associations to be engaged / ተሳታፊ የሚሆኑ ቡድኖችና ማህበራትን ይዘርዝሩ')
+                    ->description(__('Specify the community groups or associations to be engaged'))
                     ->visible(fn (callable $get) => $get('category') === 'organization')
                     ->schema([
                         Forms\Components\Textarea::make('target_audience')
-                            ->label('Organizations / Associations (ድርጅቶች / ማህበራት)')
-                            ->placeholder("List the community groups or organizations, e.g.:\n- Women's savings group — ሴቶች ቁጠባ ማህበር\n- Youth association — የወጣቶች ማህበር\n- Business owners association — የነጋዴዎች ማህበር")
+                            ->label(__('Organizations / Associations'))
+                            ->placeholder(__('List the community groups or associations to be engaged'))
                             ->rows(5)
                             ->columnSpanFull(),
                     ]),
 
 
                 // ── Section 6: Campaign Status ──
-                Section::make('Campaign Status | ሁኔታ')
+                Section::make(__('Campaign Status'))
                     ->icon('heroicon-o-check-badge')
                     ->schema([
                         Forms\Components\Select::make('status')
-                            ->label('Status (ሁኔታ)')
+                            ->label(__('Status'))
                             ->options([
-                                'draft'     => 'Draft — ረቂቅ',
-                                'active'    => 'Active — ንቁ',
-                                'completed' => 'Completed — ተጠናቋል',
-                                'cancelled' => 'Cancelled — ተሰርዟል',
+                                'draft'     => __('Draft'),
+                                'active'    => __('Active'),
+                                'completed' => __('Completed'),
+                                'cancelled' => __('Cancelled'),
                             ])
                             ->default('draft')
                             ->required(),
@@ -165,23 +183,23 @@ class CampaignResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('campaign_code')
-                    ->label('Code')
+                    ->label(__('Code'))
                     ->searchable()
                     ->copyable(),
                 Tables\Columns\TextColumn::make('name_am')
-                    ->label('Campaign (አማርኛ)')
+                    ->label(__('Campaign Name (Amharic)'))
                     ->searchable(),
                 Tables\Columns\TextColumn::make('name_en')
-                    ->label('Campaign (English)')
+                    ->label(__('Campaign Name (English)'))
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('category')
-                    ->label('Category')
+                    ->label(__('Category'))
                     ->badge()
                     ->formatStateUsing(fn ($state) => match ($state) {
-                        'house_to_house'  => 'ቤት ለቤት',
-                        'coffee_ceremony' => 'ቡና ጠጡ',
-                        'organization'    => 'በአደረጃጀት',
+                        'house_to_house'  => __('House to House'),
+                        'coffee_ceremony' => __('Coffee Ceremony'),
+                        'organization'    => __('Organization'),
                         default           => $state,
                     })
                     ->color(fn ($state) => match ($state) {
@@ -190,9 +208,9 @@ class CampaignResource extends Resource
                         'organization'    => 'success',
                         default           => 'gray',
                     }),
-                Tables\Columns\TextColumn::make('start_date')->date()->sortable(),
-                Tables\Columns\TextColumn::make('end_date')->date()->sortable(),
-                Tables\Columns\TextColumn::make('status')
+                Tables\Columns\TextColumn::make('start_date')->label(__('Start Date'))->date()->sortable(),
+                Tables\Columns\TextColumn::make('end_date')->label(__('End Date'))->date()->sortable(),
+                Tables\Columns\TextColumn::make('status')->label(__('Status'))
                     ->badge()
                     ->color(fn ($state) => match ($state) {
                         'draft'     => 'gray',
@@ -204,18 +222,18 @@ class CampaignResource extends Resource
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('category')
-                    ->label('Category')
+                    ->label(__('Category'))
                     ->options([
-                        'house_to_house'  => 'ቤት ለቤት (House to House)',
-                        'coffee_ceremony' => 'ቡና ጠጡ (Coffee Ceremony)',
-                        'organization'    => 'በአደረጃጀት (Organization)',
+                        'house_to_house'  => __('House to House'),
+                        'coffee_ceremony' => __('Coffee Ceremony'),
+                        'organization'    => __('Organization'),
                     ]),
-                Tables\Filters\SelectFilter::make('status')
+                Tables\Filters\SelectFilter::make('status')->label(__('Status'))
                     ->options([
-                        'draft'     => 'Draft',
-                        'active'    => 'Active',
-                        'completed' => 'Completed',
-                        'cancelled' => 'Cancelled',
+                        'draft'     => __('Draft'),
+                        'active'    => __('Active'),
+                        'completed' => __('Completed'),
+                        'cancelled' => __('Cancelled'),
                     ]),
             ])
             ->actions([
