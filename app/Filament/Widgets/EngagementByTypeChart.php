@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 
 class EngagementByTypeChart extends ChartWidget
 {
-    protected static ?string $heading = 'Engagement Strategies Used (የግንዛቤ አይነቶች)';
+    protected ?string $heading = 'Engagement Strategies Used (የግንዛቤ አይነቶች)';
     protected static ?int $sort = 2;
 
     public static function canView(): bool

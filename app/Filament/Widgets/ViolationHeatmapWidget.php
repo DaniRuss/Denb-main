@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 
 class ViolationHeatmapWidget extends ChartWidget
 {
-    protected static ?string $heading = 'Violations Addressed (የተዳሰሱ ጥሰቶች)';
+    protected ?string $heading = 'Violations Addressed (የተዳሰሱ ጥሰቶች)';
     protected static ?int $sort = 3;
 
     public static function canView(): bool
