@@ -221,7 +221,7 @@ class VolunteerTipResource extends Resource
                     ->action(function($record, array $data) {
                         $record->update([
                             'status' => 'draft', 
-                            'action_notes' => $data['rejection_note']
+                            'rejection_note' => $data['rejection_note']
                         ]);
                         Notification::make()->title('Tip sent back to draft.')->warning()->send();
                     }),
@@ -237,7 +237,7 @@ class VolunteerTipResource extends Resource
                     ->action(function($record, array $data) {
                         $record->update([
                             'status' => 'dismissed', 
-                            'action_notes' => $data['rejection_note'], 
+                            'rejection_note' => $data['rejection_note'], 
                             'verified_by' => auth()->id(), 
                             'verified_at' => now()
                         ]);
@@ -268,6 +268,12 @@ class VolunteerTipResource extends Resource
                             'status'       => 'resolved',
                             'investigated_by' => auth()->id(),
                         ]);
+                        
+                        if ($data['action_taken'] === 'asset_confiscation') {
+                            Notification::make()->title('Action logged. Redirecting to Asset Mgt...')->success()->send();
+                            return redirect(\App\Filament\Resources\ConfiscatedAssetResource::getUrl('create', ['volunteer_tip_id' => $record->id]));
+                        }
+                        
                         Notification::make()->title('Action logged successfully.')->success()->send();
                     }),
                     

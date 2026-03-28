@@ -43,8 +43,8 @@ class EditAwarenessEngagement extends EditRecord
         return [
             ViewAction::make(),
             DeleteAction::make(),
-            ForceDeleteAction::make(),
-            RestoreAction::make(),
+            ForceDeleteAction::make()->visible(fn ($record) => $record->trashed()),
+            RestoreAction::make()->visible(fn ($record) => $record->trashed()),
         ];
     }
 }

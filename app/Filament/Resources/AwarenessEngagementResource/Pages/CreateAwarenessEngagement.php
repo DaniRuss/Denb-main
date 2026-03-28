@@ -20,8 +20,8 @@ class CreateAwarenessEngagement extends CreateRecord
     protected function getCreatedNotification(): ?Notification
     {
         return Notification::make()
-            ->title('Engagement logged and submitted for approval.')
-            ->body('Your Woreda Coordinator will review your submission.')
+            ->title('Engagement logged as draft.')
+            ->body('You can review your entry before submitting it for approval.')
             ->success();
     }
 
