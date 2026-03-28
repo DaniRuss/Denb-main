@@ -124,16 +124,20 @@ class AwarenessEngagementResource extends Resource
                             Forms\Components\Select::make('organization_type')
                                 ->label('Organization Detail / የአደረጃጀት ዝርዝር')
                                 ->options([
-                                    'womens_association'    => 'Women\'s Association',
-                                    'youth_association'     => 'Youth Association',
-                                    'edir'                  => 'Edir',
-                                    'religious_institution' => 'Religious Institution',
-                                    'block_leaders'         => 'Block Leaders',
-                                ])->required(),
+                                    'womens_association'    => 'ሴት ማህበር — Women\'s Association',
+                                    'youth_association'     => 'ወጣት ማህበር — Youth Association',
+                                    'edir'                  => 'እድር — Edir',
+                                    'religious_institution' => 'የሀይማኖት ተቋማት — Religious Institution',
+                                    'block_leaders'         => 'ብሎክ አመራሮች — Block Leaders',
+                                    'peace_army'            => 'የሰላም ሰራዊት — Peace Army',
+                                    'equb'                  => 'እቁብ — Equb',
+                                ])
+                                ->required()
+                                ->searchable(),
                             Grid::make(2)
                                 ->schema([
-                                    Forms\Components\TextInput::make('org_headcount_male')->label('Male Total')->numeric(),
-                                    Forms\Components\TextInput::make('org_headcount_female')->label('Female Total')->numeric(),
+                                    Forms\Components\TextInput::make('org_headcount_male')->label('Male Total / ወንድ ብዛት')->numeric(),
+                                    Forms\Components\TextInput::make('org_headcount_female')->label('Female Total / ሴት ብዛት')->numeric(),
                                 ]),
                         ])->visible(fn (Get $get) => $get('engagement_type') === 'organization'),
 

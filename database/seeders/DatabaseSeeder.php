@@ -2,24 +2,26 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     /**
      * Seed the application's database.
+     *
+     * Order matters:
+     *  1. Locations (sub_cities, woredas) must exist before users reference them
+     *  2. Roles & Permissions + Demo Users created next
+     *  3. Site Settings last (independent)
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $this->call([
+            AddisAbabaLocationSeeder::class,   // Sub-cities & Woredas
+            RolesAndPermissionsSeeder::class,  // Base Spatie roles
+            ModuleOneRolesSeeder::class,       // Module One roles, permissions & demo users
+            SiteSettingSeeder::class,          // Default site settings
         ]);
     }
 }
+
