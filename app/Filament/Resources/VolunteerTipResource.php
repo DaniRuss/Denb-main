@@ -30,15 +30,33 @@ class VolunteerTipResource extends Resource
     }
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-light-bulb';
-    protected static string|\UnitEnum|null $navigationGroup  = 'Awareness Management';
-    protected static ?string $navigationLabel = 'Volunteer Tips | ጥቆማ';
     protected static ?int $navigationSort = 3;
+
+    public static function getNavigationLabel(): string
+    {
+        return __('Volunteer Tips');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('Volunteer Tip');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Volunteer Tips');
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Awareness Management');
+    }
     public static function form(Schema $schema): Schema
     {
         return $schema
             ->schema([
-                Section::make('የበጎ ፈቃደኛ ጥቆማ - Volunteer Tip Submission')
-                    ->description('Provide details regarding the suspected violation and person involved.')
+                Section::make(__('Volunteer Tip Submission'))
+                    ->description(__('Provide details regarding the suspected violation and person involved.'))
                     ->icon('heroicon-m-light-bulb')
                     ->schema([
                         // ── Sub-Section: Reference & Linking ──
@@ -46,9 +64,9 @@ class VolunteerTipResource extends Resource
                             ->schema([
                                 Forms\Components\Select::make('engagement_id')
                                     ->relationship('engagement', 'engagement_code')
-                                    ->label('Linked Engagement / የተያያዘ ምዝገባ')
+                                    ->label(__('Linked Engagement'))
                                     ->searchable()
-                                    ->placeholder('Optional: Search by code')
+                                    ->placeholder(__('Optional: Search by code'))
                                     ->live()
                                     ->afterStateUpdated(function ($state, Set $set) {
                                         if ($state) {
@@ -62,7 +80,7 @@ class VolunteerTipResource extends Resource
                                         }
                                     }),
                                 Forms\Components\Select::make('violation_type')
-                                    ->label('Violation Type / የተፈጸመው ሕገወጥ ተግባር')
+                                    ->label(__('Violation Type'))
                                     ->options(AwarenessEngagement::violationLabels())
                                     ->required()
                                     ->prefixIcon('heroicon-m-exclamation-triangle'),
@@ -73,10 +91,10 @@ class VolunteerTipResource extends Resource
                         Grid::make(2)
                             ->schema([
                                 Forms\Components\TextInput::make('suspect_name')
-                                    ->label('Suspect Name / የተጠርጣሪው ስም')
-                                    ->placeholder('Individual or Business name'),
+                                    ->label(__('Suspect Name'))
+                                    ->placeholder(__('Individual or Business name')),
                                 Forms\Components\DatePicker::make('violation_date')
-                                    ->label('Date of Act / ድርጊቱ የተፈጸመበት ቀን')
+                                    ->label(__('Date of Act'))
                                     ->required(),
                             ]),
 
@@ -85,15 +103,15 @@ class VolunteerTipResource extends Resource
                         Grid::make(1)
                             ->schema([
                                 Forms\Components\Toggle::make('is_anonymous')
-                                    ->label('Anonymous Tip? (በምስጢር የቀረበ ጥቆማ?)')
+                                    ->label(__('Anonymous Tip?'))
                                     ->live()
                                     ->onColor('danger')
                                     ->offColor('gray'),
                                 
                                 Forms\Components\TextInput::make('volunteer_name')
-                                    ->label('Volunteer Full Name / የጠቋሚው ሙሉ ስም')
+                                    ->label(__('Volunteer Full Name'))
                                     ->hidden(fn (callable $get) => $get('is_anonymous'))
-                                    ->placeholder('Enter name for verification')
+                                    ->placeholder(__('Enter name for verification'))
                                     ->prefixIcon('heroicon-m-identification'),
                             ]),
 
@@ -102,24 +120,24 @@ class VolunteerTipResource extends Resource
                         Grid::make(3)
                             ->schema([
                                 Forms\Components\Select::make('sub_city_id')
-                                    ->label('Sub-City')
+                                    ->label(__('Sub-City'))
                                     ->options(\App\Models\SubCity::pluck('name_am', 'id'))
                                     ->required()
                                     ->live(),
                                 Forms\Components\Select::make('woreda_id')
-                                    ->label('Woreda')
+                                    ->label(__('Woreda'))
                                     ->options(function (callable $get) {
                                         $subCityId = $get('sub_city_id');
                                         return $subCityId ? \App\Models\Woreda::where('sub_city_id', $subCityId)->pluck('name_am', 'id') : [];
                                     })
                                     ->required()
                                     ->live(),
-                                Forms\Components\TextInput::make('block_number')->label('Block No.'),
+                                Forms\Components\TextInput::make('block_number')->label(__('Block No.')),
                             ]),
                         
                         Forms\Components\Textarea::make('violation_location')
-                            ->label('Specific Location Description / የተፈጸመበት ልዩ ቦታ')
-                            ->placeholder('Describe the exact spot (e.g., behind the market, near the bridge)')
+                            ->label(__('Specific Location Description'))
+                            ->placeholder(__('Describe the exact spot (e.g., behind the market, near the bridge)'))
                             ->rows(2)
                             ->required(),
 
@@ -128,24 +146,24 @@ class VolunteerTipResource extends Resource
                         Grid::make(2)
                             ->schema([
                                 Forms\Components\DatePicker::make('reported_date')
-                                    ->label('Receipt Date')
+                                    ->label(__('Receipt Date'))
                                     ->default(now())
                                     ->required(),
                                 Forms\Components\TextInput::make('tip_code')
-                                    ->label('Reference Code')
+                                    ->label(__('Reference Code'))
                                     ->disabled()
-                                    ->placeholder('Auto-generated'),
+                                    ->placeholder(__('Auto-generated')),
                             ]),
 
                         Grid::make(2)
                             ->schema([
                                 Forms\Components\ViewField::make('volunteer_signature_path')
                                     ->view('filament.forms.components.offline-signature')
-                                    ->label('Signature / ፊርማ')
+                                    ->label(__('Signature'))
                                     ->required(),
                                 
                                 Forms\Components\ViewField::make('evidence_photo')
-                                    ->label('Evidence Photo / ማስረጃ ፎቶ')
+                                    ->label(__('Evidence Photo'))
                                     ->view('filament.forms.components.offline-photo'),
                             ]),
                     ]),
@@ -177,62 +195,62 @@ class VolunteerTipResource extends Resource
                 return $query->whereRaw('1=0'); // Default deny
             })
             ->columns([
-                Tables\Columns\TextColumn::make('tip_code')->searchable(),
-                Tables\Columns\TextColumn::make('suspect_name')->searchable(),
-                Tables\Columns\TextColumn::make('violation_type')->badge(),
-                Tables\Columns\TextColumn::make('woreda.name_am'),
+                Tables\Columns\TextColumn::make('tip_code')->label(__('Code'))->searchable(),
+                Tables\Columns\TextColumn::make('suspect_name')->label(__('Suspect Name'))->searchable(),
+                Tables\Columns\TextColumn::make('violation_type')->label(__('Violation Type'))->badge(),
+                Tables\Columns\TextColumn::make('woreda.name_am')->label(__('Woreda')),
 
-                Tables\Columns\TextColumn::make('reported_date')->date(),
-                Tables\Columns\TextColumn::make('status')->badge(),
+                Tables\Columns\TextColumn::make('reported_date')->label(__('Receipt Date'))->date(),
+                Tables\Columns\TextColumn::make('status')->label(__('Status'))->badge(),
             ])
             ->filters([
                 //
             ])
             ->actions([
                 Action::make('submit')
-                    ->label('Submit Tip / አቅርብ')
+                    ->label(__('Submit Tip'))
                     ->icon('heroicon-o-paper-airplane')
                     ->color('warning')
                     ->visible(fn($record) => $record->status === 'draft' && auth()->id() === $record->received_by)
                     ->requiresConfirmation()
                     ->action(function($record) {
                         $record->update(['status' => 'pending_verification']);
-                        Notification::make()->title('Tip submitted for verification.')->success()->send();
+                        Notification::make()->title(__('Tip submitted for verification.'))->success()->send();
                     }),
 
                 Action::make('verify')
-                    ->label('Verify / አረጋግጥ')
+                    ->label(__('Verify'))
                     ->icon('heroicon-o-check-badge')->color('success')
                     ->visible(fn($record) => $record->status === 'pending_verification' && auth()->user()->can('verify_tips'))
                     ->requiresConfirmation()
                     ->action(function($record) {
                         $record->update(['status' => 'verified', 'verified_by' => auth()->id(), 'verified_at' => now()]);
-                        Notification::make()->title('Tip verified.')->success()->send();
+                        Notification::make()->title(__('Tip verified.'))->success()->send();
                     }),
 
                 Action::make('reject')
-                    ->label('Reject / ወደ ረቂቅ መልስ')
+                    ->label(__('Reject to Draft'))
                     ->icon('heroicon-o-arrow-path')->color('warning')
                     ->visible(fn($record) => $record->status === 'pending_verification' && auth()->user()->can('verify_tips'))
                     ->requiresConfirmation()
                     ->form([
-                        Forms\Components\Textarea::make('rejection_note')->label('Reason / ምክንያት')->required(),
+                        Forms\Components\Textarea::make('rejection_note')->label(__('Rejection Reason'))->required(),
                     ])
                     ->action(function($record, array $data) {
                         $record->update([
                             'status' => 'draft', 
                             'rejection_note' => $data['rejection_note']
                         ]);
-                        Notification::make()->title('Tip sent back to draft.')->warning()->send();
+                        Notification::make()->title(__('Tip sent back to draft.'))->warning()->send();
                     }),
 
                 Action::make('dismiss')
-                    ->label('Dismiss / ውድቅ አድርግ')
+                    ->label(__('Dismiss'))
                     ->icon('heroicon-o-x-circle')->color('danger')
                     ->visible(fn($record) => $record->status === 'pending_verification' && auth()->user()->can('verify_tips'))
                     ->requiresConfirmation()
                     ->form([
-                        Forms\Components\Textarea::make('rejection_note')->label('Reason / ምክንያት')->required(),
+                        Forms\Components\Textarea::make('rejection_note')->label(__('Rejection Reason'))->required(),
                     ])
                     ->action(function($record, array $data) {
                         $record->update([
@@ -241,24 +259,25 @@ class VolunteerTipResource extends Resource
                             'verified_by' => auth()->id(), 
                             'verified_at' => now()
                         ]);
-                        Notification::make()->title('Tip marked as False Report & Dismissed.')->danger()->send();
+                        Notification::make()->title(__('Tip marked as False Report & Dismissed.'))->danger()->send();
                     }),
 
                 Action::make('take_action')
-                    ->label('Resolve / እርምጃ ይዝገቡ')
+                    ->label(__('Resolve'))
                     ->icon('heroicon-o-shield-check')->color('danger')
                     ->visible(fn($record) => in_array($record->status, ['verified']) && auth()->user()->can('take_action_on_tips'))
                     ->form([
                         Forms\Components\Select::make('action_taken')
+                            ->label(__('Action Taken'))
                             ->options([
-                                'formal_warning'    => 'Formal Warning',
-                                'financial_penalty' => 'Financial Penalty / ቅጣት',
-                                'asset_confiscation'=> 'Asset Confiscation / ንብረት መውረስ',
-                                'legal_referral'    => 'Legal Referral',
-                                'no_action'         => 'No Action',
+                                'formal_warning'    => __('Formal Warning'),
+                                'financial_penalty' => __('Financial Penalty'),
+                                'asset_confiscation'=> __('Asset Confiscation'),
+                                'legal_referral'    => __('Legal Referral'),
+                                'no_action'         => __('No Action'),
                             ])->required(),
-                        Forms\Components\Textarea::make('action_notes')->label('Notes (ማስታወሻ)'),
-                        Forms\Components\DatePicker::make('action_date')->label('Action Date')->default(now()),
+                        Forms\Components\Textarea::make('action_notes')->label(__('Action Notes')),
+                        Forms\Components\DatePicker::make('action_date')->label(__('Action Date'))->default(now()),
                     ])
                     ->action(function ($record, array $data) {
                         $record->update([
@@ -270,11 +289,11 @@ class VolunteerTipResource extends Resource
                         ]);
                         
                         if ($data['action_taken'] === 'asset_confiscation') {
-                            Notification::make()->title('Action logged. Redirecting to Asset Mgt...')->success()->send();
+                            Notification::make()->title(__('Action logged. Redirecting to Asset Mgt...'))->success()->send();
                             return redirect(\App\Filament\Resources\ConfiscatedAssetResource::getUrl('create', ['volunteer_tip_id' => $record->id]));
                         }
                         
-                        Notification::make()->title('Action logged successfully.')->success()->send();
+                        Notification::make()->title(__('Action logged successfully.'))->success()->send();
                     }),
                     
                 EditAction::make()

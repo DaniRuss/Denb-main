@@ -31,9 +31,27 @@ class AwarenessEngagementResource extends Resource
     protected static ?string $model = AwarenessEngagement::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-user-group';
-    protected static string|\UnitEnum|null $navigationGroup  = 'Awareness Management';
-    protected static ?string $navigationLabel = 'Engagement Logs | ምዝገባ';
     protected static ?int $navigationSort = 2;
+
+    public static function getNavigationLabel(): string
+    {
+        return __('Engagement Logs');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('Engagement Log');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Engagement Logs');
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return __('Awareness Management');
+    }
 
     public static function canCreate(): bool
     {
@@ -44,15 +62,15 @@ class AwarenessEngagementResource extends Resource
     {
         return $schema
             ->schema([
-                Section::make('የግንዛቤ ማስጨበጫ መዝገብ - Awareness Engagement Record')
-                    ->description('Fill in all required fields accurately for the engagement report.')
+                Section::make(__('Awareness Engagement Record'))
+                    ->description(__('Fill in all required fields accurately for the engagement report.'))
                     ->icon('heroicon-m-document-text')
                     ->schema([
                         // ── Sub-Section: Objective ──
                         Grid::make(2)
                             ->schema([
                                 Forms\Components\Select::make('campaign_id')
-                                    ->label(__('Select Active Campaign / ዘመቻ ይምረጡ'))
+                                    ->label(__('Select Active Campaign'))
                                     ->options(function () {
                                         $query = \App\Models\Campaign::active();
                                         $user = auth()->user();
@@ -79,11 +97,11 @@ class AwarenessEngagementResource extends Resource
                                     }),
 
                                 Forms\Components\Select::make('engagement_type')
-                                    ->label('Engagement Strategy / የግንዛቤ ዓይነት')
+                                    ->label(__('Engagement Strategy'))
                                     ->options([
-                                        'house_to_house'  => 'ቤት ለቤት (House to House)',
-                                        'coffee_ceremony' => 'ቡና ጠጡ (Coffee Ceremony)',
-                                        'organization'    => 'በአደረጃጀት (Organization)',
+                                        'house_to_house'  => __('House to House'),
+                                        'coffee_ceremony' => __('Coffee Ceremony'),
+                                        'organization'    => __('Organization'),
                                     ])
                                     ->required()
                                     ->live(),
@@ -93,19 +111,19 @@ class AwarenessEngagementResource extends Resource
                         // ── Sub-Section: Dynamic Profiles ──
                         Group::make([
                             Forms\Components\TextInput::make('citizen_name')
-                                ->label('Citizen Name / የዜጋው ሙሉ ስም')
-                                ->placeholder('Full name as stated')
+                                ->label(__('Citizen Name'))
+                                ->placeholder(__('Full name as stated'))
                                 ->required(),
                             Grid::make(3)
                                 ->schema([
                                     Forms\Components\Select::make('citizen_gender')
-                                        ->label('Gender')
-                                        ->options(['male' => 'Male / ወንድ', 'female' => 'Female / ሴት'])
+                                        ->label(__('Gender'))
+                                        ->options(['male' => __('Male'), 'female' => __('Female')])
                                         ->required(),
                                     Forms\Components\TextInput::make('citizen_age')
-                                        ->label('Age')
+                                        ->label(__('Age'))
                                         ->numeric()
-                                        ->suffix('years old'),
+                                        ->suffix(__('years old')),
                                 ]),
                         ])->visible(fn (Get $get) => $get('engagement_type') === 'house_to_house'),
 
@@ -113,44 +131,44 @@ class AwarenessEngagementResource extends Resource
                             Grid::make(2)
                                 ->schema([
                                     Forms\Components\TextInput::make('headcount')
-                                        ->label('Attendance Count / የታዳሚ ብዛት')
+                                        ->label(__('Attendance Count'))
                                         ->numeric()
                                         ->required(),
                                     Forms\Components\TextInput::make('stakeholder_partner')
-                                        ->label('Partner / አጋር አካል'),
+                                        ->label(__('Partner Stakeholder')),
                                 ]),
                         ])->visible(fn (Get $get) => $get('engagement_type') === 'coffee_ceremony'),
 
                         Group::make([
                             Forms\Components\Select::make('organization_type')
-                                ->label('Organization Detail / የአደረጃጀት ዝርዝር')
+                                ->label(__('Organization Detail'))
                                 ->options([
-                                    'womens_association'    => 'ሴት ማህበር — Women\'s Association',
-                                    'youth_association'     => 'ወጣት ማህበር — Youth Association',
-                                    'edir'                  => 'እድር — Edir',
-                                    'religious_institution' => 'የሀይማኖት ተቋማት — Religious Institution',
-                                    'block_leaders'         => 'ብሎክ አመራሮች — Block Leaders',
-                                    'peace_army'            => 'የሰላም ሰራዊት — Peace Army',
-                                    'equb'                  => 'እቁብ — Equb',
+                                    'womens_association'    => __('Women\'s Association'),
+                                    'youth_association'     => __('Youth Association'),
+                                    'edir'                  => __('Edir'),
+                                    'religious_institution' => __('Religious Institution'),
+                                    'block_leaders'         => __('Block Leaders'),
+                                    'peace_army'            => __('Peace Army'),
+                                    'equb'                  => __('Equb'),
                                 ])
                                 ->required()
                                 ->searchable(),
                             Grid::make(2)
                                 ->schema([
-                                    Forms\Components\TextInput::make('org_headcount_male')->label('Male Total / ወንድ ብዛት')->numeric(),
-                                    Forms\Components\TextInput::make('org_headcount_female')->label('Female Total / ሴት ብዛት')->numeric(),
+                                    Forms\Components\TextInput::make('org_headcount_male')->label(__('Male Total'))->numeric(),
+                                    Forms\Components\TextInput::make('org_headcount_female')->label(__('Female Total'))->numeric(),
                                 ]),
                         ])->visible(fn (Get $get) => $get('engagement_type') === 'organization'),
 
                         // ── Sub-Section: Participants ──
                         Forms\Components\Repeater::make('attendees')
-                            ->label('Additional Participants / ተጨማሪ ተሳታፊዎች')
+                            ->label(__('Additional Participants'))
                             ->relationship('attendees')
                             ->schema([
-                                Forms\Components\TextInput::make('name_am')->label('Name')->required(),
-                                Forms\Components\Select::make('gender')->label('Gender')
-                                    ->options(['male' => 'Male', 'female' => 'Female'])->required(),
-                                Forms\Components\TextInput::make('age')->label('Age')->numeric()->required(),
+                                Forms\Components\TextInput::make('name_am')->label(__('Name'))->required(),
+                                Forms\Components\Select::make('gender')->label(__('Gender'))
+                                    ->options(['male' => __('Male'), 'female' => __('Female')])->required(),
+                                Forms\Components\TextInput::make('age')->label(__('Age'))->numeric()->required(),
                             ])->columns(3)
                             ->collapsed()
                             ->itemLabel(fn (array $state): ?string => $state['name_am'] ?? null)
@@ -161,13 +179,13 @@ class AwarenessEngagementResource extends Resource
                         Grid::make(3)
                             ->schema([
                                 Forms\Components\DateTimePicker::make('session_datetime')
-                                    ->label('Date & Time')
+                                    ->label(__('Date & Time'))
                                     ->required()->default(now()),
                                 Forms\Components\TextInput::make('round_number')
-                                    ->label('Round / ዙር')
+                                    ->label(__('Round'))
                                     ->numeric()->default(1)->required(),
                                 Forms\Components\Select::make('violation_type')
-                                    ->label('Violation Type')
+                                    ->label(__('Violation Type'))
                                     ->options(AwarenessEngagement::violationLabels())
                                     ->required(),
                             ]),
@@ -175,14 +193,14 @@ class AwarenessEngagementResource extends Resource
                         Grid::make(3)
                             ->schema([
                                 Forms\Components\Select::make('sub_city_id')
-                                    ->label('Sub-City')
+                                    ->label(__('Sub-City'))
                                     ->options(\App\Models\SubCity::pluck('name_am', 'id'))
                                     ->required(),
                                 Forms\Components\Select::make('woreda_id')
-                                    ->label('Woreda')
+                                    ->label(__('Woreda'))
                                     ->options(\App\Models\Woreda::pluck('name_am', 'id'))
                                     ->required(),
-                                Forms\Components\TextInput::make('block_number')->label('Block No.'),
+                                Forms\Components\TextInput::make('block_number')->label(__('Block No.')),
                             ]),
 
 
@@ -222,14 +240,17 @@ class AwarenessEngagementResource extends Resource
             })
             ->columns([
                 Tables\Columns\TextColumn::make('engagement_code')
-                    ->label('Code')->searchable()->copyable(),
+                    ->label(__('Code'))->searchable()->copyable(),
                 Tables\Columns\TextColumn::make('engagement_type')
+                    ->label(__('Engagement Strategy'))
                     ->badge()->formatStateUsing(fn($state) => ucfirst(str_replace('_', ' ', $state))),
                 Tables\Columns\TextColumn::make('campaign.name_am')
-                    ->label('Campaign'),
-                Tables\Columns\TextColumn::make('woreda.name_am'),
+                    ->label(__('Campaign')),
+                Tables\Columns\TextColumn::make('woreda.name_am')
+                    ->label(__('Woreda')),
 
                 Tables\Columns\TextColumn::make('status')
+                    ->label(__('Status'))
                     ->badge()
                     ->color(fn($state) => match ($state) {
                         'draft' => 'gray',
@@ -238,7 +259,7 @@ class AwarenessEngagementResource extends Resource
                         'rejected' => 'danger',
                         default => 'secondary',
                     }),
-                Tables\Columns\TextColumn::make('session_datetime')->dateTime(),
+                Tables\Columns\TextColumn::make('session_datetime')->label(__('Date & Time'))->dateTime(),
             ])
             ->filters([
                 //
@@ -247,7 +268,7 @@ class AwarenessEngagementResource extends Resource
                 // 1. Submit for Approval (Draft/Rejected -> Submitted)
                 Action::make('submit')
 
-                    ->label('Submit / አቅርብ')
+                    ->label(__('Submit'))
                     ->icon('heroicon-o-paper-airplane')
                     ->color('warning')
                     ->visible(fn($record) => in_array($record->status, ['draft', 'rejected']) && auth()->id() === $record->created_by)
@@ -257,13 +278,13 @@ class AwarenessEngagementResource extends Resource
                             'status' => 'submitted',
                             'rejection_note' => null,
                         ]);
-                        Notification::make()->title('Logged and submitted for approval.')->success()->send();
+                        Notification::make()->title(__('Logged and submitted for approval.'))->success()->send();
                     }),
 
                 // 2. Approve (Submitted -> Approved)
                 Action::make('approve')
 
-                    ->label('Approve / አጽድቅ')
+                    ->label(__('Approve'))
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
                     ->visible(fn($record) => $record->status === 'submitted' && auth()->user()->can('approve_engagements'))
@@ -273,19 +294,19 @@ class AwarenessEngagementResource extends Resource
                             'approved_by' => auth()->id(),
                             'approved_at' => now(),
                         ]);
-                        Notification::make()->title('Engagement record approved.')->success()->send();
+                        Notification::make()->title(__('Engagement record approved.'))->success()->send();
                     }),
 
                 // 3. Reject (Submitted -> Rejected)
                 Action::make('reject')
 
-                    ->label('Reject / ውድቅ አድርግ')
+                    ->label(__('Reject'))
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
                     ->visible(fn($record) => $record->status === 'submitted' && auth()->user()->can('reject_engagements'))
                     ->form([
                         Forms\Components\Textarea::make('rejection_note')
-                            ->label('Rejection Reason (ምክንያት)')
+                            ->label(__('Rejection Reason'))
                             ->required(),
                     ])
                     ->action(function ($record, array $data) {
@@ -293,7 +314,7 @@ class AwarenessEngagementResource extends Resource
                             'status' => 'rejected',
                             'rejection_note' => $data['rejection_note'],
                         ]);
-                        Notification::make()->title('Record rejected and sent back.')->danger()->send();
+                        Notification::make()->title(__('Record rejected and sent back.'))->danger()->send();
                     }),
 
                 TableViewAction::make(),
