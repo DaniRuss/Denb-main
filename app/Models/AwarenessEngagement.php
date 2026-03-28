@@ -15,8 +15,6 @@ class AwarenessEngagement extends Model
         'headcount', 'stakeholder_partner', 'organization_type', 'org_headcount_male',
         'org_headcount_female', 'session_datetime', 'created_by', 'status', 'approved_by',
         'approved_at', 'rejection_note',
-        // Offline sync fields
-        'local_uuid', 'created_at_mobile', 'synced_at', 'is_offline_draft',
         // Media
         'violation_photo_path', 'officer_signature',
     ];
@@ -24,9 +22,6 @@ class AwarenessEngagement extends Model
     protected $casts = [
         'session_datetime'   => 'datetime',
         'approved_at'        => 'timestamp',
-        'created_at_mobile'  => 'datetime',
-        'synced_at'          => 'datetime',
-        'is_offline_draft'   => 'boolean',
     ];
 
     protected static function boot()

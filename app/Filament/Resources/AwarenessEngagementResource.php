@@ -11,6 +11,7 @@ use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Tables\Actions\ViewAction as TableViewAction;
 use Filament\Notifications\Notification;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
@@ -295,6 +296,7 @@ class AwarenessEngagementResource extends Resource
                         Notification::make()->title('Record rejected and sent back.')->danger()->send();
                     }),
 
+                TableViewAction::make(),
                 EditAction::make()
                     ->visible(fn($record) => !in_array($record->status, ['submitted', 'approved']) || auth()->user()->hasAnyRole(['admin', 'super_admin'])),
             ])
@@ -317,6 +319,7 @@ class AwarenessEngagementResource extends Resource
         return [
             'index' => Pages\ListAwarenessEngagements::route('/'),
             'create' => Pages\CreateAwarenessEngagement::route('/create'),
+            'view' => Pages\ViewAwarenessEngagement::route('/{record}'),
             'edit' => Pages\EditAwarenessEngagement::route('/{record}/edit'),
         ];
     }

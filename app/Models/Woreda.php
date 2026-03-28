@@ -15,4 +15,14 @@ class Woreda extends Model
     {
         return $this->belongsTo(SubCity::class);
     }
+
+    public function awarenessEngagements()
+    {
+        return $this->hasMany(AwarenessEngagement::class);
+    }
+
+    public function volunteerTips()
+    {
+        return $this->hasMany(VolunteerTip::class);
+    }
 }

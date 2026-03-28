@@ -12,6 +12,11 @@ class AwarenessStatsOverview extends BaseWidget
 {
     protected static ?int $sort = 1;
 
+    public static function canView(): bool
+    {
+        return auth()->check() && auth()->user()->hasAnyRole(['super_admin', 'admin', 'woreda_coordinator', 'paramilitary', 'officer']);
+    }
+
     protected function getStats(): array
     {
         $user = auth()->user();

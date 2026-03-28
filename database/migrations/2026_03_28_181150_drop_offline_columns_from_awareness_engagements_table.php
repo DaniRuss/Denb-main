@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('awareness_engagements', function (Blueprint $table) {
-            //
+            $table->dropColumn(['local_uuid', 'created_at_mobile', 'synced_at', 'is_offline_draft']);
         });
     }
 
@@ -22,7 +22,10 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('awareness_engagements', function (Blueprint $table) {
-            //
+            $table->uuid('local_uuid')->nullable();
+            $table->timestamp('created_at_mobile')->nullable();
+            $table->timestamp('synced_at')->nullable();
+            $table->boolean('is_offline_draft')->default(false);
         });
     }
 };
