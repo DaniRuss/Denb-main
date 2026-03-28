@@ -17,7 +17,10 @@ use Filament\Actions\EditAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Utilities\Set;
+use Filament\Schemas\Components\Utilities\Get;
 
 
 
@@ -40,163 +43,158 @@ class AwarenessEngagementResource extends Resource
     {
         return $schema
             ->schema([
-                Forms\Components\Select::make('campaign_id')
-                    ->label(__('Campaign (ዘመቻ)'))
-                    ->options(function () {
-                        $query = \App\Models\Campaign::active();
-                        $user = auth()->user();
-                        if (($user->hasRole('paramilitary') || $user->hasRole('woreda_coordinator')) && $user->woreda_id) {
-                            $query->where('woreda_id', $user->woreda_id);
-                        }
-                        return $query->pluck('name_am', 'id')->toArray();
-                    })
-                    ->required()
-                    ->searchable()
-                    ->placeholder('Select Campaign')
-                    ->disablePlaceholderSelection()
-                    ->afterStateUpdated(function ($state, Set $set) {
-                        if ($state) {
-                            $campaign = \App\Models\Campaign::find($state);
-                            if ($campaign) {
-                                if ($campaign->category) {
-                                    $set('engagement_type', $campaign->category);
-                                }
-                                $user = auth()->user();
-                                $isLockedParamilitary = $user->hasRole('paramilitary') && $user->woreda_id !== null;
-                                if (! $isLockedParamilitary) {
-                                    if ($campaign->sub_city_id) $set('sub_city_id', $campaign->sub_city_id);
-                                    if ($campaign->woreda_id) $set('woreda_id', $campaign->woreda_id);
-                                }
-                            }
-                        }
-                    }),
-
-                Forms\Components\Select::make('engagement_type')
-                    ->label('Engagement Type (የግንዛቤ ዓይነት)')
-                    ->options([
-                        'house_to_house'  => 'ቤት ለቤት (House to House)',
-                        'coffee_ceremony' => 'ቡና ጠጡ (Coffee Ceremony)',
-                        'organization'    => 'በአደረጃጀት (Organization)',
-                    ])
-                    ->required()
-                    ->placeholder('Select Engagement Type (የግንዛቤ ዓይነት ይምረጡ)'),
-
-                // ── Section 3: Geography ──
-                Forms\Components\Select::make('sub_city_id')
-                    ->label('Sub-City (ክፍለ ከተማ)')
-                    ->options(SubCity::orderBy('name_am')->pluck('name_am', 'id')->toArray())
-                    ->required()
-                    ->searchable()
-                    ->placeholder('Select Sub-City (ክፍለ ከተማ ይምረጡ)'),
-                
-                Forms\Components\Select::make('woreda_id')
-                    ->label('Woreda (ወረዳ)')
-                    // Load ALL woredas upfront so the form works offline, grouped by Sub-City is ideal but simple flat list is safest for offline caching.
-                    // When offline, live() dependent queries fail. By pre-filling all or removing live() dependency, JS can still submit.
-                    ->options(Woreda::orderBy('name_am')->pluck('name_am', 'id')->toArray())
-                    ->required()
-                    ->searchable()
-                    ->placeholder('Select Woreda (ወረዳ ይምረጡ)'),
-
-                Forms\Components\TextInput::make('block_number')->label('Block No. (ብሎክ ቁጥር)'),
-
-                // ── Section 4: Violation Type ——
-                Forms\Components\Select::make('violation_type')
-                    ->label('Violation Type (የደንብ መተላለፍ ዓይነት)')
-                    ->options(AwarenessEngagement::violationLabels())
-                    ->required()
-                    ->placeholder('Select Violation (የደንብ መተላለፍ ዓይነት ይምረጡ)'),
-
-                Forms\Components\TextInput::make('round_number')
-                    ->label('Round / ዙር (ለስንተኛ ግዜ)')
-                    ->numeric()->default(1)->required(),
-
-                // ── Section 5A: House-to-House Fields ──
-                Section::make('ቤት ለቤት — Citizen Details')
+                Section::make('የግንዛቤ ማስጨበጫ መዝገብ - Awareness Engagement Record')
+                    ->description('Fill in all required fields accurately for the engagement report.')
+                    ->icon('heroicon-m-document-text')
                     ->schema([
-                        Forms\Components\TextInput::make('citizen_name')
-                            ->label('Primary Citizen Name (ዋና ተሳታፊ ስም)')
-                            ->required(),
-                        Forms\Components\Select::make('citizen_gender')->label('Gender (ጾታ)')
-                            ->options(['male' => 'Male / ወንድ', 'female' => 'Female / ሴት'])
-                            ->required()
-                            ->placeholder('Select Gender (ጾታ ይምረጡ)'),
-                        Forms\Components\TextInput::make('citizen_age')->label('Age (እድሜ)')->numeric(),
-                    ])
-                    ->extraAttributes(['x-show' => "data.engagement_type === 'house_to_house'"]),
+                        // ── Sub-Section: Objective ──
+                        Grid::make(2)
+                            ->schema([
+                                Forms\Components\Select::make('campaign_id')
+                                    ->label(__('Select Active Campaign / ዘመቻ ይምረጡ'))
+                                    ->options(function () {
+                                        $query = \App\Models\Campaign::active();
+                                        $user = auth()->user();
+                                        if (($user->hasRole('paramilitary') || $user->hasRole('woreda_coordinator')) && $user->woreda_id) {
+                                            $query->where('woreda_id', $user->woreda_id);
+                                        }
+                                        return $query->pluck('name_am', 'id')->toArray();
+                                    })
+                                    ->required()
+                                    ->searchable()
+                                    ->live()
+                                    ->afterStateUpdated(function ($state, Set $set) {
+                                        if ($state) {
+                                            $campaign = \App\Models\Campaign::find($state);
+                                            if ($campaign) {
+                                                if ($campaign->category) $set('engagement_type', $campaign->category);
+                                                $user = auth()->user();
+                                                if (!($user->hasRole('paramilitary') && $user->woreda_id)) {
+                                                    if ($campaign->sub_city_id) $set('sub_city_id', $campaign->sub_city_id);
+                                                    if ($campaign->woreda_id) $set('woreda_id', $campaign->woreda_id);
+                                                }
+                                            }
+                                        }
+                                    }),
 
-                // ── Section 5B: Coffee Ceremony Fields ──
-                Section::make('ቡና ጠጡ — Group Details')
-                    ->schema([
-                        Forms\Components\TextInput::make('headcount')->label('Total Headcount (ብዛት)')->numeric()->requiredWith('stakeholder_partner'),
-                        Forms\Components\TextInput::make('stakeholder_partner')->label('Stakeholder Partner (ባለድርሻ አካል)'),
-                    ])
-                    ->extraAttributes(['x-show' => "data.engagement_type === 'coffee_ceremony'"]),
+                                Forms\Components\Select::make('engagement_type')
+                                    ->label('Engagement Strategy / የግንዛቤ ዓይነት')
+                                    ->options([
+                                        'house_to_house'  => 'ቤት ለቤት (House to House)',
+                                        'coffee_ceremony' => 'ቡና ጠጡ (Coffee Ceremony)',
+                                        'organization'    => 'በአደረጃጀት (Organization)',
+                                    ])
+                                    ->required()
+                                    ->live(),
+                            ]),
 
-                // ── Section 5C: Organization Fields ──
-                Section::make('በአደረጃጀት — Organization Details')
-                    ->schema([
-                        Forms\Components\Select::make('organization_type')
-                            ->label('Organization (አደረጃጀት ስም)')
-                            ->options([
-                                'womens_association'    => 'ሴት ማህበር (Women\'s Association)',
-                                'youth_association'     => 'ወጣት ማህበር (Youth Association)',
-                                'edir'                  => 'እድር (Edir)',
-                                'religious_institution' => 'የሀይማኖት ተቋማት (Religious Institution)',
-                                'block_leaders'         => 'ብሎክ አመራሮች (Block Leaders)',
-                                'peace_army'            => 'የሰላም ሰራዊት (Peace Army)',
-                                'equb'                  => 'እቁብ (Equb)',
-                            ])
-                            ->placeholder(null)
-                            ->disablePlaceholderSelection(),
-                        Forms\Components\TextInput::make('org_headcount_male')->label('Male Headcount')->numeric(),
-                        Forms\Components\TextInput::make('org_headcount_female')->label('Female Headcount')->numeric(),
-                    ])
-                    ->extraAttributes(['x-show' => "data.engagement_type === 'organization'"]),
 
-                // ── Unified Attendees Repeater (H2H & Coffee) ──
-                Forms\Components\Repeater::make('attendees')
-                    ->relationship('attendees')
-                    ->schema([
-                        Forms\Components\TextInput::make('name_am')
-                            ->label('Name / ስም')
-                            ->required(),
-                        Forms\Components\Select::make('gender')->label('Gender / ጾታ')
-                            ->options(['male' => 'Male / ወንድ', 'female' => 'Female / ሴት'])
-                            ->required()
-                            ->placeholder('Select Gender (ጾታ ይምረጡ)'),
-                        Forms\Components\TextInput::make('age')->label('Age / እድሜ')->numeric(),
-                    ])
-                    ->collapsible()
-                    ->label(fn ($get) => $get('engagement_type') === 'house_to_house' 
-                        ? 'Additional Persons / ተጨማሪ ሰዎች' 
-                        : 'Individual Attendees (optional)'
-                    )
-                    ->minItems(0)
-                    ->defaultItems(0)
-                    ->addActionLabel('Add Attendee / ተጨማሪ ጨምር')
-                    ->extraAttributes(['x-show' => "['house_to_house', 'coffee_ceremony'].includes(data.engagement_type)"]),
+                        // ── Sub-Section: Dynamic Profiles ──
+                        Group::make([
+                            Forms\Components\TextInput::make('citizen_name')
+                                ->label('Citizen Name / የዜጋው ሙሉ ስም')
+                                ->placeholder('Full name as stated')
+                                ->required(),
+                            Grid::make(3)
+                                ->schema([
+                                    Forms\Components\Select::make('citizen_gender')
+                                        ->label('Gender')
+                                        ->options(['male' => 'Male / ወንድ', 'female' => 'Female / ሴት'])
+                                        ->required(),
+                                    Forms\Components\TextInput::make('citizen_age')
+                                        ->label('Age')
+                                        ->numeric()
+                                        ->suffix('years old'),
+                                ]),
+                        ])->visible(fn (Get $get) => $get('engagement_type') === 'house_to_house'),
 
-                // ── Section 6: Timestamp ──
-                Forms\Components\DateTimePicker::make('session_datetime')
-                    ->label('Session Date/Time (ሰዓት፣ ቀን)')->required(),
+                        Group::make([
+                            Grid::make(2)
+                                ->schema([
+                                    Forms\Components\TextInput::make('headcount')
+                                        ->label('Attendance Count / የታዳሚ ብዛት')
+                                        ->numeric()
+                                        ->required(),
+                                    Forms\Components\TextInput::make('stakeholder_partner')
+                                        ->label('Partner / አጋር አካል'),
+                                ]),
+                        ])->visible(fn (Get $get) => $get('engagement_type') === 'coffee_ceremony'),
 
-                // ── Section 7: Media & Verification ──
-                Section::make('Verification & Media / ማረጋገጫ')
-                    ->schema([
-                        Forms\Components\ViewField::make('officer_signature')
-                            ->view('filament.forms.components.offline-signature')
-                            ->label('Officer Signature / ፊርማ')
-                            ->required(),
-                        Forms\Components\ViewField::make('violation_photo_path')
-                            ->view('filament.forms.components.offline-photo')
-                            ->label('Optional Photo / ፎቶ')
-                            ->helperText('Photo will be compressed automatically.'),
-                    ])->columns(2),
-                
+                        Group::make([
+                            Forms\Components\Select::make('organization_type')
+                                ->label('Organization Detail / የአደረጃጀት ዝርዝር')
+                                ->options([
+                                    'womens_association'    => 'Women\'s Association',
+                                    'youth_association'     => 'Youth Association',
+                                    'edir'                  => 'Edir',
+                                    'religious_institution' => 'Religious Institution',
+                                    'block_leaders'         => 'Block Leaders',
+                                ])->required(),
+                            Grid::make(2)
+                                ->schema([
+                                    Forms\Components\TextInput::make('org_headcount_male')->label('Male Total')->numeric(),
+                                    Forms\Components\TextInput::make('org_headcount_female')->label('Female Total')->numeric(),
+                                ]),
+                        ])->visible(fn (Get $get) => $get('engagement_type') === 'organization'),
+
+                        // ── Sub-Section: Participants ──
+                        Forms\Components\Repeater::make('attendees')
+                            ->label('Additional Participants / ተጨማሪ ተሳታፊዎች')
+                            ->relationship('attendees')
+                            ->schema([
+                                Forms\Components\TextInput::make('name_am')->label('Name')->required(),
+                                Forms\Components\Select::make('gender')->label('Gender')
+                                    ->options(['male' => 'Male', 'female' => 'Female'])->required(),
+                                Forms\Components\TextInput::make('age')->label('Age')->numeric()->required(),
+                            ])->columns(3)
+                            ->collapsed()
+                            ->itemLabel(fn (array $state): ?string => $state['name_am'] ?? null)
+                            ->visible(fn (Get $get) => in_array($get('engagement_type'), ['house_to_house', 'coffee_ceremony'])),
+
+
+                        // ── Sub-Section: Context & Verification ──
+                        Grid::make(3)
+                            ->schema([
+                                Forms\Components\DateTimePicker::make('session_datetime')
+                                    ->label('Date & Time')
+                                    ->required()->default(now()),
+                                Forms\Components\TextInput::make('round_number')
+                                    ->label('Round / ዙር')
+                                    ->numeric()->default(1)->required(),
+                                Forms\Components\Select::make('violation_type')
+                                    ->label('Violation Type')
+                                    ->options(AwarenessEngagement::violationLabels())
+                                    ->required(),
+                            ]),
+
+                        Grid::make(3)
+                            ->schema([
+                                Forms\Components\Select::make('sub_city_id')
+                                    ->label('Sub-City')
+                                    ->options(\App\Models\SubCity::pluck('name_am', 'id'))
+                                    ->required(),
+                                Forms\Components\Select::make('woreda_id')
+                                    ->label('Woreda')
+                                    ->options(\App\Models\Woreda::pluck('name_am', 'id'))
+                                    ->required(),
+                                Forms\Components\TextInput::make('block_number')->label('Block No.'),
+                            ]),
+
+
+                        Grid::make(2)
+                            ->schema([
+                                Forms\Components\ViewField::make('officer_signature')
+                                    ->view('filament.forms.components.offline-signature')
+                                    ->required(),
+                                Forms\Components\ViewField::make('violation_photo_path')
+                                    ->view('filament.forms.components.offline-photo'),
+                            ]),
+                    ]),
+
                 Forms\Components\Hidden::make('created_by')->default(fn() => auth()->id()),
             ]);
     }
+
 
     public static function table(Table $table): Table
     {

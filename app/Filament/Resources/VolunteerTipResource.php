@@ -14,10 +14,11 @@ use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
-use Filament\Schemas\Components\Utilities\Set;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Group;
+use Filament\Schemas\Components\Utilities\Set;
 
 class VolunteerTipResource extends Resource
 {
@@ -32,21 +33,22 @@ class VolunteerTipResource extends Resource
     protected static string|\UnitEnum|null $navigationGroup  = 'Awareness Management';
     protected static ?string $navigationLabel = 'Volunteer Tips | ጥቆማ';
     protected static ?int $navigationSort = 3;
-
     public static function form(Schema $schema): Schema
     {
         return $schema
             ->schema([
-                Section::make('መሠረታዊ መረጃ - Base Information')
-                    ->description('Details about the suspected violation and linked awareness activity.')
+                Section::make('የበጎ ፈቃደኛ ጥቆማ - Volunteer Tip Submission')
+                    ->description('Provide details regarding the suspected violation and person involved.')
+                    ->icon('heroicon-m-light-bulb')
                     ->schema([
-                        Grid::make(3)
+                        // ── Sub-Section: Reference & Linking ──
+                        Grid::make(2)
                             ->schema([
                                 Forms\Components\Select::make('engagement_id')
                                     ->relationship('engagement', 'engagement_code')
                                     ->label('Linked Engagement / የተያያዘ ምዝገባ')
                                     ->searchable()
-                                    ->placeholder('optional')
+                                    ->placeholder('Optional: Search by code')
                                     ->live()
                                     ->afterStateUpdated(function ($state, Set $set) {
                                         if ($state) {
@@ -55,89 +57,97 @@ class VolunteerTipResource extends Resource
                                                 $set('sub_city_id', $engagement->sub_city_id);
                                                 $set('woreda_id', $engagement->woreda_id);
                                                 $set('block_number', $engagement->block_number);
-                                                if ($engagement->violation_type) {
-                                                    $set('violation_type', $engagement->violation_type);
-                                                }
+                                                if ($engagement->violation_type) $set('violation_type', $engagement->violation_type);
                                             }
                                         }
                                     }),
                                 Forms\Components\Select::make('violation_type')
-                                    ->label('Violation Type (የተፈጸመው ህገወጥ ተግባር አይነት)')
+                                    ->label('Violation Type / የተፈጸመው ሕገወጥ ተግባር')
                                     ->options(AwarenessEngagement::violationLabels())
-                                    ->required(),
+                                    ->required()
+                                    ->prefixIcon('heroicon-m-exclamation-triangle'),
+                            ]),
+
+
+                        // ── Sub-Section: Suspect & Date ──
+                        Grid::make(2)
+                            ->schema([
                                 Forms\Components\TextInput::make('suspect_name')
                                     ->label('Suspect Name / የተጠርጣሪው ስም')
-                                    ->placeholder('Enter name if known'),
-                            ]),
-
-                        Grid::make(2)
-                            ->schema([
+                                    ->placeholder('Individual or Business name'),
                                 Forms\Components\DatePicker::make('violation_date')
-                                    ->label('Date of the Act (የተፈጸመበት ቀን)')
-                                    ->required(),
-                                Forms\Components\DatePicker::make('reported_date')
-                                    ->label('Date Tip Received (መረጃው የመጣበት ቀን)')
-                                    ->default(now())
+                                    ->label('Date of Act / ድርጊቱ የተፈጸመበት ቀን')
                                     ->required(),
                             ]),
-                    ]),
 
-                Section::make('የቦታ ዝርዝር - Location Details')
-                    ->description('Precise location of the code violation.')
-                    ->schema([
-                        Grid::make(3)
-                            ->schema([
-                                Forms\Components\Select::make('sub_city_id')
-                                    ->label('Sub-City (ክፍለ ከተማ)')
-                                    ->options(\App\Models\SubCity::orderBy('name_am')->pluck('name_am', 'id')->toArray())
-                                    ->required()
-                                    ->live()
-                                    ->searchable()
-                                    ->placeholder('Select Sub-City')
-                                    ->afterStateUpdated(fn (Set $set) => $set('woreda_id', null)),
-                                Forms\Components\Select::make('woreda_id')
-                                    ->label('Woreda (ወረዳ)')
-                                    ->options(function (callable $get) {
-                                        $subCityId = $get('sub_city_id');
-                                        if ($subCityId) {
-                                            return \App\Models\Woreda::where('sub_city_id', $subCityId)
-                                                ->orderBy('name_am')
-                                                ->pluck('name_am', 'id')
-                                                ->toArray();
-                                        }
-                                        return [];
-                                    })
-                                    ->required()
-                                    ->live()
-                                    ->searchable()
-                                    ->placeholder('Select Woreda'),
-                                Forms\Components\TextInput::make('block_number')
-                                    ->label('Block No. / ብሎክ ቁጥር'),
-                            ]),
-                        Forms\Components\Textarea::make('violation_location')
-                            ->label('Location/Block (የተፈጸመት ልዩ ቦታ/ቀጣነው/ብሎክ)')
-                            ->required()
-                            ->placeholder('Describe the exact spot'),
-                    ]),
 
-                Section::make('የጠቋሚው መረጃና ማስረጃ - Source & Evidence')
-                    ->description('Verification source and supporting documents.')
-                    ->schema([
-                        Grid::make(2)
+                        // ── Sub-Section: Source Identity ──
+                        Grid::make(1)
                             ->schema([
                                 Forms\Components\Toggle::make('is_anonymous')
                                     ->label('Anonymous Tip? (በምስጢር የቀረበ ጥቆማ?)')
                                     ->live()
-                                    ->default(false),
-                                Forms\Components\FileUpload::make('volunteer_signature_path')
-                                    ->label('Signature/Evidence (ፊርማ ወይም ማስረጃ)')
-                                    ->placeholder('Click or drag to upload'),
+                                    ->onColor('danger')
+                                    ->offColor('gray'),
+                                
+                                Forms\Components\TextInput::make('volunteer_name')
+                                    ->label('Volunteer Full Name / የጠቋሚው ሙሉ ስም')
+                                    ->hidden(fn (callable $get) => $get('is_anonymous'))
+                                    ->placeholder('Enter name for verification')
+                                    ->prefixIcon('heroicon-m-identification'),
+                            ]),
+
+
+                        // ── Sub-Section: Location ──
+                        Grid::make(3)
+                            ->schema([
+                                Forms\Components\Select::make('sub_city_id')
+                                    ->label('Sub-City')
+                                    ->options(\App\Models\SubCity::pluck('name_am', 'id'))
+                                    ->required()
+                                    ->live(),
+                                Forms\Components\Select::make('woreda_id')
+                                    ->label('Woreda')
+                                    ->options(function (callable $get) {
+                                        $subCityId = $get('sub_city_id');
+                                        return $subCityId ? \App\Models\Woreda::where('sub_city_id', $subCityId)->pluck('name_am', 'id') : [];
+                                    })
+                                    ->required()
+                                    ->live(),
+                                Forms\Components\TextInput::make('block_number')->label('Block No.'),
                             ]),
                         
-                        Forms\Components\TextInput::make('volunteer_name')
-                            ->label('Volunteer Name (መረጃው ያመጣው በጎ ፈቃድ ስም)')
-                            ->hidden(fn (callable $get) => $get('is_anonymous'))
-                            ->placeholder('Enter name if not anonymous'),
+                        Forms\Components\Textarea::make('violation_location')
+                            ->label('Specific Location Description / የተፈጸመበት ልዩ ቦታ')
+                            ->placeholder('Describe the exact spot (e.g., behind the market, near the bridge)')
+                            ->rows(2)
+                            ->required(),
+
+
+                        // ── Sub-Section: Verification & Timeline ──
+                        Grid::make(2)
+                            ->schema([
+                                Forms\Components\DatePicker::make('reported_date')
+                                    ->label('Receipt Date')
+                                    ->default(now())
+                                    ->required(),
+                                Forms\Components\TextInput::make('tip_code')
+                                    ->label('Reference Code')
+                                    ->disabled()
+                                    ->placeholder('Auto-generated'),
+                            ]),
+
+                        Grid::make(2)
+                            ->schema([
+                                Forms\Components\ViewField::make('volunteer_signature_path')
+                                    ->view('filament.forms.components.offline-signature')
+                                    ->label('Signature / ፊርማ')
+                                    ->required(),
+                                
+                                Forms\Components\ViewField::make('evidence_photo')
+                                    ->label('Evidence Photo / ማስረጃ ፎቶ')
+                                    ->view('filament.forms.components.offline-photo'),
+                            ]),
                     ]),
 
                 Forms\Components\Hidden::make('status')->default('draft'),

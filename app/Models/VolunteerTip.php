@@ -12,7 +12,7 @@ class VolunteerTip extends Model
     protected $fillable = [
         'tip_code', 'engagement_id', 'suspect_name', 'violation_type', 'violation_location',
         'sub_city_id', 'woreda_id', 'block_number', 'violation_date', 'reported_date',
-        'volunteer_name', 'is_anonymous', 'volunteer_signature_path', 'received_by', 'status',
+        'volunteer_name', 'is_anonymous', 'volunteer_signature_path', 'evidence_photo', 'received_by', 'status',
         'verified_by', 'verified_at', 'investigated_by', 'action_taken', 'action_notes', 'action_date'
     ];
 
