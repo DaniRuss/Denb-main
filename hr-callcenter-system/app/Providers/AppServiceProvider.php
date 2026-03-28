@@ -4,6 +4,9 @@ namespace App\Providers;
 
 use App\Models\ShiftSwap;
 use App\Observers\ShiftSwapObserver;
+use Filament\Support\Assets\AlpineComponent;
+use Filament\Support\Facades\FilamentAsset;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -21,11 +24,21 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Patched grid: empty cells use weekday of Ethiopian day 1 (30-day months). Overrides package asset after composer updates.
+        FilamentAsset::register([
+            AlpineComponent::make('filament-ethiopic-calendar', resource_path('js/filament-ethiopic-calendar.js')),
+        ], 'agelgil/filament-ethiopic-calendar');
+
+        View::prependNamespace(
+            'filament-ethiopic-calendar',
+            resource_path('views/vendor/filament-ethiopic-calendar')
+        );
+
         ShiftSwap::observe(ShiftSwapObserver::class);
 
         \Filament\Support\Facades\FilamentView::registerRenderHook(
             \Filament\View\PanelsRenderHook::HEAD_END,
-            fn(): string => new \Illuminate\Support\HtmlString('
+            fn (): string => new \Illuminate\Support\HtmlString('
                 <style>
                     /* Expand the outermost containers */
                     .fi-main-ctn, .fi-page, .fi-main, .fi-sc-form { 

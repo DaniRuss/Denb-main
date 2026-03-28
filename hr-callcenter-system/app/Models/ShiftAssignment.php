@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\EthiopianTime;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -32,9 +33,10 @@ class ShiftAssignment extends Model
                 return;
             }
 
-            // Always derive end_date from assigned_date in Gregorian calendar.
-            $start = Carbon::parse($assignment->assigned_date)->startOfDay();
-            $assignment->attributes['end_date'] = $start->copy()->addDays(29)->toDateString();
+            // Match Filament sync: calendar date in Africa/Addis_Ababa, +29 days = 30-day inclusive window.
+            $dateOnly = Carbon::parse($assignment->assigned_date)->format('Y-m-d');
+            $start = Carbon::createFromFormat('Y-m-d', $dateOnly, 'Africa/Addis_Ababa')->startOfDay();
+            $assignment->attributes['end_date'] = $start->copy()->addDays(29)->format('Y-m-d');
         });
     }
 
@@ -69,39 +71,47 @@ class ShiftAssignment extends Model
     }
 
     /**
+     * Shift window [start, end] in Africa/Addis_Ababa that contains $at, if any.
+     * Checks today and yesterday to support overnight shifts.
+     *
+     * @return array{start: Carbon, end: Carbon}|null
+     */
+    public function shiftWindowForInstant(?Carbon $at = null): ?array
+    {
+        $at = Carbon::parse($at ?? now())->timezone('Africa/Addis_Ababa');
+        $shift = $this->shift;
+        if (! $shift) {
+            return null;
+        }
+
+        // Compare calendar dates only (Y-m-d) so assignment bounds match “today” in Addis Ababa.
+        // Mixing UTC midnight from date casts with Addis start-of-day broke isWithinShift during the shift.
+        $assignedStartStr = Carbon::parse($this->assigned_date)->format('Y-m-d');
+        $assignedEndStr = Carbon::parse($this->end_date)->format('Y-m-d');
+
+        foreach ([0, 1] as $dayOffset) {
+            $shiftStartDate = $at->copy()->subDays($dayOffset)->startOfDay();
+            $shiftDateStr = $shiftStartDate->format('Y-m-d');
+
+            if ($shiftDateStr < $assignedStartStr || $shiftDateStr > $assignedEndStr) {
+                continue;
+            }
+
+            [$start, $end] = EthiopianTime::shiftWindowOnLocalDate($shift, $shiftStartDate);
+
+            if ($at->greaterThanOrEqualTo($start) && $at->lessThanOrEqualTo($end)) {
+                return ['start' => $start, 'end' => $end];
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Check if the given time (default: now) falls within this assignment's shift window.
      */
     public function isWithinShift(?Carbon $at = null): bool
     {
-        $at = $at ?? now();
-        $shift = $this->shift;
-        if (! $shift) {
-            return false;
-        }
-
-        $assignedStart = Carbon::parse($this->assigned_date)->startOfDay();
-        $assignedEnd = Carbon::parse($this->end_date)->startOfDay();
-
-        // Check both same-day and previous-day windows to support overnight shifts.
-        foreach ([0, 1] as $dayOffset) {
-            $shiftStartDate = $at->copy()->subDays($dayOffset)->startOfDay();
-
-            if ($shiftStartDate->lt($assignedStart) || $shiftStartDate->gt($assignedEnd)) {
-                continue;
-            }
-
-            $start = Carbon::parse($shiftStartDate->format('Y-m-d') . ' ' . $shift->start_time);
-            $end = Carbon::parse($shiftStartDate->format('Y-m-d') . ' ' . $shift->end_time);
-
-            if ($end->lessThanOrEqualTo($start)) {
-                $end->addDay();
-            }
-
-            if ($at->between($start, $end)) {
-                return true;
-            }
-        }
-
-        return false;
+        return $this->shiftWindowForInstant($at) !== null;
     }
 }

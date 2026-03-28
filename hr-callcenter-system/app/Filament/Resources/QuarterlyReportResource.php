@@ -2,22 +2,26 @@
 
 namespace App\Filament\Resources;
 
-use App\Models\QuarterlyReport;
-use App\Models\Department;
-use App\Models\User;
-use Filament\Schemas\Schema;
-use Filament\Resources\Resource;
-use Filament\Tables;
-use Filament\Tables\Table;
-use Filament\Tables\Filters\SelectFilter;
 use App\Filament\Resources\QuarterlyReports\Pages;
+use App\Models\Department;
+use App\Models\QuarterlyReport;
+use App\Models\User;
+use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
+use Filament\Tables;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
 
 class QuarterlyReportResource extends Resource
 {
     protected static ?string $model = QuarterlyReport::class;
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-chart-bar';
+
     protected static string|\UnitEnum|null $navigationGroup = 'Reports';
+
     protected static ?string $navigationLabel = 'Quarterly Reports';
+
     protected static ?int $navigationSort = 1;
 
     public static function form(Schema $schema): Schema
@@ -49,10 +53,16 @@ class QuarterlyReportResource extends Resource
                         ->maxValue(2099),
 
                     \Filament\Forms\Components\DatePicker::make('period_start')
-                        ->label('Period Start'),
+                        ->label('Period Start')
+                        ->ethiopic()
+                        ->firstDayOfWeek(1)
+                        ->closeOnDateSelection(),
 
                     \Filament\Forms\Components\DatePicker::make('period_end')
-                        ->label('Period End'),
+                        ->label('Period End')
+                        ->ethiopic()
+                        ->firstDayOfWeek(1)
+                        ->closeOnDateSelection(),
 
                     \Filament\Forms\Components\Select::make('department_id')
                         ->label('Department (if specific)')
@@ -113,7 +123,7 @@ class QuarterlyReportResource extends Resource
 
                     \Filament\Forms\Components\Select::make('approved_by')
                         ->label('Approved By')
-                        ->options(User::whereHas('roles', fn($q) => $q->whereIn('name', ['admin', 'director']))->pluck('name', 'id'))
+                        ->options(User::whereHas('roles', fn ($q) => $q->whereIn('name', ['admin', 'director']))->pluck('name', 'id'))
                         ->nullable(),
 
                     \Filament\Forms\Components\Select::make('status')
@@ -167,7 +177,7 @@ class QuarterlyReportResource extends Resource
 
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
-                    ->color(fn($state) => match ($state) {
+                    ->color(fn ($state) => match ($state) {
                         'draft' => 'gray',
                         'under_review' => 'warning',
                         'approved' => 'success',

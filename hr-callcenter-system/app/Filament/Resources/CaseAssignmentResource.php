@@ -2,23 +2,26 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Resources\CaseAssignments\Pages;
 use App\Models\CaseAssignment;
 use App\Models\Complaint;
 use App\Models\Officer;
 use App\Models\User;
-use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Notifications\Notification;
-use App\Filament\Resources\CaseAssignments\Pages;
 
 class CaseAssignmentResource extends Resource
 {
     protected static ?string $model = CaseAssignment::class;
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-clipboard-document-check';
+
     protected static string|\UnitEnum|null $navigationGroup = 'Case Management';
+
     protected static ?string $navigationLabel = 'Case Assignments';
+
     protected static ?int $navigationSort = 4;
 
     public static function form(Schema $schema): Schema
@@ -40,7 +43,7 @@ class CaseAssignmentResource extends Resource
 
                     \Filament\Forms\Components\Select::make('assigned_by')
                         ->label('Assigned By')
-                        ->options(User::whereHas('roles', fn($q) => $q->whereIn('name', ['admin', 'supervisor']))->pluck('name', 'id'))
+                        ->options(User::whereHas('roles', fn ($q) => $q->whereIn('name', ['admin', 'supervisor']))->pluck('name', 'id'))
                         ->searchable()
                         ->nullable(),
 
@@ -56,7 +59,10 @@ class CaseAssignmentResource extends Resource
                         ->required(),
 
                     \Filament\Forms\Components\DatePicker::make('due_date')
-                        ->label('Due Date'),
+                        ->label('Due Date')
+                        ->ethiopic()
+                        ->firstDayOfWeek(1)
+                        ->closeOnDateSelection(),
 
                     \Filament\Forms\Components\Textarea::make('notes')
                         ->label('Assignment Notes')
@@ -76,7 +82,7 @@ class CaseAssignmentResource extends Resource
 
                 Tables\Columns\TextColumn::make('complaint.complaint_type')
                     ->label('Complaint Type')
-                    ->formatStateUsing(fn($state) => ucwords(str_replace('_', ' ', $state ?? ''))),
+                    ->formatStateUsing(fn ($state) => ucwords(str_replace('_', ' ', $state ?? ''))),
 
                 Tables\Columns\TextColumn::make('officer.user.name')
                     ->label('Assigned Officer')
@@ -87,7 +93,7 @@ class CaseAssignmentResource extends Resource
 
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
-                    ->color(fn($state) => match ($state) {
+                    ->color(fn ($state) => match ($state) {
                         'assigned' => 'info',
                         'in_progress' => 'warning',
                         'completed' => 'success',

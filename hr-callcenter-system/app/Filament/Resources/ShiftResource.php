@@ -2,8 +2,9 @@
 
 namespace App\Filament\Resources;
 
-use App\Models\Shift;
 use App\Models\Employee;
+use App\Models\Shift;
+use App\Support\EthiopianTime;
 use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
@@ -25,24 +26,58 @@ class ShiftResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
+        $cycleOptions = [
+            EthiopianTime::CYCLE_DAY => EthiopianTime::cycleLabel(EthiopianTime::CYCLE_DAY),
+            EthiopianTime::CYCLE_EVENING => EthiopianTime::cycleLabel(EthiopianTime::CYCLE_EVENING),
+        ];
+
+        $ethRules = [
+            fn (): \Closure => function (string $attribute, $value, \Closure $fail): void {
+                if ($value === null || $value === '') {
+                    return;
+                }
+                try {
+                    EthiopianTime::normalizeEthHm((string) $value);
+                } catch (\Throwable $e) {
+                    $fail($e->getMessage());
+                }
+            },
+        ];
+
         return $schema->schema([
-            Section::make('Shift Type')
+            Section::make(__('Shift type'))
+                ->description(__('Times use the Ethiopian 12-hour clock (hours 1–12), with two periods: day (ከ 7:00 ሰዓት) and evening–dawn (ከ 7:00 ምሽት). Stored and interpreted only in this system; comparisons use Africa/Addis_Ababa.'))
                 ->schema([
                     Forms\Components\TextInput::make('name')
+                        ->label(__('Name'))
                         ->required()
                         ->maxLength(120),
-                    Forms\Components\TimePicker::make('start_time')
+                    Forms\Components\TextInput::make('start_eth')
+                        ->label(__('Start (Ethiopian clock)'))
+                        ->placeholder('1:45')
+                        ->helperText(__('Hour 1–12 and minutes, e.g. 7:00 for the seventh hour of the day period.'))
                         ->required()
-                        ->seconds(false)
-                        ->format('H:i'),
-                    Forms\Components\TimePicker::make('end_time')
+                        ->rules($ethRules),
+                    Forms\Components\Select::make('start_cycle')
+                        ->label(__('Start period'))
+                        ->options($cycleOptions)
                         ->required()
-                        ->seconds(false)
-                        ->format('H:i'),
+                        ->native(false),
+                    Forms\Components\TextInput::make('end_eth')
+                        ->label(__('End (Ethiopian clock)'))
+                        ->placeholder('7:00')
+                        ->required()
+                        ->rules($ethRules),
+                    Forms\Components\Select::make('end_cycle')
+                        ->label(__('End period'))
+                        ->options($cycleOptions)
+                        ->required()
+                        ->native(false),
                     Forms\Components\Textarea::make('description')
+                        ->label(__('Description'))
                         ->maxLength(500)
                         ->columnSpanFull(),
-                    Forms\Components\Toggle::make('is_active')->default(true),
+                    Forms\Components\Toggle::make('is_active')->label(__('Active'))->default(true),
                 ])
                 ->columns(2),
         ]);
@@ -52,22 +87,29 @@ class ShiftResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name')->searchable()->sortable(),
-                Tables\Columns\TextColumn::make('start_time')->time('H:i')->sortable(),
-                Tables\Columns\TextColumn::make('end_time')->time('H:i')->sortable(),
+                Tables\Columns\TextColumn::make('name')->label(__('Name'))->searchable()->sortable(),
+                Tables\Columns\TextColumn::make('start_eth')
+                    ->label(__('Start'))
+                    ->formatStateUsing(fn ($state) => filled($state) ? (string) $state : '—'),
+                Tables\Columns\TextColumn::make('end_eth')
+                    ->label(__('End'))
+                    ->formatStateUsing(fn ($state) => filled($state) ? (string) $state : '—'),
                 Tables\Columns\IconColumn::make('is_active')->boolean()->label('Active'),
                 Tables\Columns\TextColumn::make('shift_assignments_count')
                     ->label('Assignments')
                     ->visible(function (): bool {
                         $user = auth()->user();
+
                         // Officers should not see assignment counts; supervisors/admins can.
                         return (bool) $user && ! $user->hasRole('officer');
                     })
                     ->sortable(),
             ])
-            ->defaultSort('start_time')
+            ->defaultSort('start_cycle')
             ->filters([])
             ->modifyQueryUsing(function ($query) {
+                $query->orderBy('start_cycle')->orderBy('start_eth');
+
                 $user = auth()->user();
 
                 if (! $user) {

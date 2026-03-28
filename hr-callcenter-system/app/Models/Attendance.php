@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\EthiopianTime;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -39,13 +40,19 @@ class Attendance extends Model
 
     // Constants for better maintainability
     const STATUS_PENDING = 'pending';
+
     const STATUS_PRESENT = 'present';
+
     const STATUS_ABSENT = 'absent';
+
     const STATUS_LATE = 'late';
+
     const STATUS_HALF_DAY = 'half_day';
+
     const STATUS_OVERTIME = 'overtime';
 
     const GRACE_MINUTES = 10;
+
     const HALF_DAY_THRESHOLD_HOURS = 4; // Consider half day if work time is less than this
 
     public function employee()
@@ -115,6 +122,7 @@ class Attendance extends Model
 
         if (! $assignment || ! $shift) {
             $this->attendance_status = $this->attendance_status ?: self::STATUS_PENDING;
+
             return;
         }
 
@@ -124,6 +132,7 @@ class Attendance extends Model
         // No check-in at all
         if (! $checkIn) {
             $this->attendance_status = self::STATUS_ABSENT;
+
             return;
         }
 
@@ -152,38 +161,29 @@ class Attendance extends Model
             ?? $this->normalizeDateTime($this->check_out)
             ?? now();
 
-        $assignedStart = Carbon::parse($assignment->assigned_date)->startOfDay();
-        $assignedEnd = Carbon::parse($assignment->end_date)->startOfDay();
+        $reference = Carbon::parse($reference)->timezone('Africa/Addis_Ababa');
+
+        $window = $assignment->shiftWindowForInstant($reference);
+        if ($window) {
+            return [
+                'start' => $window['start'],
+                'end' => $window['end'],
+                'grace_end' => $window['start']->copy()->addMinutes(self::GRACE_MINUTES),
+            ];
+        }
+
         $candidateDate = $reference->copy()->startOfDay();
+        $candidateStr = $candidateDate->format('Y-m-d');
+        $assignedStartStr = Carbon::parse($assignment->assigned_date)->format('Y-m-d');
+        $assignedEndStr = Carbon::parse($assignment->end_date)->format('Y-m-d');
 
-        if ($candidateDate->lt($assignedStart)) {
-            $candidateDate = $assignedStart->copy();
-        } elseif ($candidateDate->gt($assignedEnd)) {
-            $candidateDate = $assignedEnd->copy();
+        if ($candidateStr < $assignedStartStr) {
+            $candidateDate = Carbon::createFromFormat('Y-m-d', $assignedStartStr, 'Africa/Addis_Ababa')->startOfDay();
+        } elseif ($candidateStr > $assignedEndStr) {
+            $candidateDate = Carbon::createFromFormat('Y-m-d', $assignedEndStr, 'Africa/Addis_Ababa')->startOfDay();
         }
 
-        // Parse shift times
-        $startTime = Carbon::parse($shift->start_time);
-        $endTime = Carbon::parse($shift->end_time);
-
-        // Build boundaries using the effective shift-start date.
-        $shiftStart = Carbon::parse(
-            $candidateDate->format('Y-m-d') . ' ' . $startTime->format('H:i:s')
-        );
-
-        $shiftEnd = $endTime->lessThan($startTime)
-            ? Carbon::parse($candidateDate->format('Y-m-d') . ' ' . $endTime->format('H:i:s'))->addDay()
-            : Carbon::parse($candidateDate->format('Y-m-d') . ' ' . $endTime->format('H:i:s'));
-
-        // For overnight shifts, early-morning punches belong to the previous shift day.
-        if ($endTime->lessThan($startTime) && $reference->lessThan($shiftStart)) {
-            $previousDay = $candidateDate->copy()->subDay();
-
-            if ($previousDay->greaterThanOrEqualTo($assignedStart)) {
-                $shiftStart = Carbon::parse($previousDay->format('Y-m-d') . ' ' . $startTime->format('H:i:s'));
-                $shiftEnd = Carbon::parse($previousDay->format('Y-m-d') . ' ' . $endTime->format('H:i:s'))->addDay();
-            }
-        }
+        [$shiftStart, $shiftEnd] = EthiopianTime::shiftWindowOnLocalDate($shift, $candidateDate);
 
         return [
             'start' => $shiftStart,
@@ -254,7 +254,7 @@ class Attendance extends Model
             return $hasColumn;
         }
 
-        $hasColumn = Schema::hasColumn((new static())->getTable(), 'attendance_date');
+        $hasColumn = Schema::hasColumn((new static)->getTable(), 'attendance_date');
 
         return $hasColumn;
     }
@@ -269,6 +269,7 @@ class Attendance extends Model
         }
 
         $duration = $this->check_out->diff($this->check_in);
+
         return $duration->format('%H:%I:%S');
     }
 

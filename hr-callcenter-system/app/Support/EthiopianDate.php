@@ -54,7 +54,7 @@ class EthiopianDate
                 return null;
             }
 
-            return $date . ' ' . $carbon->format('H:i');
+            return $date.' '.$carbon->format('H:i');
         } catch (Throwable) {
             return null;
         }
@@ -98,10 +98,62 @@ class EthiopianDate
         // We detect leap year by attempting to construct day 6.
         try {
             DateTimeFactory::of($year, 13, 6);
+
             return 6;
         } catch (Throwable) {
             return 5;
         }
     }
-}
 
+    /**
+     * Gregorian calendar date (Y-m-d) for “today” in Africa/Addis_Ababa.
+     * Use for shift/attendance queries so the operational day matches Ethiopian local time.
+     */
+    public static function todayGregorianInAddisAbaba(): string
+    {
+        return Carbon::now('Africa/Addis_Ababa')->toDateString();
+    }
+
+    /**
+     * Ethiopian date as "d monthName y" with Amharic month name (e.g. 21 መጋቢት 2017).
+     */
+    public static function toEcYmdAmharic($gregorian): ?string
+    {
+        $ec = self::toEcYmd($gregorian);
+        if (! $ec) {
+            return null;
+        }
+
+        $parts = self::splitEcYmd($ec);
+        if (! $parts) {
+            return null;
+        }
+
+        $monthName = self::MONTHS_AM[$parts['m']] ?? sprintf('%02d', $parts['m']);
+
+        return sprintf('%d %s %d', $parts['d'], $monthName, $parts['y']);
+    }
+
+    /**
+     * Ethiopian calendar date (Amharic month) + Ethiopian traditional clock (see EthiopianTime).
+     */
+    public static function toEcAmharicDateAndTime($gregorian): ?string
+    {
+        if (! $gregorian) {
+            return null;
+        }
+
+        try {
+            $carbon = $gregorian instanceof Carbon ? $gregorian : Carbon::parse($gregorian);
+            $carbon = $carbon->copy()->timezone('Africa/Addis_Ababa');
+            $datePart = self::toEcYmdAmharic($carbon);
+            if (! $datePart) {
+                return null;
+            }
+
+            return $datePart.' · '.EthiopianTime::formatInstantEthiopianClock($carbon);
+        } catch (Throwable) {
+            return null;
+        }
+    }
+}

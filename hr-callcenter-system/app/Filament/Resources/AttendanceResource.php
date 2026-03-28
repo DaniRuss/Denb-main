@@ -6,20 +6,20 @@ use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\ShiftAssignment;
 use App\Models\User;
-use App\Filament\Resources\ShiftReportResource;
 use App\Support\EthiopianDate;
+use App\Support\EthiopianTime;
 use Filament\Actions\Action;
 use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
-use Filament\Schemas\Schema;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class AttendanceResource extends Resource
 {
@@ -129,7 +129,7 @@ class AttendanceResource extends Resource
 
                             return $query
                                 ->get()
-                                ->mapWithKeys(fn ($e) => [$e->id => $e->employee_id . ' – ' . $e->full_name_am])
+                                ->mapWithKeys(fn ($e) => [$e->id => $e->employee_id.' – '.$e->full_name_am])
                                 ->all();
                         })
                         ->searchable()
@@ -149,7 +149,7 @@ class AttendanceResource extends Resource
                             ->whereIn('status', ['scheduled', 'completed'])
                             ->orderBy('assigned_date', 'desc')
                             ->get()
-                            ->mapWithKeys(fn ($a) => [$a->id => (EthiopianDate::toEcYmd($a->assigned_date) ?? $a->assigned_date->format('Y-m-d')) . ' – ' . $a->shift?->name . ' (Block ' . $a->block . ')'])
+                            ->mapWithKeys(fn ($a) => [$a->id => (EthiopianDate::toEcYmdAmharic($a->assigned_date) ?? EthiopianDate::toEcYmd($a->assigned_date) ?? $a->assigned_date->format('Y-m-d')).' – '.$a->shift?->name.' (Block '.$a->block.')'])
                             ->all())
                         ->searchable()
                         ->required()
@@ -160,11 +160,17 @@ class AttendanceResource extends Resource
                             return (bool) ($user?->hasRole('officer') && $defaultEmployeeId);
                         }),
                     Forms\Components\DateTimePicker::make('check_in')
+                        ->label(__('Check in'))
+                        ->ethiopic()
+                        ->firstDayOfWeek(1)
                         ->seconds(false)
-                        ->default(now())
+                        ->default(now('Africa/Addis_Ababa'))
                         ->disabled()
                         ->dehydrated(false),
                     Forms\Components\DateTimePicker::make('check_out')
+                        ->label(__('Check out'))
+                        ->ethiopic()
+                        ->firstDayOfWeek(1)
                         ->seconds(false),
                     Forms\Components\Textarea::make('remarks')->maxLength(1000)->columnSpanFull(),
                 ])
@@ -179,17 +185,17 @@ class AttendanceResource extends Resource
                 Tables\Columns\TextColumn::make('employee.employee_id')->label('Employee ID')->sortable()->searchable(),
                 Tables\Columns\TextColumn::make('employee.full_name_am')->label('Employee')->searchable(['first_name_am', 'last_name_am']),
                 Tables\Columns\TextColumn::make('shiftAssignment.assigned_date')
-                    ->label('Shift date (EC)')
-                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmd($state) ?? '-')
+                    ->label(__('Shift date (Ethiopian)'))
+                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmdAmharic($state) ?? '-')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('shiftAssignment.shift.name')->label('Shift'),
                 Tables\Columns\TextColumn::make('check_in')
-                    ->label('Check in (EC)')
-                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmdHi($state) ?? '-')
+                    ->label(__('Check in (Ethiopian)'))
+                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcAmharicDateAndTime($state) ?? '-')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('check_out')
-                    ->label('Check out (EC)')
-                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmdHi($state) ?? '-')
+                    ->label(__('Check out (Ethiopian)'))
+                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcAmharicDateAndTime($state) ?? '-')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('attendance_status')->badge()
                     ->color(fn (string $state): string => match ($state) {
@@ -224,10 +230,12 @@ class AttendanceResource extends Resource
                     $employee = Employee::query()->where('user_id', $user->id)->first();
                     if ($employee) {
                         $query->where('employee_id', $employee->id);
-                        // Officers should only see today's shift rows.
-                        $query->whereHas('shiftAssignment', function (Builder $shiftAssignmentQuery) {
+                        // Same window as shift roster: assignment covers “today” in Addis Ababa (EC calendar day).
+                        $today = EthiopianDate::todayGregorianInAddisAbaba();
+                        $query->whereHas('shiftAssignment', function (Builder $shiftAssignmentQuery) use ($today) {
                             $shiftAssignmentQuery
-                                ->whereDate('assigned_date', Carbon::today())
+                                ->whereDate('assigned_date', '<=', $today)
+                                ->whereDate('end_date', '>=', $today)
                                 ->where('status', 'scheduled');
                         });
                     }
@@ -254,6 +262,7 @@ class AttendanceResource extends Resource
                         $query->whereRaw('1 = 0');
                     }
                 }
+
                 return $query;
             })
             ->actions([
@@ -282,15 +291,18 @@ class AttendanceResource extends Resource
                             return false;
                         }
 
-                        // Past shifts should not allow check-in.
-                        $assignedDate = Carbon::parse($assignment->assigned_date)->format('Y-m-d');
-                        $start = Carbon::parse($assignedDate . ' ' . $shift->start_time);
-                        $end = Carbon::parse($assignedDate . ' ' . $shift->end_time);
-                        if ($end->lessThanOrEqualTo($start)) {
-                            $end->addDay();
+                        // Past today’s shift window end (repeats each day for the 30-day assignment).
+                        $today = Carbon::parse(EthiopianDate::todayGregorianInAddisAbaba())->startOfDay();
+                        $todayStr = $today->format('Y-m-d');
+                        $assignedStartStr = Carbon::parse($assignment->assigned_date)->format('Y-m-d');
+                        $assignedEndStr = Carbon::parse($assignment->end_date)->format('Y-m-d');
+                        if ($todayStr < $assignedStartStr || $todayStr > $assignedEndStr) {
+                            return false;
                         }
 
-                        return ! now()->greaterThan($end);
+                        [, $end] = EthiopianTime::shiftWindowOnLocalDate($shift, $today);
+
+                        return ! now('Africa/Addis_Ababa')->greaterThan($end);
                     })
                     ->disabled(function (Attendance $record): bool {
                         $assignment = $record->shiftAssignment;
@@ -309,6 +321,7 @@ class AttendanceResource extends Resource
                                 ->title('Check-in is available only during the active shift window.')
                                 ->danger()
                                 ->send();
+
                             return;
                         }
 
@@ -317,10 +330,11 @@ class AttendanceResource extends Resource
                                 ->title('Already checked in.')
                                 ->warning()
                                 ->send();
+
                             return;
                         }
 
-                        $record->check_in = Carbon::parse(now());
+                        $record->check_in = Carbon::parse(now('Africa/Addis_Ababa'));
                         $record->check_in_location = null;
                         $record->save();
 
@@ -384,16 +398,23 @@ class AttendanceResource extends Resource
                                 ->title('Check-out is available only during the active shift window.')
                                 ->danger()
                                 ->send();
+
                             return;
                         }
 
-                        $now = now();
-                        $assignedDate = Carbon::parse($assignment->assigned_date)->format('Y-m-d');
-                        $shiftStart = Carbon::parse($assignedDate . ' ' . $shift->start_time);
-                        $shiftEnd = Carbon::parse($assignedDate . ' ' . $shift->end_time);
-                        if ($shiftEnd->lessThanOrEqualTo($shiftStart)) {
-                            $shiftEnd->addDay();
+                        $now = now('Africa/Addis_Ababa');
+                        $window = $assignment->shiftWindowForInstant($now);
+                        if (! $window) {
+                            Notification::make()
+                                ->title('Check-out is available only during the active shift window.')
+                                ->danger()
+                                ->send();
+
+                            return;
                         }
+
+                        $shiftStart = $window['start'];
+                        $shiftEnd = $window['end'];
 
                         // Late means late check-in (beyond grace period).
                         $graceEnd = $shiftStart->copy()->addMinutes(\App\Models\Attendance::GRACE_MINUTES);
@@ -409,6 +430,7 @@ class AttendanceResource extends Resource
                                 ->title('Early checkout reason is required.')
                                 ->danger()
                                 ->send();
+
                             return;
                         }
 
@@ -417,27 +439,28 @@ class AttendanceResource extends Resource
                                 ->title('Late check-in reason is required.')
                                 ->danger()
                                 ->send();
+
                             return;
                         }
 
                         $reasons = [];
                         if ($isEarly) {
-                            $reasons[] = 'Early checkout: ' . trim((string) $data['earlyCheckoutReason']);
+                            $reasons[] = 'Early checkout: '.trim((string) $data['earlyCheckoutReason']);
                         }
                         if ($isLate) {
-                            $reasons[] = 'Late check-in: ' . trim((string) $data['lateReason']);
+                            $reasons[] = 'Late check-in: '.trim((string) $data['lateReason']);
                         }
 
                         $existingRemarks = trim((string) $record->remarks);
                         $record->remarks = $existingRemarks !== ''
-                            ? trim($existingRemarks . "\n" . implode("\n", $reasons))
+                            ? trim($existingRemarks."\n".implode("\n", $reasons))
                             : implode("\n", $reasons);
 
                         $record->check_out = Carbon::parse($now);
                         $record->check_out_location = null;
                         $record->save();
 
-                        $reportUrl = ShiftReportResource::getUrl('create') . '?' . http_build_query([
+                        $reportUrl = ShiftReportResource::getUrl('create').'?'.http_build_query([
                             'employee_id' => $assignment->employee_id,
                             'shift_assignment_id' => $assignment->id,
                         ]);
@@ -460,6 +483,7 @@ class AttendanceResource extends Resource
     {
         /** @var \App\Models\User|null $user */
         $user = Auth::user();
+
         return (bool) $user && ($user->can('view_attendance') || $user->can('manage_attendance'));
     }
 

@@ -4,9 +4,10 @@ namespace App\Filament\Resources\ShiftAssignmentResource\Pages;
 
 use App\Filament\Resources\ShiftAssignmentResource;
 use App\Models\ShiftAssignment;
+use App\Support\EthiopianDate;
 use Filament\Resources\Pages\CreateRecord;
-use Illuminate\Support\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 
 class CreateShiftAssignment extends CreateRecord
@@ -17,20 +18,25 @@ class CreateShiftAssignment extends CreateRecord
     {
         parent::mount();
 
+        $start = Carbon::parse(EthiopianDate::todayGregorianInAddisAbaba());
+        $end = $start->copy()->addDays(29);
         $employeeId = request()->integer('employee_id');
-        if (! $employeeId) {
+
+        if ($employeeId) {
+            $this->form->fill([
+                'employee_id' => $employeeId,
+                'assigned_date' => $start->toDateString(),
+                'end_date' => $end->toDateString(),
+                'status' => 'scheduled',
+            ]);
+
             return;
         }
 
-        $start = Carbon::today();
-        $end = $start->copy()->addDays(29);
-
+        // EC date picker opens on today’s Ethiopian day/month/year (wire value = today in Addis Ababa).
         $this->form->fill([
-            'employee_id' => $employeeId,
             'assigned_date' => $start->toDateString(),
             'end_date' => $end->toDateString(),
-            'end_date_display' => $end->toDateString(),
-            'status' => 'scheduled',
         ]);
     }
 

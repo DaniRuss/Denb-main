@@ -33,7 +33,7 @@ class ShiftSwapResource extends Resource
             ->active()
             ->orderBy('first_name_am')
             ->get()
-            ->mapWithKeys(fn ($e) => [$e->id => $e->employee_id . ' – ' . $e->full_name_am])
+            ->mapWithKeys(fn ($e) => [$e->id => $e->employee_id.' – '.$e->full_name_am])
             ->all();
 
         return $schema->schema([
@@ -65,7 +65,8 @@ class ShiftSwapResource extends Resource
                             if (! $empFrom) {
                                 return [];
                             }
-                            $today = \Illuminate\Support\Carbon::today()->format('Y-m-d');
+                            $today = EthiopianDate::todayGregorianInAddisAbaba();
+
                             return ShiftAssignment::query()
                                 ->where('employee_id', $empFrom)
                                 ->where('status', 'scheduled')
@@ -73,7 +74,7 @@ class ShiftSwapResource extends Resource
                                 ->with('shift')
                                 ->orderBy('assigned_date', 'asc')
                                 ->get()
-                                ->mapWithKeys(fn ($a) => [$a->id => (EthiopianDate::toEcYmd($a->assigned_date) ?? $a->assigned_date->format('Y-m-d')) . ' – ' . ($a->shift?->name ?? '') . ' (Block ' . $a->block . ')'])
+                                ->mapWithKeys(fn ($a) => [$a->id => (EthiopianDate::toEcYmdAmharic($a->assigned_date) ?? EthiopianDate::toEcYmd($a->assigned_date) ?? $a->assigned_date->format('Y-m-d')).' – '.($a->shift?->name ?? '').' (Block '.$a->block.')'])
                                 ->all();
                         })
                         ->required()
@@ -126,8 +127,8 @@ class ShiftSwapResource extends Resource
                 Tables\Columns\TextColumn::make('employeeTo.employee_id')->label('To (ID)')->sortable(),
                 Tables\Columns\TextColumn::make('employeeTo.full_name_am')->label('To'),
                 Tables\Columns\TextColumn::make('shiftAssignment.assigned_date')
-                    ->label('Shift date (EC)')
-                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmd($state) ?? '-'),
+                    ->label(__('Shift date (Ethiopian)'))
+                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmdAmharic($state) ?? '-'),
                 Tables\Columns\TextColumn::make('shiftAssignment.shift.name')->label('Shift'),
                 Tables\Columns\TextColumn::make('status')->badge()
                     ->color(fn (string $state): string => match ($state) {
@@ -151,6 +152,7 @@ class ShiftSwapResource extends Resource
                         });
                     }
                 }
+
                 return $query;
             })
             ->filters([

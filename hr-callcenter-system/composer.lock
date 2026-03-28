@@ -4,8 +4,80 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a29d8feb8e6f223afd4ec4799b041b19",
+    "content-hash": "a3db7fcdf20b2c5d69d3e51ee3263d77",
     "packages": [
+        {
+            "name": "agelgil/filament-ethiopic-calendar",
+            "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/agelgil/filament-ethipic-calendar.git",
+                "reference": "40d1c2c9c13be6edb1c9e994fdaf8fc89cd2c3f2"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/agelgil/filament-ethipic-calendar/zipball/40d1c2c9c13be6edb1c9e994fdaf8fc89cd2c3f2",
+                "reference": "40d1c2c9c13be6edb1c9e994fdaf8fc89cd2c3f2",
+                "shasum": ""
+            },
+            "require": {
+                "filament/filament": "^4.0|^5.0",
+                "illuminate/contracts": "^10.0|^11.0|^12.0",
+                "php": "^8.1",
+                "spatie/laravel-package-tools": "^1.14.0"
+            },
+            "require-dev": {
+                "laravel/pint": "^1.0",
+                "nunomaduro/collision": "^7.9|^8.0",
+                "orchestra/testbench": "^8.0|^9.0",
+                "pestphp/pest": "^3.0",
+                "pestphp/pest-plugin-arch": "^3.0",
+                "pestphp/pest-plugin-laravel": "^3.0"
+            },
+            "default-branch": true,
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Agelgil\\FilamentEthiopic\\FilamentEthiopicServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Agelgil\\FilamentEthiopic\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Samson Endale",
+                    "email": "git@sam.et",
+                    "role": "Developer"
+                },
+                {
+                    "name": "Mo Khosh",
+                    "email": "mskhoshnazar@gmail.com",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Add Ethiopic datetime to your filament tables",
+            "homepage": "https://github.com/agelgil/filament-ethiopic-calendar",
+            "keywords": [
+                "agelgil",
+                "calender",
+                "ethiopic",
+                "filament",
+                "laravel"
+            ],
+            "support": {
+                "source": "https://github.com/agelgil/filament-ethipic-calendar/tree/main"
+            },
+            "time": "2026-03-25T14:59:11+00:00"
+        },
         {
             "name": "andegna/calender",
             "version": "v2.4.1",
@@ -10834,7 +10906,9 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {},
+    "stability-flags": {
+        "agelgil/filament-ethiopic-calendar": 20
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {

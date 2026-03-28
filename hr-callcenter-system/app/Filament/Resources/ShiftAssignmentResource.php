@@ -2,25 +2,28 @@
 
 namespace App\Filament\Resources;
 
+use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\Shift;
-use App\Models\Attendance;
 use App\Models\ShiftAssignment;
 use App\Models\SubCity;
 use App\Models\User;
 use App\Support\EthiopianDate;
+use Filament\Actions\Action;
 use Filament\Forms;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
-use Filament\Schemas\Schema;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
+use Filament\Schemas\Schema;
+use Filament\Support\Enums\Width;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Actions\Action;
-use Filament\Notifications\Notification;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class ShiftAssignmentResource extends Resource
@@ -134,6 +137,31 @@ class ShiftAssignmentResource extends Resource
     }
 
     /**
+     * Keep hidden end_date aligned with assigned_date (start + 29 days = 30-day inclusive window).
+     * Parses calendar dates in Africa/Addis_Ababa so Ethiopic pickers (Y-m-d H:i:s wire values) do not shift days.
+     *
+     * @param  callable(string, mixed): void  $set
+     */
+    protected static function syncAssignmentEndDateFromStart(callable $set, mixed $assignedState): void
+    {
+        if (blank($assignedState)) {
+            $set('end_date', null);
+
+            return;
+        }
+
+        try {
+            $dateOnly = Carbon::parse($assignedState)->format('Y-m-d');
+            $start = Carbon::createFromFormat('Y-m-d', $dateOnly, 'Africa/Addis_Ababa')->startOfDay();
+            $end = $start->copy()->addDays(29);
+            $set('assigned_date', $dateOnly);
+            $set('end_date', $end->format('Y-m-d'));
+        } catch (\Throwable) {
+            $set('end_date', null);
+        }
+    }
+
+    /**
      * Roster: active staff in supervisor geography who are not admin/supervisor app users.
      * Includes officers without login (user_id null) and field staff who are not elevated roles.
      */
@@ -167,6 +195,7 @@ class ShiftAssignmentResource extends Resource
         // Officers should only ever see their own assignments.
         if ($user->hasRole('officer')) {
             $employee = Employee::query()->where('user_id', $user->id)->first();
+
             return $employee
                 ? $query->where('employee_id', $employee->id)
                 : $query->whereRaw('1 = 0');
@@ -181,7 +210,7 @@ class ShiftAssignmentResource extends Resource
                 return ShiftAssignment::query()->whereRaw('1 = 0');
             }
 
-            $today = now()->toDateString();
+            $today = EthiopianDate::todayGregorianInAddisAbaba();
             $guard = (string) config('auth.defaults.guard', 'web');
 
             return static::applySupervisorRosterStaffFilter(
@@ -279,10 +308,10 @@ class ShiftAssignmentResource extends Resource
 
                             // Always hide officers who already have an active 30-day assignment (scheduled).
                             $query->whereDoesntHave('shiftAssignments', function ($q) {
-                                $today = now()->toDateString();
+                                $today = EthiopianDate::todayGregorianInAddisAbaba();
                                 $q->where('status', 'scheduled')
-                                  ->whereDate('assigned_date', '<=', $today)
-                                  ->whereDate('end_date', '>=', $today);
+                                    ->whereDate('assigned_date', '<=', $today)
+                                    ->whereDate('end_date', '>=', $today);
                             });
 
                             // If user is a supervisor, filter employees by their sub_city/woreda (officers only).
@@ -305,7 +334,7 @@ class ShiftAssignmentResource extends Resource
                             }
 
                             return $query->get()
-                                ->mapWithKeys(fn ($e) => [$e->id => $e->employee_id . ' - ' . $e->full_name_am])
+                                ->mapWithKeys(fn ($e) => [$e->id => $e->employee_id.' - '.$e->full_name_am])
                                 ->all();
                         })
                         ->searchable()
@@ -317,7 +346,7 @@ class ShiftAssignmentResource extends Resource
                         ->options(
                             Shift::query()
                                 ->where('is_active', true)
-                                ->orderBy('start_time')
+                                ->orderBy('start_cycle')->orderBy('start_eth')
                                 ->pluck('name', 'id')
                                 ->all()
                         )
@@ -331,6 +360,7 @@ class ShiftAssignmentResource extends Resource
 
                             if ($record && static::isBlockBlocked($record)) {
                                 $set('block', 'Block');
+
                                 return;
                             }
 
@@ -360,43 +390,78 @@ class ShiftAssignmentResource extends Resource
                         ->disabled(function (?ShiftAssignment $record): bool {
                             return (bool) ($record && static::isBlockBlocked($record));
                         }),
+                    // Ethiopic calendar UI only (agelgil/filament-ethiopic-calendar). ISO Gregorian is stored only for DB + end_date math.
                     Forms\Components\DatePicker::make('assigned_date')
-                        ->label('Start date')
-                        ->native(false)
+                        ->label(__('Start date (Ethiopian calendar)'))
+                        ->default(fn () => EthiopianDate::todayGregorianInAddisAbaba())
+                        ->ethiopic()
+                        ->firstDayOfWeek(1)
+                        ->closeOnDateSelection()
+                        ->inlineSuffix()
+                        ->suffixAction(
+                            Action::make('openEthiopianCalendarPicker')
+                                ->label(__('Ethiopian calendar'))
+                                ->icon(Heroicon::OutlinedCalendarDays)
+                                ->tooltip(__('Open Ethiopian calendar picker'))
+                                ->modalHeading(__('Pick start date (Ethiopian calendar)'))
+                                ->modalDescription(__('Use the Ethiopian month grid below, then apply.'))
+                                ->modalWidth(Width::Large)
+                                ->schema([
+                                    Forms\Components\DatePicker::make('modal_assigned_date')
+                                        ->label(__('Start date'))
+                                        ->ethiopic()
+                                        ->firstDayOfWeek(1)
+                                        ->closeOnDateSelection()
+                                        ->displayFormat('Y-m-d')
+                                        ->required(),
+                                ])
+                                ->fillForm(function (Get $get): array {
+                                    $current = $get('assigned_date');
+
+                                    return [
+                                        'modal_assigned_date' => $current
+                                            ? Carbon::parse($current)->toDateString()
+                                            : EthiopianDate::todayGregorianInAddisAbaba(),
+                                    ];
+                                })
+                                ->action(function (array $data, Set $set): void {
+                                    static::syncAssignmentEndDateFromStart($set, $data['modal_assigned_date'] ?? null);
+                                })
+                                ->modalSubmitActionLabel(__('Apply')),
+                        )
                         ->displayFormat('Y-m-d')
                         ->live()
                         ->afterStateHydrated(function ($state, callable $set, ?ShiftAssignment $record) {
-                            $sourceDate = $state ?: $record?->assigned_date;
+                            $sourceDate = $state ?? $record?->assigned_date;
                             if (! $sourceDate) {
                                 return;
                             }
 
-                            $start = Carbon::parse($sourceDate);
-                            $end = $start->copy()->addDays(29);
-
-                            $set('assigned_date', $start->toDateString());
-                            $set('end_date', $end->toDateString());
-                            $set('end_date_display', $end->toDateString());
+                            static::syncAssignmentEndDateFromStart($set, $sourceDate);
                         })
                         ->afterStateUpdated(function ($state, callable $set) {
-                            if (! $state) {
-                                $set('end_date', null);
-                                $set('end_date_display', null);
-                                return;
-                            }
-
-                            $start = Carbon::parse($state);
-                            $end = $start->copy()->addDays(29);
-
-                            $set('assigned_date', $start->toDateString());
-                            $set('end_date', $end->toDateString());
-                            $set('end_date_display', $end->toDateString());
+                            static::syncAssignmentEndDateFromStart($set, $state);
                         })
                         ->required(),
-                    Forms\Components\TextInput::make('end_date_display')
-                        ->label('End date (Gregorian)')
-                        ->disabled()
-                        ->dehydrated(false),
+                    Forms\Components\Placeholder::make('end_date_ethiopian_preview')
+                        ->label(__('End date (Ethiopian calendar)'))
+                        ->content(function (Get $get): string {
+                            $assigned = $get('assigned_date');
+                            if (blank($assigned)) {
+                                return '—';
+                            }
+
+                            try {
+                                $dateOnly = Carbon::parse($assigned)->format('Y-m-d');
+                                $end = Carbon::createFromFormat('Y-m-d', $dateOnly, 'Africa/Addis_Ababa')->addDays(29)->startOfDay();
+                            } catch (\Throwable) {
+                                return '—';
+                            }
+
+                            return EthiopianDate::toEcYmdAmharic($end)
+                                ?? EthiopianDate::toEcYmd($end)
+                                ?? '—';
+                        }),
                     Forms\Components\Hidden::make('end_date')->required(),
                     Forms\Components\Select::make('status')
                         ->options([
@@ -432,12 +497,12 @@ class ShiftAssignmentResource extends Resource
                         return (string) ($state ?? '---');
                     }),
                 Tables\Columns\TextColumn::make('assigned_date')
-                    ->label('Start (EC)')
-                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmd($state) ?? '-')
+                    ->label(__('Start (Ethiopian)'))
+                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmdAmharic($state) ?? '-')
                     ->sortable()->placeholder('---'),
                 Tables\Columns\TextColumn::make('end_date')
-                    ->label('End (EC)')
-                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmd($state) ?? '-')
+                    ->label(__('End (Ethiopian)'))
+                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmdAmharic($state) ?? '-')
                     ->sortable()->placeholder('---'),
                 Tables\Columns\TextColumn::make('status')->badge()
                     ->color(fn (string $state): string => match ($state) {
@@ -487,25 +552,28 @@ class ShiftAssignmentResource extends Resource
                             ->when($value === 'unassigned', fn ($q) => $q->whereNull('shift_assignments.id'));
                     }),
                 Tables\Filters\SelectFilter::make('shift_id')->relationship('shift', 'name')->label('Shift'),
-                Tables\Filters\Filter::make('assigned_date')->form([
-                    Forms\Components\TextInput::make('from_ec')
-                        ->label('From (EC) YYYY-MM-DD')
-                        ->mask('9999-99-99'),
-                    Forms\Components\TextInput::make('until_ec')
-                        ->label('Until (EC) YYYY-MM-DD')
-                        ->mask('9999-99-99'),
-                ])->query(function ($query, array $data) {
-                    $from = isset($data['from_ec']) && $data['from_ec']
-                        ? EthiopianDate::fromEcYmd($data['from_ec'])->toDateString()
-                        : null;
-                    $until = isset($data['until_ec']) && $data['until_ec']
-                        ? EthiopianDate::fromEcYmd($data['until_ec'])->toDateString()
-                        : null;
+                Tables\Filters\Filter::make('assigned_date')
+                    ->label(__('Assignment start (Ethiopian calendar)'))
+                    ->form([
+                        Forms\Components\DatePicker::make('from_date')
+                            ->label(__('From'))
+                            ->ethiopic()
+                            ->firstDayOfWeek(1)
+                            ->closeOnDateSelection(),
+                        Forms\Components\DatePicker::make('until_date')
+                            ->label(__('Until'))
+                            ->ethiopic()
+                            ->firstDayOfWeek(1)
+                            ->closeOnDateSelection(),
+                    ])
+                    ->query(function ($query, array $data) {
+                        $from = $data['from_date'] ?? null;
+                        $until = $data['until_date'] ?? null;
 
-                    return $query
-                        ->when($from, fn ($q, $v) => $q->whereDate('assigned_date', '>=', $v))
-                        ->when($until, fn ($q, $v) => $q->whereDate('assigned_date', '<=', $v));
-                }),
+                        return $query
+                            ->when($from, fn ($q) => $q->whereDate('assigned_date', '>=', Carbon::parse($from)->toDateString()))
+                            ->when($until, fn ($q) => $q->whereDate('assigned_date', '<=', Carbon::parse($until)->toDateString()));
+                    }),
             ])
             ->modifyQueryUsing(function ($query) {
                 /** @var \App\Models\User|null $user */
@@ -565,7 +633,7 @@ class ShiftAssignmentResource extends Resource
                             ->options(
                                 Shift::query()
                                     ->where('is_active', true)
-                                    ->orderBy('start_time')
+                                    ->orderBy('start_cycle')->orderBy('start_eth')
                                     ->pluck('name', 'id')
                                     ->all()
                             )
@@ -579,6 +647,7 @@ class ShiftAssignmentResource extends Resource
 
                                 if ($record && static::isBlockBlocked($record)) {
                                     $set('block', 'Block');
+
                                     return;
                                 }
 
@@ -615,6 +684,7 @@ class ShiftAssignmentResource extends Resource
                                 ->title('Active assignment not found.')
                                 ->danger()
                                 ->send();
+
                             return;
                         }
 
@@ -725,7 +795,7 @@ class ShiftAssignmentResource extends Resource
                         }
 
                         if (! $attendance->check_in) {
-                            $attendance->check_in = now();
+                            $attendance->check_in = now('Africa/Addis_Ababa');
 
                             $attendance->save();
 
@@ -738,7 +808,7 @@ class ShiftAssignmentResource extends Resource
                         }
 
                         if (! $attendance->check_out) {
-                            $attendance->check_out = now();
+                            $attendance->check_out = now('Africa/Addis_Ababa');
 
                             $attendance->save();
 

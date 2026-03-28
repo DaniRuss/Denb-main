@@ -19,7 +19,7 @@
                 </p>
             @elseif($data['shiftNotStarted'])
                 <p class="text-amber-700 dark:text-amber-400">
-                    Check-in is disabled until your shift starts ({{ $shiftStart?->format('g:i A') }} – {{ $shiftEnd?->format('g:i A') }}).
+                    Check-in is disabled until your shift starts ({{ $shiftStart ? \App\Support\EthiopianTime::formatInstantEthiopianClock($shiftStart) : '' }} – {{ $shiftEnd ? \App\Support\EthiopianTime::formatInstantEthiopianClock($shiftEnd) : '' }}).
                 </p>
                 <x-filament::button type="button" color="gray" icon="heroicon-o-check-circle" disabled>
                     Check in
@@ -45,7 +45,7 @@
             @elseif($data['canCheckOut'])
                 <form wire:submit="checkOut" class="space-y-4">
                     <p class="text-sm text-gray-600 dark:text-gray-400">
-                        Checked in at {{ $data['attendance']->check_in?->format('g:i A') }}
+                        Checked in at {{ $data['attendance']->check_in ? \App\Support\EthiopianTime::formatInstantEthiopianClock($data['attendance']->check_in) : '' }}
                         @if($data['attendance']->check_in_location)
                             · {{ $data['attendance']->check_in_location }}
                         @endif
@@ -97,7 +97,7 @@
                 </p>
             @elseif($data['checkedOut'])
                 <p class="text-gray-600 dark:text-gray-400">
-                    Check-out recorded at {{ $data['attendance']->check_out?->format('g:i A') }}
+                    Check-out recorded at {{ $data['attendance']->check_out ? \App\Support\EthiopianTime::formatInstantEthiopianClock($data['attendance']->check_out) : '' }}
                     @if($data['attendance']->check_out_location)
                         · {{ $data['attendance']->check_out_location }}
                     @endif

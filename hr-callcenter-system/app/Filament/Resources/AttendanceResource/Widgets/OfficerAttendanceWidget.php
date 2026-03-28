@@ -7,6 +7,8 @@ use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\ShiftAssignment;
 use App\Models\User;
+use App\Support\EthiopianDate;
+use App\Support\EthiopianTime;
 use Filament\Notifications\Notification;
 use Filament\Widgets\Widget;
 use Illuminate\Support\Carbon;
@@ -62,10 +64,12 @@ class OfficerAttendanceWidget extends Widget
             return null;
         }
 
+        $today = EthiopianDate::todayGregorianInAddisAbaba();
+
         return ShiftAssignment::query()
             ->where('employee_id', $employee->id)
-            ->whereDate('assigned_date', '<=', Carbon::today())
-            ->whereDate('end_date', '>=', Carbon::today())
+            ->whereDate('assigned_date', '<=', $today)
+            ->whereDate('end_date', '>=', $today)
             ->where('status', 'scheduled')
             ->with('shift')
             ->orderByDesc('assigned_date')
@@ -91,7 +95,7 @@ class OfficerAttendanceWidget extends Widget
             return ['show' => false];
         }
 
-        $now = now();
+        $now = now('Africa/Addis_Ababa');
         $employee = $this->getEmployee();
         $assignment = $this->getTodaysAssignment();
         $attendance = $assignment ? $this->getAttendance() : null;
@@ -137,32 +141,23 @@ class OfficerAttendanceWidget extends Widget
             return null;
         }
 
-        $assignedStart = Carbon::parse($assignment->assigned_date)->startOfDay();
-        $assignedEnd = Carbon::parse($assignment->end_date)->startOfDay();
-        $date = Carbon::parse($at)->copy()->startOfDay();
-        $clock = Carbon::parse($at);
+        $at = Carbon::parse($at)->timezone('Africa/Addis_Ababa');
 
-        $startTime = Carbon::parse($assignment->shift->start_time);
-        $endTime = Carbon::parse($assignment->shift->end_time);
-
-        // For overnight shifts, early-morning punches belong to the previous shift day.
-        $shiftStartDate = $date;
-        if ($endTime->lessThanOrEqualTo($startTime)) {
-            if ($clock->format('H:i:s') < $endTime->format('H:i:s')) {
-                $shiftStartDate = $date->copy()->subDay();
-            }
+        $active = $assignment->shiftWindowForInstant($at);
+        if ($active) {
+            return $active;
         }
 
-        if ($shiftStartDate->lt($assignedStart) || $shiftStartDate->gt($assignedEnd)) {
+        $today = $at->copy()->startOfDay();
+        $todayStr = $today->format('Y-m-d');
+        $assignedStartStr = Carbon::parse($assignment->assigned_date)->format('Y-m-d');
+        $assignedEndStr = Carbon::parse($assignment->end_date)->format('Y-m-d');
+
+        if ($todayStr < $assignedStartStr || $todayStr > $assignedEndStr) {
             return null;
         }
 
-        $start = Carbon::parse($shiftStartDate->format('Y-m-d') . ' ' . $assignment->shift->start_time);
-        $end = Carbon::parse($shiftStartDate->format('Y-m-d') . ' ' . $assignment->shift->end_time);
-
-        if ($end->lessThanOrEqualTo($start)) {
-            $end->addDay();
-        }
+        [$start, $end] = EthiopianTime::shiftWindowOnLocalDate($assignment->shift, $today);
 
         return [
             'start' => $start,
@@ -176,6 +171,7 @@ class OfficerAttendanceWidget extends Widget
         $shiftStart = Carbon::parse($shiftStart);
 
         $graceEnd = $shiftStart->copy()->addMinutes(\App\Models\Attendance::GRACE_MINUTES);
+
         return $checkIn->greaterThan($graceEnd);
     }
 
@@ -203,6 +199,7 @@ class OfficerAttendanceWidget extends Widget
                 ->title('You can check in only during your shift.')
                 ->danger()
                 ->send();
+
             return;
         }
 
@@ -216,10 +213,11 @@ class OfficerAttendanceWidget extends Widget
                 ->title('You are already checked in.')
                 ->warning()
                 ->send();
+
             return;
         }
 
-        $attendance->check_in = now();
+        $attendance->check_in = now('Africa/Addis_Ababa');
         $attendance->check_in_location = $this->checkInLocation ?: null;
         $attendance->save();
 
@@ -243,6 +241,7 @@ class OfficerAttendanceWidget extends Widget
                 ->title('You can check out only during your shift.')
                 ->danger()
                 ->send();
+
             return;
         }
 
@@ -256,6 +255,7 @@ class OfficerAttendanceWidget extends Widget
                 ->title('You must check in first before checking out.')
                 ->danger()
                 ->send();
+
             return;
         }
 
@@ -264,10 +264,11 @@ class OfficerAttendanceWidget extends Widget
                 ->title('You are already checked out.')
                 ->warning()
                 ->send();
+
             return;
         }
 
-        $now = now();
+        $now = now('Africa/Addis_Ababa');
         $shiftWindow = $this->buildShiftWindow($assignment, $now);
 
         if (! $shiftWindow) {
@@ -275,6 +276,7 @@ class OfficerAttendanceWidget extends Widget
                 ->title('Unable to determine shift window.')
                 ->danger()
                 ->send();
+
             return;
         }
 
@@ -286,6 +288,7 @@ class OfficerAttendanceWidget extends Widget
                 ->title('Reason is required for early checkout.')
                 ->danger()
                 ->send();
+
             return;
         }
 
@@ -294,21 +297,22 @@ class OfficerAttendanceWidget extends Widget
                 ->title('Reason is required for late check-in.')
                 ->danger()
                 ->send();
+
             return;
         }
 
         // Attach reasons to the attendance record for supervisor visibility.
         $reasons = [];
         if ($isEarlyCheckout) {
-            $reasons[] = 'Early checkout: ' . trim((string) $this->earlyCheckoutReason);
+            $reasons[] = 'Early checkout: '.trim((string) $this->earlyCheckoutReason);
         }
         if ($isLate) {
-            $reasons[] = 'Late check-in: ' . trim((string) $this->lateReason);
+            $reasons[] = 'Late check-in: '.trim((string) $this->lateReason);
         }
 
         $existingRemarks = trim((string) $attendance->remarks);
         $attendance->remarks = $existingRemarks !== ''
-            ? trim($existingRemarks . "\n" . implode("\n", $reasons))
+            ? trim($existingRemarks."\n".implode("\n", $reasons))
             : implode("\n", $reasons);
 
         $attendance->check_out = $now;
@@ -324,7 +328,7 @@ class OfficerAttendanceWidget extends Widget
             ->success()
             ->send();
 
-        $reportUrl = ShiftReportResource::getUrl('create') . '?' . http_build_query([
+        $reportUrl = ShiftReportResource::getUrl('create').'?'.http_build_query([
             'employee_id' => $assignment->employee_id,
             'shift_assignment_id' => $assignment->id,
         ]);

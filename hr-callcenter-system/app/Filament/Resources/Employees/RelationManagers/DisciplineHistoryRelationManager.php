@@ -26,6 +26,9 @@ class DisciplineHistoryRelationManager extends RelationManager
         return $schema->schema([
             Forms\Components\DatePicker::make('discipline_date')
                 ->label('Discipline Date')
+                ->ethiopic()
+                ->firstDayOfWeek(1)
+                ->closeOnDateSelection()
                 ->default(now())
                 ->required(),
 
@@ -123,4 +126,3 @@ class DisciplineHistoryRelationManager extends RelationManager
             ]);
     }
 }
-

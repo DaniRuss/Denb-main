@@ -4,6 +4,8 @@ namespace App\Console\Commands;
 
 use App\Models\Shift;
 use App\Models\ShiftAssignment;
+use App\Support\EthiopianDate;
+use App\Support\EthiopianTime;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
@@ -28,17 +30,17 @@ class RotateOfficerShifts extends Command
                         continue;
                     }
 
-                    $start = Carbon::today();
-                    $end   = $start->copy()->addDays(29);
+                    $start = Carbon::parse(EthiopianDate::todayGregorianInAddisAbaba());
+                    $end = $start->copy()->addDays(29);
 
                     ShiftAssignment::create([
-                        'employee_id'   => $assignment->employee_id,
-                        'shift_id'      => $nextShift->id,
-                        'block'         => $assignment->block,
+                        'employee_id' => $assignment->employee_id,
+                        'shift_id' => $nextShift->id,
+                        'block' => $assignment->block,
                         'assigned_date' => $start,
-                        'end_date'      => $end,
-                        'assigned_by'   => $assignment->assigned_by,
-                        'status'        => 'scheduled',
+                        'end_date' => $end,
+                        'assigned_by' => $assignment->assigned_by,
+                        'status' => 'scheduled',
                     ]);
 
                     $assignment->update(['status' => 'completed']);
@@ -58,8 +60,8 @@ class RotateOfficerShifts extends Command
 
         $all = Shift::query()
             ->where('is_active', true)
-            ->orderBy('start_time')
             ->get()
+            ->sortBy(fn (Shift $s) => EthiopianTime::sortKey($s))
             ->values();
 
         if ($all->isEmpty()) {
@@ -72,9 +74,8 @@ class RotateOfficerShifts extends Command
             return $all->first();
         }
 
-	$nextIndex = ($index + 1) % $all->count();
+        $nextIndex = ($index + 1) % $all->count();
 
         return $all[$nextIndex];
     }
 }
-

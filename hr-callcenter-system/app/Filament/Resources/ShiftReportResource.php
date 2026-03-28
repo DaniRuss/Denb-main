@@ -114,7 +114,7 @@ class ShiftReportResource extends Resource
 
                             return $query
                                 ->get()
-                                ->mapWithKeys(fn ($e) => [$e->id => $e->employee_id . ' – ' . $e->full_name_am])
+                                ->mapWithKeys(fn ($e) => [$e->id => $e->employee_id.' – '.$e->full_name_am])
                                 ->all();
                         })
                         ->searchable()
@@ -127,13 +127,14 @@ class ShiftReportResource extends Resource
                             if (! $employeeId) {
                                 return [];
                             }
+
                             return ShiftAssignment::query()
                                 ->where('employee_id', $employeeId)
                                 ->whereIn('status', ['scheduled', 'completed'])
                                 ->with('shift')
                                 ->orderBy('assigned_date', 'desc')
                                 ->get()
-                                ->mapWithKeys(fn ($a) => [$a->id => (EthiopianDate::toEcYmd($a->assigned_date) ?? $a->assigned_date->format('Y-m-d')) . ' – ' . ($a->shift?->name ?? '') . ' (Block ' . $a->block . ')'])
+                                ->mapWithKeys(fn ($a) => [$a->id => (EthiopianDate::toEcYmdAmharic($a->assigned_date) ?? EthiopianDate::toEcYmd($a->assigned_date) ?? $a->assigned_date->format('Y-m-d')).' – '.($a->shift?->name ?? '').' (Block '.$a->block.')'])
                                 ->all();
                         })
                         ->required()
@@ -151,7 +152,10 @@ class ShiftReportResource extends Resource
                         ->minValue(0)
                         ->default(0),
                     Forms\Components\DateTimePicker::make('submitted_at')
-                        ->default(now())
+                        ->label(__('Submitted at'))
+                        ->ethiopic()
+                        ->firstDayOfWeek(1)
+                        ->default(now('Africa/Addis_Ababa'))
                         ->required()
                         ->seconds(false),
                 ])
@@ -166,15 +170,15 @@ class ShiftReportResource extends Resource
                 Tables\Columns\TextColumn::make('employee.employee_id')->label('Employee ID')->sortable()->searchable(),
                 Tables\Columns\TextColumn::make('employee.full_name_am')->label('Employee')->searchable(['first_name_am', 'last_name_am']),
                 Tables\Columns\TextColumn::make('shiftAssignment.assigned_date')
-                    ->label('Shift date (EC)')
-                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmd($state) ?? '-')
+                    ->label(__('Shift date (Ethiopian)'))
+                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmdAmharic($state) ?? '-')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('shiftAssignment.shift.name')->label('Shift'),
                 Tables\Columns\TextColumn::make('incident_count')->sortable(),
                 Tables\Columns\TextColumn::make('penalty_count')->sortable(),
                 Tables\Columns\TextColumn::make('submitted_at')
-                    ->label('Submitted (EC)')
-                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmdHi($state) ?? '-')
+                    ->label(__('Submitted (Ethiopian date & time)'))
+                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcAmharicDateAndTime($state) ?? '-')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('report_text')->limit(50)->wrap()->toggleable(isToggledHiddenByDefault: true),
             ])
@@ -211,6 +215,7 @@ class ShiftReportResource extends Resource
                         $query->whereRaw('1 = 0');
                     }
                 }
+
                 return $query;
             })
             ->filters([])
@@ -231,6 +236,7 @@ class ShiftReportResource extends Resource
     {
         /** @var \App\Models\User|null $user */
         $user = Auth::user();
+
         return (bool) $user && ($user->can('view_shift_reports') || $user->can('submit_shift_report'));
     }
 
