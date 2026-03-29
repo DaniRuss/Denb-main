@@ -57,12 +57,15 @@ class ListAttendances extends ListRecords
             ->whereDate('assigned_date', '<=', $today)
             ->whereDate('end_date', '>=', $today)
             ->where('status', 'scheduled')
+            ->whereDate('assigned_date', '<=', Carbon::today())
+            ->whereDate('end_date', '>=', Carbon::today())
             ->get();
 
         foreach ($assignments as $assignment) {
             Attendance::query()->firstOrCreate([
                 'employee_id' => $assignment->employee_id,
                 'shift_assignment_id' => $assignment->id,
+                'attendance_date' => Carbon::today()->toDateString(),
             ], [
                 'check_in' => null,
                 'check_out' => null,

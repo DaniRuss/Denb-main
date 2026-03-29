@@ -22,30 +22,34 @@ class GenerateDailyAbsences extends Command
         $this->info('Generating absences for date: ' . $date->toDateString());
 
         $assignments = ShiftAssignment::query()
-            ->whereDate('assigned_date', $date->toDateString())
+            ->where('status', 'scheduled')
+            ->whereDate('assigned_date', '<=', $date->toDateString())
+            ->whereDate('end_date', '>=', $date->toDateString())
             ->get();
 
         $created = 0;
 
         foreach ($assignments as $assignment) {
-            $exists = Attendance::query()
-                ->where('employee_id', $assignment->employee_id)
-                ->where('shift_assignment_id', $assignment->id)
-                ->exists();
+            $attendance = Attendance::query()->firstOrCreate(
+                [
+                    'employee_id' => $assignment->employee_id,
+                    'shift_assignment_id' => $assignment->id,
+                    'attendance_date' => $date->toDateString(),
+                ],
+                [
+                    'check_in' => null,
+                    'check_out' => null,
+                    'attendance_status' => Attendance::STATUS_PENDING,
+                    'auto_generated' => false,
+                ]
+            );
 
-            if ($exists) {
-                continue;
+            if (! $attendance->check_in) {
+                $attendance->attendance_status = Attendance::STATUS_ABSENT;
+                $attendance->auto_generated = true;
+                $attendance->remarks = $attendance->remarks ?: 'Auto-generated absence';
+                $attendance->save();
             }
-
-            Attendance::create([
-                'employee_id' => $assignment->employee_id,
-                'shift_assignment_id' => $assignment->id,
-                'check_in' => null,
-                'check_out' => null,
-                'attendance_status' => 'absent',
-                'auto_generated' => true,
-                'remarks' => 'Auto-generated absence',
-            ]);
 
             $created++;
         }

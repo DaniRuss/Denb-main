@@ -278,7 +278,7 @@ class Attendance extends Model
      */
     public function scopeBetweenDates($query, $startDate, $endDate)
     {
-        return $query->whereBetween('created_at', [$startDate, $endDate]);
+        return $query->whereBetween('attendance_date', [$startDate, $endDate]);
     }
 
     /**

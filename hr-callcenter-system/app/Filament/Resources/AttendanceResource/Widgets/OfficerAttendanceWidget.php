@@ -86,6 +86,7 @@ class OfficerAttendanceWidget extends Widget
         return Attendance::query()
             ->where('employee_id', $assignment->employee_id)
             ->where('shift_assignment_id', $assignment->id)
+            ->whereDate('attendance_date', now()->toDateString())
             ->first();
     }
 
@@ -206,6 +207,7 @@ class OfficerAttendanceWidget extends Widget
         $attendance = Attendance::firstOrNew([
             'employee_id' => $assignment->employee_id,
             'shift_assignment_id' => $assignment->id,
+            'attendance_date' => now()->toDateString(),
         ]);
 
         if ($attendance->check_in) {
@@ -248,6 +250,7 @@ class OfficerAttendanceWidget extends Widget
         $attendance = Attendance::query()
             ->where('employee_id', $assignment->employee_id)
             ->where('shift_assignment_id', $assignment->id)
+            ->whereDate('attendance_date', now()->toDateString())
             ->first();
 
         if (! $attendance || ! $attendance->check_in) {

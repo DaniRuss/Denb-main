@@ -188,6 +188,10 @@ class AttendanceResource extends Resource
                     ->label(__('Shift date (Ethiopian)'))
                     ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmdAmharic($state) ?? '-')
                     ->sortable(),
+                Tables\Columns\TextColumn::make('attendance_date')
+                    ->label('Attendance date (EC)')
+                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmd($state) ?? '-')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('shiftAssignment.shift.name')->label('Shift'),
                 Tables\Columns\TextColumn::make('check_in')
                     ->label(__('Check in (Ethiopian)'))
@@ -222,6 +226,42 @@ class AttendanceResource extends Resource
                         'late' => 'Late',
                         'half_day' => 'Half Day',
                     ]),
+                Tables\Filters\Filter::make('more_absent_than_present')
+                    ->label('More absent than present')
+                    ->query(function (Builder $query): Builder {
+                        return $query->whereRaw("
+                            (
+                                SELECT COUNT(*)
+                                FROM attendances a2
+                                WHERE a2.employee_id = attendances.employee_id
+                                  AND a2.attendance_status = 'absent'
+                            ) >
+                            (
+                                SELECT COUNT(*)
+                                FROM attendances a3
+                                WHERE a3.employee_id = attendances.employee_id
+                                  AND a3.attendance_status IN ('present','late','half_day','overtime')
+                            )
+                        ");
+                    }),
+                Tables\Filters\Filter::make('more_present_than_absent')
+                    ->label('More present than absent')
+                    ->query(function (Builder $query): Builder {
+                        return $query->whereRaw("
+                            (
+                                SELECT COUNT(*)
+                                FROM attendances a2
+                                WHERE a2.employee_id = attendances.employee_id
+                                  AND a2.attendance_status IN ('present','late','half_day','overtime')
+                            ) >
+                            (
+                                SELECT COUNT(*)
+                                FROM attendances a3
+                                WHERE a3.employee_id = attendances.employee_id
+                                  AND a3.attendance_status = 'absent'
+                            )
+                        ");
+                    }),
             ])
             ->modifyQueryUsing(function ($query) {
                 /** @var \App\Models\User|null $user */
@@ -378,6 +418,10 @@ class AttendanceResource extends Resource
                             return false;
                         }
 
+                        if (! $record->attendance_date || ! Carbon::parse($record->attendance_date)->isToday()) {
+                            return false;
+                        }
+
                         // Only show while shift is active.
                         return $assignment->isWithinShift();
                     })
@@ -465,7 +509,12 @@ class AttendanceResource extends Resource
                             'shift_assignment_id' => $assignment->id,
                         ]);
 
-                        return redirect()->to($reportUrl);
+                        Notification::make()
+                            ->title('Check-out recorded. Redirecting to daily report...')
+                            ->success()
+                            ->send();
+
+                        return redirect()->away($reportUrl);
                     }),
             ]);
     }
