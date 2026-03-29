@@ -44,10 +44,10 @@ class ConfiscatedAssetResource extends Resource
         return __('Awareness Management');
     }
 
-    // Only Officers and Admins can manage confiscated assets
+    // Only Admins can manage confiscated assets
     public static function canViewAny(): bool
     {
-        return auth()->user()?->hasAnyRole(['officer', 'admin', 'super_admin']) ?? false;
+        return auth()->user()?->hasAnyRole(['admin', 'super_admin']) ?? false;
     }
 
     public static function canCreate(): bool

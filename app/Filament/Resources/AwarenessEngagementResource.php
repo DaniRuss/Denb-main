@@ -11,7 +11,7 @@ use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Tables\Actions\ViewAction as TableViewAction;
+use Filament\Actions\ViewAction as TableViewAction;
 use Filament\Notifications\Notification;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
@@ -51,6 +51,11 @@ class AwarenessEngagementResource extends Resource
     public static function getNavigationGroup(): ?string
     {
         return __('Awareness Management');
+    }
+
+    public static function canViewAny(): bool
+    {
+        return auth()->user()->hasAnyRole(['admin', 'super_admin', 'woreda_coordinator', 'paramilitary', 'officer']);
     }
 
     public static function canCreate(): bool
@@ -226,6 +231,10 @@ class AwarenessEngagementResource extends Resource
                 $user = auth()->user();
                 if ($user->hasAnyRole(['admin', 'super_admin'])) {
                     return $query;
+                }
+                if ($user->hasRole('officer')) {
+                    // Officers see all submitted/approved/rejected records system-wide for oversight
+                    return $query->whereIn('status', ['submitted', 'approved', 'rejected']);
                 }
                 if ($user->hasRole('woreda_coordinator')) {
                     // Coordinators see submitted/approved/rejected records in their Woreda
