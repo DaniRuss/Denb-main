@@ -14,26 +14,12 @@ use Filament\Schemas\Components\EmbeddedTable;
 use Filament\Schemas\Components\RenderHook;
 use Filament\Schemas\Schema;
 use Filament\View\PanelsRenderHook;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 
 class ListAttendances extends ListRecords
 {
     protected static string $resource = AttendanceResource::class;
-
-    /**
-     * Filament v5 list pages only embed the table in `content()` unless we also render header widgets here.
-     */
-    public function content(Schema $schema): Schema
-    {
-        return $schema
-            ->components([
-                $this->headerWidgets(Schema::make()),
-                $this->getTabsContentComponent(),
-                RenderHook::make(PanelsRenderHook::RESOURCE_PAGES_LIST_RECORDS_TABLE_BEFORE),
-                EmbeddedTable::make(),
-                RenderHook::make(PanelsRenderHook::RESOURCE_PAGES_LIST_RECORDS_TABLE_AFTER),
-            ]);
-    }
 
     public function mount(): void
     {

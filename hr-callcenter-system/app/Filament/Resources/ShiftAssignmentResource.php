@@ -45,10 +45,7 @@ class ShiftAssignmentResource extends Resource
     protected static array $blockedBlocks = ['ከተና'];
 
     protected static function isBlockBlocked(ShiftAssignment $record): bool
-    protected static function isBlockBlocked(ShiftAssignment $record): bool
     {
-        $block = trim((string) ($record->block ?? ''));
-        if ($block === '') {
         $block = trim((string) ($record->block ?? ''));
         if ($block === '') {
             return false;
@@ -356,7 +353,6 @@ class ShiftAssignmentResource extends Resource
                         )
                         ->required(),
                     Forms\Components\TextInput::make('block')
-                    Forms\Components\TextInput::make('block')
                         ->label('Block')
                         ->required()
                         ->maxLength(120)
@@ -371,14 +367,9 @@ class ShiftAssignmentResource extends Resource
 
                             if (mb_strtolower($block) === mb_strtolower('ከተና')) {
                                 $set('block', 'Block');
-                            if (mb_strtolower($block) === mb_strtolower('ከተና')) {
-                                $set('block', 'Block');
                             }
                         })
                         ->afterStateUpdated(function ($state, callable $set): void {
-                            $block = trim((string) ($state ?? ''));
-                            if (mb_strtolower($block) === mb_strtolower('ከተና')) {
-                                $set('block', 'Block');
                             $block = trim((string) ($state ?? ''));
                             if (mb_strtolower($block) === mb_strtolower('ከተና')) {
                                 $set('block', 'Block');
@@ -392,15 +383,12 @@ class ShiftAssignmentResource extends Resource
 
                             $block = trim((string) ($state ?? ''));
                             if (mb_strtolower($block) === mb_strtolower('block')) {
-                            $block = trim((string) ($state ?? ''));
-                            if (mb_strtolower($block) === mb_strtolower('block')) {
                                 return 'ከተና';
                             }
 
                             return $state;
                         })
                         ->disabled(function (?ShiftAssignment $record): bool {
-                            return (bool) ($record && static::isBlockBlocked($record));
                             return (bool) ($record && static::isBlockBlocked($record));
                         }),
                     // Ethiopic calendar UI only (agelgil/filament-ethiopic-calendar). ISO Gregorian is stored only for DB + end_date math.
@@ -498,13 +486,11 @@ class ShiftAssignmentResource extends Resource
                 Tables\Columns\TextColumn::make('employee.full_name_am')->label('Employee')->searchable(['first_name_am', 'last_name_am'])->placeholder('---'),
                 Tables\Columns\TextColumn::make('shift.name')->sortable()->placeholder('---'),
                 Tables\Columns\TextColumn::make('block')
-                Tables\Columns\TextColumn::make('block')
                     ->label('Block')
                     ->searchable()
                     ->sortable()
                     ->placeholder('---')
                     ->formatStateUsing(function (?string $state, ShiftAssignment $record): string {
-                        if (static::isBlockBlocked($record)) {
                         if (static::isBlockBlocked($record)) {
                             return 'Block';
                         }
@@ -654,7 +640,6 @@ class ShiftAssignmentResource extends Resource
                             )
                             ->required(),
                         Forms\Components\TextInput::make('block')
-                        Forms\Components\TextInput::make('block')
                             ->label('Block')
                             ->required()
                             ->maxLength(120)
@@ -669,14 +654,9 @@ class ShiftAssignmentResource extends Resource
 
                                 if (mb_strtolower($block) === mb_strtolower('ከተና')) {
                                     $set('block', 'Block');
-                                if (mb_strtolower($block) === mb_strtolower('ከተና')) {
-                                    $set('block', 'Block');
                                 }
                             })
                             ->afterStateUpdated(function ($state, callable $set): void {
-                                $block = trim((string) ($state ?? ''));
-                                if (mb_strtolower($block) === mb_strtolower('ከተና')) {
-                                    $set('block', 'Block');
                                 $block = trim((string) ($state ?? ''));
                                 if (mb_strtolower($block) === mb_strtolower('ከተና')) {
                                     $set('block', 'Block');
@@ -685,12 +665,8 @@ class ShiftAssignmentResource extends Resource
                             ->dehydrateStateUsing(function ($state, ?ShiftAssignment $record) {
                                 if ($record && static::isBlockBlocked($record)) {
                                     return $record->block;
-                                if ($record && static::isBlockBlocked($record)) {
-                                    return $record->block;
                                 }
 
-                                $block = trim((string) ($state ?? ''));
-                                if (mb_strtolower($block) === mb_strtolower('block')) {
                                 $block = trim((string) ($state ?? ''));
                                 if (mb_strtolower($block) === mb_strtolower('block')) {
                                     return 'ከተና';
@@ -699,7 +675,6 @@ class ShiftAssignmentResource extends Resource
                                 return $state;
                             })
                             ->disabled(function (?ShiftAssignment $record): bool {
-                                return (bool) ($record && static::isBlockBlocked($record));
                                 return (bool) ($record && static::isBlockBlocked($record));
                             }),
                     ])
@@ -717,7 +692,6 @@ class ShiftAssignmentResource extends Resource
                         $assignment->update([
                             'shift_id' => $data['shift_id'],
                             'block' => $data['block'],
-                            'block' => $data['block'],
                             'assigned_by' => Auth::id(),
                         ]);
 
@@ -728,7 +702,6 @@ class ShiftAssignmentResource extends Resource
                     }),
                 Action::make('check_in')
                     ->label(function (ShiftAssignment $record): string {
-                        if (static::isBlockBlocked($record)) {
                         if (static::isBlockBlocked($record)) {
                             return 'Block';
                         }
@@ -789,7 +762,6 @@ class ShiftAssignmentResource extends Resource
                     })
                     ->disabled(function (ShiftAssignment $record): bool {
                         return static::isBlockBlocked($record);
-                        return static::isBlockBlocked($record);
                     })
                     ->action(function (ShiftAssignment $record): void {
                         if ($record->status === 'unassigned' || $record->id <= 0) {
@@ -801,7 +773,6 @@ class ShiftAssignmentResource extends Resource
                             return;
                         }
 
-                        if (static::isBlockBlocked($record)) {
                         if (static::isBlockBlocked($record)) {
                             Notification::make()
                                 ->title('This block is blocked for shift attendance processing.')
