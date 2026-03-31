@@ -194,12 +194,40 @@ class AttendanceResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('shiftAssignment.shift.name')->label('Shift'),
                 Tables\Columns\TextColumn::make('check_in')
-                    ->label(__('Check in (Ethiopian)'))
-                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcAmharicDateAndTime($state) ?? '-')
+                    ->label(__('Check in (Ethiopian time)'))
+                    ->formatStateUsing(function ($state) {
+                        if (! $state) {
+                            return '-';
+                        }
+
+                        $instant = $state instanceof Carbon
+                            ? $state
+                            : Carbon::parse($state)->timezone('Africa/Addis_Ababa');
+
+                        $h24 = (int) $instant->format('G');
+                        $m = (int) $instant->format('i');
+                        [$ethHm] = EthiopianTime::from24Hour($h24, $m);
+
+                        return $ethHm;
+                    })
                     ->sortable(),
                 Tables\Columns\TextColumn::make('check_out')
-                    ->label(__('Check out (Ethiopian)'))
-                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcAmharicDateAndTime($state) ?? '-')
+                    ->label(__('Check out (Ethiopian time)'))
+                    ->formatStateUsing(function ($state) {
+                        if (! $state) {
+                            return '-';
+                        }
+
+                        $instant = $state instanceof Carbon
+                            ? $state
+                            : Carbon::parse($state)->timezone('Africa/Addis_Ababa');
+
+                        $h24 = (int) $instant->format('G');
+                        $m = (int) $instant->format('i');
+                        [$ethHm] = EthiopianTime::from24Hour($h24, $m);
+
+                        return $ethHm;
+                    })
                     ->sortable(),
                 Tables\Columns\TextColumn::make('attendance_status')->badge()
                     ->color(fn (string $state): string => match ($state) {
