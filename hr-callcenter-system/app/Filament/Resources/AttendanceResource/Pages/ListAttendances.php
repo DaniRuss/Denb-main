@@ -10,11 +10,7 @@ use App\Models\ShiftAssignment;
 use App\Support\EthiopianDate;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
-use Filament\Schemas\Components\EmbeddedTable;
-use Filament\Schemas\Components\RenderHook;
-use Filament\Schemas\Schema;
-use Filament\View\PanelsRenderHook;
-use Illuminate\Support\Carbon;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Auth;
 
 class ListAttendances extends ListRecords
@@ -43,21 +39,28 @@ class ListAttendances extends ListRecords
             ->whereDate('assigned_date', '<=', $today)
             ->whereDate('end_date', '>=', $today)
             ->where('status', 'scheduled')
-            ->whereDate('assigned_date', '<=', Carbon::today())
-            ->whereDate('end_date', '>=', Carbon::today())
             ->get();
 
         foreach ($assignments as $assignment) {
-            Attendance::query()->firstOrCreate([
-                'employee_id' => $assignment->employee_id,
-                'shift_assignment_id' => $assignment->id,
-                'attendance_date' => Carbon::today()->toDateString(),
-            ], [
-                'check_in' => null,
-                'check_out' => null,
-                'attendance_status' => 'pending',
-                'auto_generated' => false,
-            ]);
+            // Unique key after migration: (shift_assignment_id, attendance_date). Legacy DBs may still
+            // have (employee_id, shift_assignment_id) only — then a second "day" insert fails; ignore.
+            try {
+                Attendance::query()->firstOrCreate(
+                    [
+                        'shift_assignment_id' => $assignment->id,
+                        'attendance_date' => $today,
+                    ],
+                    [
+                        'employee_id' => $assignment->employee_id,
+                        'check_in' => null,
+                        'check_out' => null,
+                        'attendance_status' => 'pending',
+                        'auto_generated' => false,
+                    ]
+                );
+            } catch (UniqueConstraintViolationException) {
+                // Row already exists under legacy unique index; do not rethrow.
+            }
         }
     }
 

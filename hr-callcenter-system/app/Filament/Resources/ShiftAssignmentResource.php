@@ -752,11 +752,7 @@ class ShiftAssignmentResource extends Resource
                         }
 
                         // Hide once fully checked out.
-                        $attendance = Attendance::query()
-                            ->where('employee_id', $record->employee_id)
-                            ->where('shift_assignment_id', $record->id)
-                            ->whereDate('attendance_date', now()->toDateString())
-                            ->first();
+                        $attendance = Attendance::findForShiftAssignmentToday($record);
 
                         return ! ($attendance && $attendance->check_out);
                     })
@@ -782,11 +778,7 @@ class ShiftAssignmentResource extends Resource
                             return;
                         }
 
-                        $attendance = Attendance::firstOrNew([
-                            'employee_id' => $record->employee_id,
-                            'shift_assignment_id' => $record->id,
-                            'attendance_date' => now()->toDateString(),
-                        ]);
+                        $attendance = Attendance::firstOrNewForShiftAssignmentToday($record);
 
                         // Only allow actions during the shift window.
                         if (! $record->isWithinShift()) {

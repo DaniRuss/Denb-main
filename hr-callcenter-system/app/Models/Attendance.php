@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\EthiopianDate;
 use App\Support\EthiopianTime;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -63,6 +64,41 @@ class Attendance extends Model
     public function shiftAssignment()
     {
         return $this->belongsTo(ShiftAssignment::class);
+    }
+
+    /**
+     * Today's row when the DB uses unique (shift_assignment_id, attendance_date).
+     * Falls back to the legacy single row per (employee_id, shift_assignment_id).
+     */
+    public static function findForShiftAssignmentToday(ShiftAssignment $assignment): ?self
+    {
+        $today = EthiopianDate::todayGregorianInAddisAbaba();
+
+        $attendance = static::query()
+            ->where('shift_assignment_id', $assignment->id)
+            ->whereDate('attendance_date', $today)
+            ->first();
+
+        if ($attendance) {
+            return $attendance;
+        }
+
+        return static::query()
+            ->where('employee_id', $assignment->employee_id)
+            ->where('shift_assignment_id', $assignment->id)
+            ->first();
+    }
+
+    /**
+     * Same as {@see findForShiftAssignmentToday} but returns an unsaved model when no row exists yet.
+     */
+    public static function firstOrNewForShiftAssignmentToday(ShiftAssignment $assignment): self
+    {
+        return static::findForShiftAssignmentToday($assignment) ?? new self([
+            'employee_id' => $assignment->employee_id,
+            'shift_assignment_id' => $assignment->id,
+            'attendance_date' => EthiopianDate::todayGregorianInAddisAbaba(),
+        ]);
     }
 
     protected static function booted(): void
