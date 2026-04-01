@@ -19,7 +19,10 @@ class SupervisorAttendanceTopOfficersWidget extends Widget
 
     public static function canView(): bool
     {
-        return (bool) Auth::user()?->hasRole('supervisor');
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        return (bool) ($user?->hasRole('supervisor'));
     }
 
     /**
@@ -51,7 +54,7 @@ class SupervisorAttendanceTopOfficersWidget extends Widget
     /**
      * @return array{name: string, code: string, count: int}|null
      */
-    protected function topAbsentOfficer(): ?array
+    protected function topOfficerByStatuses(array $statuses): ?array
     {
         $ids = $this->officerIdsInSupervisorScope();
         if ($ids === []) {
@@ -61,7 +64,7 @@ class SupervisorAttendanceTopOfficersWidget extends Widget
         $row = Attendance::query()
             ->select('employee_id', DB::raw('COUNT(*) as c'))
             ->whereIn('employee_id', $ids)
-            ->where('attendance_status', Attendance::STATUS_ABSENT)
+            ->whereIn('attendance_status', $statuses)
             ->groupBy('employee_id')
             ->orderByDesc('c')
             ->orderBy('employee_id')
@@ -86,41 +89,24 @@ class SupervisorAttendanceTopOfficersWidget extends Widget
     /**
      * @return array{name: string, code: string, count: int}|null
      */
+    protected function topAbsentOfficer(): ?array
+    {
+        return $this->topOfficerByStatuses([Attendance::STATUS_ABSENT]);
+    }
+
     protected function topPresentOfficer(): ?array
     {
-        $ids = $this->officerIdsInSupervisorScope();
-        if ($ids === []) {
-            return null;
-        }
+        return $this->topOfficerByStatuses([Attendance::STATUS_PRESENT]);
+    }
 
-        $row = Attendance::query()
-            ->select('employee_id', DB::raw('COUNT(*) as c'))
-            ->whereIn('employee_id', $ids)
-            ->whereIn('attendance_status', [
-                Attendance::STATUS_PRESENT,
-                Attendance::STATUS_LATE,
-                Attendance::STATUS_HALF_DAY,
-                Attendance::STATUS_OVERTIME,
-            ])
-            ->groupBy('employee_id')
-            ->orderByDesc('c')
-            ->orderBy('employee_id')
-            ->first();
+    protected function topLateOfficer(): ?array
+    {
+        return $this->topOfficerByStatuses([Attendance::STATUS_LATE]);
+    }
 
-        if (! $row) {
-            return null;
-        }
-
-        $employee = Employee::query()->find($row->employee_id);
-        if (! $employee) {
-            return null;
-        }
-
-        return [
-            'name' => $employee->full_name_am,
-            'code' => (string) $employee->employee_id,
-            'count' => (int) $row->c,
-        ];
+    protected function topHalfDayOfficer(): ?array
+    {
+        return $this->topOfficerByStatuses([Attendance::STATUS_HALF_DAY]);
     }
 
     public function getViewData(): array
@@ -128,6 +114,8 @@ class SupervisorAttendanceTopOfficersWidget extends Widget
         return [
             'topAbsent' => $this->topAbsentOfficer(),
             'topPresent' => $this->topPresentOfficer(),
+            'topLate' => $this->topLateOfficer(),
+            'topHalfDay' => $this->topHalfDayOfficer(),
         ];
     }
 }
