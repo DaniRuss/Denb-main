@@ -10,7 +10,6 @@ use App\Models\ShiftAssignment;
 use App\Support\EthiopianDate;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
-use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Auth;
 
 class ListAttendances extends ListRecords
@@ -42,25 +41,7 @@ class ListAttendances extends ListRecords
             ->get();
 
         foreach ($assignments as $assignment) {
-            // Unique key after migration: (shift_assignment_id, attendance_date). Legacy DBs may still
-            // have (employee_id, shift_assignment_id) only — then a second "day" insert fails; ignore.
-            try {
-                Attendance::query()->firstOrCreate(
-                    [
-                        'shift_assignment_id' => $assignment->id,
-                        'attendance_date' => $today,
-                    ],
-                    [
-                        'employee_id' => $assignment->employee_id,
-                        'check_in' => null,
-                        'check_out' => null,
-                        'attendance_status' => 'pending',
-                        'auto_generated' => false,
-                    ]
-                );
-            } catch (UniqueConstraintViolationException) {
-                // Row already exists under legacy unique index; do not rethrow.
-            }
+            Attendance::firstOrCreateForShiftAssignmentToday($assignment);
         }
     }
 

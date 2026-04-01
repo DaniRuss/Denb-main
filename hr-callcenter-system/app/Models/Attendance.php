@@ -67,38 +67,60 @@ class Attendance extends Model
     }
 
     /**
-     * Today's row when the DB uses unique (shift_assignment_id, attendance_date).
-     * Falls back to the legacy single row per (employee_id, shift_assignment_id).
+     * Today's attendance row for this assignment (one row per calendar day until end_date).
      */
     public static function findForShiftAssignmentToday(ShiftAssignment $assignment): ?self
     {
         $today = EthiopianDate::todayGregorianInAddisAbaba();
 
-        $attendance = static::query()
+        return static::query()
             ->where('shift_assignment_id', $assignment->id)
             ->whereDate('attendance_date', $today)
-            ->first();
-
-        if ($attendance) {
-            return $attendance;
-        }
-
-        return static::query()
-            ->where('employee_id', $assignment->employee_id)
-            ->where('shift_assignment_id', $assignment->id)
             ->first();
     }
 
     /**
-     * Same as {@see findForShiftAssignmentToday} but returns an unsaved model when no row exists yet.
+     * Find or instantiate today's row (does not persist). Prefer {@see firstOrCreateForShiftAssignmentToday} from UI entry points.
      */
     public static function firstOrNewForShiftAssignmentToday(ShiftAssignment $assignment): self
     {
-        return static::findForShiftAssignmentToday($assignment) ?? new self([
-            'employee_id' => $assignment->employee_id,
-            'shift_assignment_id' => $assignment->id,
-            'attendance_date' => EthiopianDate::todayGregorianInAddisAbaba(),
-        ]);
+        $today = EthiopianDate::todayGregorianInAddisAbaba();
+
+        return static::query()->firstOrNew(
+            [
+                'shift_assignment_id' => $assignment->id,
+                'attendance_date' => $today,
+            ],
+            [
+                'employee_id' => $assignment->employee_id,
+                'check_in' => null,
+                'check_out' => null,
+                'attendance_status' => self::STATUS_PENDING,
+                'auto_generated' => false,
+            ]
+        );
+    }
+
+    /**
+     * Persist today's row if missing (safe with unique shift_assignment_id + attendance_date).
+     */
+    public static function firstOrCreateForShiftAssignmentToday(ShiftAssignment $assignment): self
+    {
+        $today = EthiopianDate::todayGregorianInAddisAbaba();
+
+        return static::query()->firstOrCreate(
+            [
+                'shift_assignment_id' => $assignment->id,
+                'attendance_date' => $today,
+            ],
+            [
+                'employee_id' => $assignment->employee_id,
+                'check_in' => null,
+                'check_out' => null,
+                'attendance_status' => self::STATUS_PENDING,
+                'auto_generated' => false,
+            ]
+        );
     }
 
     protected static function booted(): void

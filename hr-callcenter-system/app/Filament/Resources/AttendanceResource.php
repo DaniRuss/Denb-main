@@ -297,15 +297,11 @@ class AttendanceResource extends Resource
                 if ($user && $user->hasRole('officer')) {
                     $employee = Employee::query()->where('user_id', $user->id)->first();
                     if ($employee) {
-                        $query->where('employee_id', $employee->id);
-                        // Same window as shift roster: assignment covers “today” in Addis Ababa (EC calendar day).
-                        $today = EthiopianDate::todayGregorianInAddisAbaba();
-                        $query->whereHas('shiftAssignment', function (Builder $shiftAssignmentQuery) use ($today) {
-                            $shiftAssignmentQuery
-                                ->whereDate('assigned_date', '<=', $today)
-                                ->whereDate('end_date', '>=', $today)
-                                ->where('status', 'scheduled');
-                        });
+                        // All daily rows for this officer (history while assignment is active or completed).
+                        $query->where('employee_id', $employee->id)
+                            ->whereHas('shiftAssignment', function (Builder $shiftAssignmentQuery) {
+                                $shiftAssignmentQuery->whereIn('status', ['scheduled', 'completed']);
+                            });
                     }
                 }
 
