@@ -6,6 +6,7 @@ use App\Support\EthiopianDate;
 use App\Support\EthiopianTime;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
@@ -121,6 +122,25 @@ class Attendance extends Model
                 'auto_generated' => false,
             ]
         );
+    }
+
+    /**
+     * Predict {@see $attendance_status} if check_out were set to this instant (does not persist).
+     */
+    public function previewAttendanceStatusAfterCheckout(CarbonInterface $checkout): string
+    {
+        $this->loadMissing(['shiftAssignment.shift']);
+
+        if (! $this->shiftAssignment?->shift) {
+            return (string) ($this->attendance_status ?: self::STATUS_PENDING);
+        }
+
+        $temp = $this->replicate();
+        $temp->check_out = Carbon::parse($checkout);
+        $temp->setRelation('shiftAssignment', $this->shiftAssignment);
+        $temp->calculateAttendanceStatus();
+
+        return (string) $temp->attendance_status;
     }
 
     protected static function booted(): void

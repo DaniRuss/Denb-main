@@ -53,8 +53,7 @@ class AttendanceResource extends Resource
                 : $query->whereRaw('1 = 0');
         }
 
-        // Supervisors should only ever see attendance within their sub_city/woreda,
-        // for officer employees only.
+        // Supervisors: officers in the same woreda (or sub_city if woreda not set).
         if ($user->hasRole('supervisor')) {
             $supervisor = Employee::query()->where('user_id', $user->id)->first();
 
@@ -65,15 +64,14 @@ class AttendanceResource extends Resource
             return $query->whereHas('employee', function (Builder $employeeQuery) use ($supervisor) {
                 $employeeQuery->whereHas('user', fn ($q) => $q->role('officer'));
 
-                if ($supervisor->sub_city_id) {
-                    $employeeQuery->where('sub_city_id', $supervisor->sub_city_id);
-                }
-
                 if ($supervisor->woreda_id) {
                     $employeeQuery->where('woreda_id', $supervisor->woreda_id);
+                } elseif ($supervisor->sub_city_id) {
+                    $employeeQuery->where('sub_city_id', $supervisor->sub_city_id);
+                } else {
+                    $employeeQuery->whereRaw('1 = 0');
                 }
 
-                // Avoid showing the supervisor as an officer even if data overlaps.
                 $employeeQuery->where('id', '!=', $supervisor->id);
             });
         }
@@ -239,8 +237,8 @@ class AttendanceResource extends Resource
                         default => 'gray',
                     }),
                 Tables\Columns\TextColumn::make('remarks')
-                    ->label('Reasons')
-                    ->limit(80)
+                    ->label('Reasons (late / early checkout / half day)')
+                    ->limit(200)
                     ->wrap()
                     ->toggleable(isToggledHiddenByDefault: false),
             ])
@@ -312,12 +310,12 @@ class AttendanceResource extends Resource
                         $query->whereHas('employee', function (Builder $employeeQuery) use ($supervisor) {
                             $employeeQuery->whereHas('user', fn ($q) => $q->role('officer'));
 
-                            if ($supervisor->sub_city_id) {
-                                $employeeQuery->where('sub_city_id', $supervisor->sub_city_id);
-                            }
-
                             if ($supervisor->woreda_id) {
                                 $employeeQuery->where('woreda_id', $supervisor->woreda_id);
+                            } elseif ($supervisor->sub_city_id) {
+                                $employeeQuery->where('sub_city_id', $supervisor->sub_city_id);
+                            } else {
+                                $employeeQuery->whereRaw('1 = 0');
                             }
 
                             $employeeQuery->where('id', '!=', $supervisor->id);
@@ -413,12 +411,16 @@ class AttendanceResource extends Resource
                     ->icon('heroicon-o-arrow-right-on-rectangle')
                     ->color('primary')
                     ->form([
+                        Forms\Components\Textarea::make('lateReason')
+                            ->label('Reason for late check-in')
+                            ->rows(3)
+                            ->maxLength(2000),
                         Forms\Components\Textarea::make('earlyCheckoutReason')
                             ->label('Reason for early checkout')
                             ->rows(3)
                             ->maxLength(2000),
-                        Forms\Components\Textarea::make('lateReason')
-                            ->label('Reason for late check-in')
+                        Forms\Components\Textarea::make('halfDayReason')
+                            ->label('Reason for half day')
                             ->rows(3)
                             ->maxLength(2000),
                     ])
@@ -442,7 +444,11 @@ class AttendanceResource extends Resource
                             return false;
                         }
 
-                        if (! $record->attendance_date || ! Carbon::parse($record->attendance_date)->isToday()) {
+                        $today = EthiopianDate::todayGregorianInAddisAbaba();
+                        $recordDay = $record->attendance_date
+                            ? Carbon::parse($record->attendance_date)->toDateString()
+                            : null;
+                        if (! $recordDay || $recordDay !== $today) {
                             return false;
                         }
 
@@ -493,14 +499,7 @@ class AttendanceResource extends Resource
                         $isEarly = $now->lessThan($shiftEnd->copy()->subHours(\App\Models\Attendance::HALF_DAY_THRESHOLD_HOURS))
                             || $workedHours < \App\Models\Attendance::HALF_DAY_THRESHOLD_HOURS;
 
-                        if ($isEarly && ! filled(trim((string) ($data['earlyCheckoutReason'] ?? '')))) {
-                            Notification::make()
-                                ->title('Early checkout reason is required.')
-                                ->danger()
-                                ->send();
-
-                            return;
-                        }
+                        $isHalfDay = $record->previewAttendanceStatusAfterCheckout($now) === \App\Models\Attendance::STATUS_HALF_DAY;
 
                         if ($isLate && ! filled(trim((string) ($data['lateReason'] ?? '')))) {
                             Notification::make()
@@ -511,12 +510,33 @@ class AttendanceResource extends Resource
                             return;
                         }
 
+                        if ($isEarly && ! filled(trim((string) ($data['earlyCheckoutReason'] ?? '')))) {
+                            Notification::make()
+                                ->title('Early checkout reason is required.')
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
+                        if ($isHalfDay && ! filled(trim((string) ($data['halfDayReason'] ?? '')))) {
+                            Notification::make()
+                                ->title('Half day reason is required.')
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
                         $reasons = [];
+                        if ($isLate) {
+                            $reasons[] = 'Late check-in: '.trim((string) ($data['lateReason']));
+                        }
                         if ($isEarly) {
                             $reasons[] = 'Early checkout: '.trim((string) $data['earlyCheckoutReason']);
                         }
-                        if ($isLate) {
-                            $reasons[] = 'Late check-in: '.trim((string) $data['lateReason']);
+                        if ($isHalfDay) {
+                            $reasons[] = 'Half day: '.trim((string) $data['halfDayReason']);
                         }
 
                         $existingRemarks = trim((string) $record->remarks);

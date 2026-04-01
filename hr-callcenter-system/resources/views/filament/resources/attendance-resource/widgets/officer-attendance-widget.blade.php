@@ -59,6 +59,20 @@
                         />
                     </x-filament::input.wrapper>
 
+                    @if($data['requiresLateReason'])
+                        <div class="space-y-2">
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                Reason for late check-in
+                            </label>
+                            <textarea
+                                wire:model.defer="lateReason"
+                                rows="3"
+                                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-900 dark:border-gray-700"
+                                placeholder="Enter your reason..."
+                            ></textarea>
+                        </div>
+                    @endif
+
                     @if($data['requiresEarlyCheckoutReason'])
                         <div class="space-y-2">
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -73,13 +87,13 @@
                         </div>
                     @endif
 
-                    @if($data['requiresLateReason'])
+                    @if($data['requiresHalfDayReason'])
                         <div class="space-y-2">
                             <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                Reason for late check-in
+                                Reason for half day
                             </label>
                             <textarea
-                                wire:model.defer="lateReason"
+                                wire:model.defer="halfDayReason"
                                 rows="3"
                                 class="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 dark:bg-gray-900 dark:border-gray-700"
                                 placeholder="Enter your reason..."

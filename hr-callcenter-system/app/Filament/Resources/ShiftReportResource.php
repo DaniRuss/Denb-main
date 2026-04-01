@@ -48,8 +48,7 @@ class ShiftReportResource extends Resource
                 : $query->whereRaw('1 = 0');
         }
 
-        // Supervisors should only ever see daily reports within their sub_city/woreda,
-        // for officer employees only.
+        // Supervisors: daily reports for officers in the same woreda (or sub_city if woreda not set).
         if ($user->hasRole('supervisor')) {
             $supervisor = Employee::query()->where('user_id', $user->id)->first();
 
@@ -61,12 +60,12 @@ class ShiftReportResource extends Resource
                 $employeeQuery->whereHas('user', fn ($q) => $q->role('officer'));
                 $employeeQuery->where('id', '!=', $supervisor->id);
 
-                if ($supervisor->sub_city_id) {
-                    $employeeQuery->where('sub_city_id', $supervisor->sub_city_id);
-                }
-
                 if ($supervisor->woreda_id) {
                     $employeeQuery->where('woreda_id', $supervisor->woreda_id);
+                } elseif ($supervisor->sub_city_id) {
+                    $employeeQuery->where('sub_city_id', $supervisor->sub_city_id);
+                } else {
+                    $employeeQuery->whereRaw('1 = 0');
                 }
             });
         }
@@ -97,12 +96,12 @@ class ShiftReportResource extends Resource
                                 $supervisor = Employee::query()->where('user_id', $user->id)->first();
 
                                 if ($supervisor) {
-                                    if ($supervisor->sub_city_id) {
-                                        $query->where('sub_city_id', $supervisor->sub_city_id);
-                                    }
-
                                     if ($supervisor->woreda_id) {
                                         $query->where('woreda_id', $supervisor->woreda_id);
+                                    } elseif ($supervisor->sub_city_id) {
+                                        $query->where('sub_city_id', $supervisor->sub_city_id);
+                                    } else {
+                                        $query->whereRaw('1 = 0');
                                     }
 
                                     $query->whereHas('user', fn ($q) => $q->role('officer'));
@@ -203,12 +202,12 @@ class ShiftReportResource extends Resource
                             $employeeQuery->whereHas('user', fn ($q) => $q->role('officer'));
                             $employeeQuery->where('id', '!=', $supervisor->id);
 
-                            if ($supervisor->sub_city_id) {
-                                $employeeQuery->where('sub_city_id', $supervisor->sub_city_id);
-                            }
-
                             if ($supervisor->woreda_id) {
                                 $employeeQuery->where('woreda_id', $supervisor->woreda_id);
+                            } elseif ($supervisor->sub_city_id) {
+                                $employeeQuery->where('sub_city_id', $supervisor->sub_city_id);
+                            } else {
+                                $employeeQuery->whereRaw('1 = 0');
                             }
                         });
                     } else {
