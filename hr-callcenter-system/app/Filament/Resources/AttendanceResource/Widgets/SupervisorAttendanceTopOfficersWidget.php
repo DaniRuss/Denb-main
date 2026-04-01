@@ -52,70 +52,92 @@ class SupervisorAttendanceTopOfficersWidget extends Widget
     }
 
     /**
-     * @return array{name: string, code: string, count: int}|null
+     * @param  array<int, string>  $statuses
+     * @return array<int, array{name: string, code: string, count: int}>
      */
-    protected function topOfficerByStatuses(array $statuses): ?array
+    protected function topOfficersByStatuses(array $statuses, int $limit = 5): array
     {
         $ids = $this->officerIdsInSupervisorScope();
         if ($ids === []) {
-            return null;
+            return [];
         }
 
-        $row = Attendance::query()
+        $rows = Attendance::query()
             ->select('employee_id', DB::raw('COUNT(*) as c'))
             ->whereIn('employee_id', $ids)
             ->whereIn('attendance_status', $statuses)
             ->groupBy('employee_id')
             ->orderByDesc('c')
             ->orderBy('employee_id')
-            ->first();
+            ->limit($limit)
+            ->get();
 
-        if (! $row) {
-            return null;
+        if ($rows->isEmpty()) {
+            return [];
         }
 
-        $employee = Employee::query()->find($row->employee_id);
-        if (! $employee) {
-            return null;
+        $employees = Employee::query()
+            ->whereIn('id', $rows->pluck('employee_id')->all())
+            ->get()
+            ->keyBy('id');
+
+        $result = [];
+
+        foreach ($rows as $row) {
+            $employee = $employees->get($row->employee_id);
+            if (! $employee) {
+                continue;
+            }
+
+            $result[] = [
+                'name' => $employee->full_name_am,
+                'code' => (string) $employee->employee_id,
+                'count' => (int) $row->c,
+            ];
         }
 
-        return [
-            'name' => $employee->full_name_am,
-            'code' => (string) $employee->employee_id,
-            'count' => (int) $row->c,
-        ];
+        return $result;
     }
 
     /**
-     * @return array{name: string, code: string, count: int}|null
+     * @return array<int, array{name: string, code: string, count: int}>
      */
-    protected function topAbsentOfficer(): ?array
+    protected function topAbsentOfficers(): array
     {
-        return $this->topOfficerByStatuses([Attendance::STATUS_ABSENT]);
+        return $this->topOfficersByStatuses([Attendance::STATUS_ABSENT]);
     }
 
-    protected function topPresentOfficer(): ?array
+    /**
+     * @return array<int, array{name: string, code: string, count: int}>
+     */
+    protected function topPresentOfficers(): array
     {
-        return $this->topOfficerByStatuses([Attendance::STATUS_PRESENT]);
+        return $this->topOfficersByStatuses([Attendance::STATUS_PRESENT]);
     }
 
-    protected function topLateOfficer(): ?array
+    /**
+     * @return array<int, array{name: string, code: string, count: int}>
+     */
+    protected function topLateOfficers(): array
     {
-        return $this->topOfficerByStatuses([Attendance::STATUS_LATE]);
+        return $this->topOfficersByStatuses([Attendance::STATUS_LATE]);
     }
 
-    protected function topHalfDayOfficer(): ?array
+    /**
+     * @return array<int, array{name: string, code: string, count: int}>
+     */
+    protected function topHalfDayOfficers(): array
     {
-        return $this->topOfficerByStatuses([Attendance::STATUS_HALF_DAY]);
+        return $this->topOfficersByStatuses([Attendance::STATUS_HALF_DAY]);
     }
 
     public function getViewData(): array
     {
         return [
-            'topAbsent' => $this->topAbsentOfficer(),
-            'topPresent' => $this->topPresentOfficer(),
-            'topLate' => $this->topLateOfficer(),
-            'topHalfDay' => $this->topHalfDayOfficer(),
+            'topAbsent' => $this->topAbsentOfficers(),
+            'topPresent' => $this->topPresentOfficers(),
+            'topLate' => $this->topLateOfficers(),
+            'topHalfDay' => $this->topHalfDayOfficers(),
         ];
     }
 }
