@@ -4,6 +4,7 @@ namespace App\Filament\Resources\AttendanceResource\Pages;
 
 use App\Filament\Resources\AttendanceResource;
 use App\Filament\Resources\AttendanceResource\Widgets\OfficerAttendanceWidget;
+use App\Filament\Resources\AttendanceResource\Widgets\SupervisorAttendanceTopOfficersWidget;
 use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\ShiftAssignment;
@@ -68,5 +69,12 @@ class ListAttendances extends ListRecords
         }
 
         return [];
+    }
+
+    protected function getFooterWidgets(): array
+    {
+        return [
+            SupervisorAttendanceTopOfficersWidget::class,
+        ];
     }
 }
