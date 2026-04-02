@@ -19,8 +19,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        \App\Models\IllegalAsset::observe(\App\Observers\IllegalAssetObserver::class);
-
         \Filament\Support\Facades\FilamentView::registerRenderHook(
             \Filament\View\PanelsRenderHook::HEAD_END,
             fn(): string => new \Illuminate\Support\HtmlString('

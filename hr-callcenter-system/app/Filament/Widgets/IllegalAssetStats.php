@@ -18,12 +18,12 @@ class IllegalAssetStats extends BaseWidget
                 ->descriptionIcon('heroicon-m-archive-box')
                 ->color('primary'),
                 
-            Stat::make('Total Estimated Value', 'ETB ' . number_format(AssetEstimation::sum('estimated_value'), 2))
+            Stat::make('Total Estimated Value', '$' . number_format(AssetEstimation::sum('estimated_value'), 2))
                 ->description('Value of all estimated assets')
                 ->descriptionIcon('heroicon-m-currency-dollar')
                 ->color('info'),
                 
-            Stat::make('Total Sold Revenue', 'ETB ' . number_format(AssetSale::sum('sale_price'), 2))
+            Stat::make('Total Sold Revenue', '$' . number_format(AssetSale::sum('sale_price'), 2))
                 ->description('Revenue from sold assets')
                 ->descriptionIcon('heroicon-m-banknotes')
                 ->color('success'),
