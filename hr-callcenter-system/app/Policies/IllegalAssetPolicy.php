@@ -13,7 +13,7 @@ class IllegalAssetPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasRole(['admin', 'supervisor', 'officer']);
+        return true; // Or restrict if necessary
     }
 
     /**
@@ -21,15 +21,15 @@ class IllegalAssetPolicy
      */
     public function view(User $user, IllegalAsset $illegalAsset): bool
     {
-        if ($user->hasRole('admin')) return true;
+        if ($this->isAdmin($user)) return true;
         
         // Supervisor can view assets in their department
-        if ($user->hasRole('supervisor')) {
+        if ($this->isSupervisor($user)) {
             return $user->department_id === $illegalAsset->department_id;
         }
 
         // Officer can view their own registered assets
-        return $user->hasRole('officer') && $user->id === $illegalAsset->officer_id;
+        return $user->id === $illegalAsset->officer_id;
     }
 
     /**
@@ -37,7 +37,8 @@ class IllegalAssetPolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasRole(['admin', 'supervisor', 'officer']);
+        // Admin, Supervisor, and Officer can register assets
+        return $this->isAdmin($user) || $this->isSupervisor($user) || $this->isOfficer($user);
     }
 
     /**
@@ -45,15 +46,15 @@ class IllegalAssetPolicy
      */
     public function update(User $user, IllegalAsset $illegalAsset): bool
     {
-        if ($user->hasRole('admin')) return true;
+        if ($this->isAdmin($user)) return true;
         
         // Supervisor can update assets in their department
-        if ($user->hasRole('supervisor')) {
+        if ($this->isSupervisor($user)) {
             return $user->department_id === $illegalAsset->department_id;
         }
 
-        // Officer can only update if it is still 'Registered' and they are the owner
-        if ($user->hasRole('officer') && $illegalAsset->status === 'Registered') {
+        // Officer can only update if it is still 'Registered'
+        if ($this->isOfficer($user) && $illegalAsset->status === 'Registered') {
             return $user->id === $illegalAsset->officer_id;
         }
 
@@ -66,35 +67,22 @@ class IllegalAssetPolicy
     public function delete(User $user, IllegalAsset $illegalAsset): bool
     {
         // Only Admins can delete assets completely
-        return $user->hasRole('admin');
+        return $this->isAdmin($user);
     }
 
-    // Helper methods for specific asset actions (can be called via Gate::allows)
-    
-    public function handover(User $user, IllegalAsset $illegalAsset): bool
+    // Helper methods for roles (adjust according to your exact role architecture)
+    private function isAdmin(User $user): bool
     {
-        return $user->hasRole('admin') || 
-               ($user->hasRole('supervisor') && $user->department_id === $illegalAsset->department_id);
+        return method_exists($user, 'hasRole') && $user->hasRole('Admin') || (isset($user->role) && $user->role === 'Admin');
     }
 
-    public function estimate(User $user, IllegalAsset $illegalAsset): bool
+    private function isSupervisor(User $user): bool
     {
-        return $user->hasRole('admin') || 
-               ($user->hasRole('supervisor') && $user->department_id === $illegalAsset->department_id);
+        return method_exists($user, 'hasRole') && $user->hasRole('Supervisor') || (isset($user->role) && $user->role === 'Supervisor');
     }
 
-    public function transfer(User $user, IllegalAsset $illegalAsset): bool
+    private function isOfficer(User $user): bool
     {
-        return $user->hasRole('admin');
-    }
-
-    public function sell(User $user, IllegalAsset $illegalAsset): bool
-    {
-        return $user->hasRole('admin');
-    }
-
-    public function dispose(User $user, IllegalAsset $illegalAsset): bool
-    {
-        return $user->hasRole('admin');
+        return method_exists($user, 'hasRole') && $user->hasRole('Officer') || (isset($user->role) && $user->role === 'Officer');
     }
 }
