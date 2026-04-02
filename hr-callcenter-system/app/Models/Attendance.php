@@ -185,6 +185,23 @@ class Attendance extends Model
                 }
             }
         });
+
+        // After the scheduled shift window ends, persist pending → absent when there was no check-in.
+        static::retrieved(function (Attendance $attendance): void {
+            if ($attendance->status_locked || $attendance->check_in) {
+                return;
+            }
+
+            $attendance->loadMissing(['shiftAssignment.shift']);
+
+            $before = $attendance->attendance_status;
+            $attendance->calculateAttendanceStatus();
+            $after = $attendance->attendance_status;
+
+            if ($before !== $after) {
+                $attendance->saveQuietly();
+            }
+        });
     }
 
     /**
@@ -207,9 +224,14 @@ class Attendance extends Model
         // Calculate shift boundaries with timezone consideration
         $shiftBoundaries = $this->calculateShiftBoundaries($assignment, $shift);
 
-        // No check-in at all
+        // No check-in yet: stay pending until this day's shift window ends, then absent.
         if (! $checkIn) {
-            $this->attendance_status = self::STATUS_ABSENT;
+            $now = Carbon::now('Africa/Addis_Ababa');
+            if ($now->lessThanOrEqualTo($shiftBoundaries['end'])) {
+                $this->attendance_status = self::STATUS_PENDING;
+            } else {
+                $this->attendance_status = self::STATUS_ABSENT;
+            }
 
             return;
         }

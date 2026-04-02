@@ -9,6 +9,7 @@ use App\Models\ShiftAssignment;
 use App\Models\SubCity;
 use App\Models\User;
 use App\Support\EthiopianDate;
+use App\Filament\Resources\ShiftReportResource;
 use Filament\Actions\Action;
 use Filament\Forms;
 use Filament\Notifications\Notification;
@@ -701,35 +702,8 @@ class ShiftAssignmentResource extends Resource
                             ->send();
                     }),
                 Action::make('check_in')
-                    ->label(function (ShiftAssignment $record): string {
-                        if (static::isBlockBlocked($record)) {
-                            return 'Block';
-                        }
-
-                        if ($record->status === 'unassigned' || $record->id <= 0) {
-                            return 'Check in';
-                        }
-
-                        $attendance = Attendance::query()
-                            ->where('employee_id', $record->employee_id)
-                            ->where('shift_assignment_id', $record->id)
-                            ->whereDate('attendance_date', now()->toDateString())
-                            ->first();
-
-                        if (! $attendance || ! $attendance->check_in) {
-                            return 'Check in';
-                        }
-
-                        if (! $attendance->check_out) {
-                            return 'Check out';
-                        }
-
-                        return 'Shift completed';
-                    })
-                    ->icon('heroicon-o-check-circle')
-                    ->color('success')
-                    ->requiresConfirmation()
                     ->visible(function (ShiftAssignment $record): bool {
+                        return false;
                         /** @var \App\Models\User|null $user */
                         $user = Auth::user();
 
@@ -751,75 +725,336 @@ class ShiftAssignmentResource extends Resource
                             return false;
                         }
 
+                        if ($record->status === 'unassigned' || $record->id <= 0) {
+                            return false;
+                        }
+
+                        // Button is only available during the shift window and while the shift is scheduled.
+                        if (! $record->isWithinShift(Carbon::now('Africa/Addis_Ababa')) || $record->status !== 'scheduled') {
+                            return false;
+                        }
+
                         // Hide once fully checked out.
                         $attendance = Attendance::findForShiftAssignmentToday($record);
-
                         return ! ($attendance && $attendance->check_out);
                     })
                     ->disabled(function (ShiftAssignment $record): bool {
                         return static::isBlockBlocked($record);
                     })
                     ->action(function (ShiftAssignment $record): void {
-                        if ($record->status === 'unassigned' || $record->id <= 0) {
-                            Notification::make()
-                                ->title('This officer has no active assignment.')
-                                ->warning()
-                                ->send();
+                        // This action was previously a combined check-in/check-out button.
+                        // It is intentionally left as a no-op after splitting into separate actions below.
+                        Notification::make()
+                            ->title('Please use the check-in / check-out buttons.')
+                            ->warning()
+                            ->send();
+                    }),
 
-                            return;
+                Action::make('check_in_normal')
+                    ->label('Check in')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->visible(function (ShiftAssignment $record): bool {
+                        /** @var \App\Models\User|null $user */
+                        $user = Auth::user();
+                        if (! $user || ! $user->can('manage_attendance')) {
+                            return false;
                         }
 
-                        if (static::isBlockBlocked($record)) {
-                            Notification::make()
-                                ->title('This block is blocked for shift attendance processing.')
-                                ->danger()
-                                ->send();
+                        if ($record->status === 'unassigned' || $record->id <= 0) {
+                            return false;
+                        }
 
+                        if (! $record->isWithinShift(Carbon::now('Africa/Addis_Ababa')) || $record->status !== 'scheduled') {
+                            return false;
+                        }
+
+                        $attendance = Attendance::findForShiftAssignmentToday($record);
+                        if ($attendance && $attendance->check_in) {
+                            return false;
+                        }
+
+                        $now = Carbon::now('Africa/Addis_Ababa');
+                        $window = $record->shiftWindowForInstant($now);
+                        if (! $window) {
+                            return false;
+                        }
+
+                        $graceEnd = $window['start']->copy()->addMinutes(Attendance::GRACE_MINUTES);
+                        return ! $now->greaterThan($graceEnd);
+                    })
+                    ->disabled(function (ShiftAssignment $record): bool {
+                        return static::isBlockBlocked($record);
+                    })
+                    ->action(function (ShiftAssignment $record): void {
+                        if (static::isBlockBlocked($record)) {
+                            Notification::make()->title('This block is blocked for shift attendance processing.')->danger()->send();
                             return;
                         }
 
                         $attendance = Attendance::firstOrNewForShiftAssignmentToday($record);
-
-                        // Only allow actions during the shift window.
-                        if (! $record->isWithinShift()) {
-                            Notification::make()
-                                ->title('You can check in or out only during the shift time.')
-                                ->danger()
-                                ->send();
-
+                        if (! $attendance || $attendance->check_in) {
                             return;
                         }
 
-                        if (! $attendance->check_in) {
-                            $attendance->check_in = now('Africa/Addis_Ababa');
+                        $attendance->check_in = Carbon::now('Africa/Addis_Ababa');
+                        $attendance->check_in_location = null;
+                        $attendance->save();
 
-                            $attendance->save();
+                        Notification::make()->title('Check-in recorded')->success()->send();
+                    }),
 
-                            Notification::make()
-                                ->title('Check-in recorded')
-                                ->success()
-                                ->send();
+                Action::make('check_in_late')
+                    ->label('Check in')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->form([
+                        Forms\Components\Textarea::make('lateReason')
+                            ->label('Reason for late check-in')
+                            ->rows(3)
+                            ->maxLength(2000),
+                    ])
+                    ->visible(function (ShiftAssignment $record): bool {
+                        /** @var \App\Models\User|null $user */
+                        $user = Auth::user();
+                        if (! $user || ! $user->can('manage_attendance')) {
+                            return false;
+                        }
 
+                        if ($record->status === 'unassigned' || $record->id <= 0) {
+                            return false;
+                        }
+
+                        if (! $record->isWithinShift(Carbon::now('Africa/Addis_Ababa')) || $record->status !== 'scheduled') {
+                            return false;
+                        }
+
+                        $attendance = Attendance::findForShiftAssignmentToday($record);
+                        if ($attendance && $attendance->check_in) {
+                            return false;
+                        }
+
+                        $now = Carbon::now('Africa/Addis_Ababa');
+                        $window = $record->shiftWindowForInstant($now);
+                        if (! $window) {
+                            return false;
+                        }
+
+                        $graceEnd = $window['start']->copy()->addMinutes(Attendance::GRACE_MINUTES);
+                        return $now->greaterThan($graceEnd);
+                    })
+                    ->disabled(function (ShiftAssignment $record): bool {
+                        return static::isBlockBlocked($record);
+                    })
+                    ->action(function (ShiftAssignment $record, array $data): void {
+                        $lateReason = trim((string) ($data['lateReason'] ?? ''));
+                        if ($lateReason === '') {
+                            Notification::make()->title('Late check-in reason is required.')->danger()->send();
                             return;
                         }
 
-                        if (! $attendance->check_out) {
-                            $attendance->check_out = now('Africa/Addis_Ababa');
-
-                            $attendance->save();
-
-                            Notification::make()
-                                ->title('Check-out recorded')
-                                ->success()
-                                ->send();
-
+                        if (static::isBlockBlocked($record)) {
+                            Notification::make()->title('This block is blocked for shift attendance processing.')->danger()->send();
                             return;
                         }
 
-                        Notification::make()
-                            ->title('Shift already completed for this assignment.')
-                            ->warning()
-                            ->send();
+                        $attendance = Attendance::firstOrNewForShiftAssignmentToday($record);
+                        if (! $attendance || $attendance->check_in) {
+                            return;
+                        }
+
+                        $attendance->check_in = Carbon::now('Africa/Addis_Ababa');
+                        $attendance->check_in_location = null;
+
+                        $existingRemarks = trim((string) $attendance->remarks);
+                        $line = 'Late check-in: '.$lateReason;
+                        $attendance->remarks = $existingRemarks !== ''
+                            ? trim($existingRemarks."\n".$line)
+                            : $line;
+
+                        $attendance->save();
+
+                        Notification::make()->title('Check-in recorded (late).')->success()->send();
+                    }),
+
+                Action::make('check_out_normal')
+                    ->label('Check out')
+                    ->icon('heroicon-o-arrow-right-on-rectangle')
+                    ->color('primary')
+                    ->visible(function (ShiftAssignment $record): bool {
+                        /** @var \App\Models\User|null $user */
+                        $user = Auth::user();
+                        if (! $user || ! $user->can('manage_attendance')) {
+                            return false;
+                        }
+
+                        if ($record->status === 'unassigned' || $record->id <= 0) {
+                            return false;
+                        }
+
+                        $now = Carbon::now('Africa/Addis_Ababa');
+                        if (! $record->isWithinShift($now) || $record->status !== 'scheduled') {
+                            return false;
+                        }
+
+                        $attendance = Attendance::findForShiftAssignmentToday($record);
+                        if (! $attendance || ! $attendance->check_in || $attendance->check_out) {
+                            return false;
+                        }
+
+                        $window = $record->shiftWindowForInstant($now);
+                        if (! $window) {
+                            return false;
+                        }
+
+                        $shiftEnd = $window['end'];
+                        $workedHours = $now->diffInHours(Carbon::parse($attendance->check_in));
+                        $isEarly = $now->lessThan($shiftEnd->copy()->subHours(Attendance::HALF_DAY_THRESHOLD_HOURS))
+                            || $workedHours < Attendance::HALF_DAY_THRESHOLD_HOURS;
+                        $isHalfDay = $attendance->previewAttendanceStatusAfterCheckout($now) === Attendance::STATUS_HALF_DAY;
+
+                        return ! ($isEarly || $isHalfDay);
+                    })
+                    ->disabled(function (ShiftAssignment $record): bool {
+                        return static::isBlockBlocked($record);
+                    })
+                    ->action(function (ShiftAssignment $record) {
+                        if (static::isBlockBlocked($record)) {
+                            Notification::make()->title('This block is blocked for shift attendance processing.')->danger()->send();
+                            return;
+                        }
+
+                        $attendance = Attendance::findForShiftAssignmentToday($record);
+                        if (! $attendance || ! $attendance->check_in || $attendance->check_out) {
+                            return;
+                        }
+
+                        $now = Carbon::now('Africa/Addis_Ababa');
+                        $attendance->check_out = $now;
+                        $attendance->check_out_location = null;
+                        $attendance->save();
+
+                        $reportUrl = ShiftReportResource::getUrl('create').'?'.http_build_query([
+                            'employee_id' => $record->employee_id,
+                            'shift_assignment_id' => $record->id,
+                        ]);
+
+                        Notification::make()->title('Check-out recorded. Redirecting to shift report…')->success()->send();
+                        return redirect()->away($reportUrl);
+                    }),
+
+                Action::make('check_out_early_half')
+                    ->label('Check out')
+                    ->icon('heroicon-o-arrow-right-on-rectangle')
+                    ->color('primary')
+                    ->form([
+                        Forms\Components\Textarea::make('earlyCheckoutReason')
+                            ->label('Reason for early checkout')
+                            ->rows(3)
+                            ->maxLength(2000),
+                        Forms\Components\Textarea::make('halfDayReason')
+                            ->label('Reason for half day')
+                            ->rows(3)
+                            ->maxLength(2000),
+                    ])
+                    ->visible(function (ShiftAssignment $record): bool {
+                        /** @var \App\Models\User|null $user */
+                        $user = Auth::user();
+                        if (! $user || ! $user->can('manage_attendance')) {
+                            return false;
+                        }
+
+                        if ($record->status === 'unassigned' || $record->id <= 0) {
+                            return false;
+                        }
+
+                        $now = Carbon::now('Africa/Addis_Ababa');
+                        if (! $record->isWithinShift($now) || $record->status !== 'scheduled') {
+                            return false;
+                        }
+
+                        $attendance = Attendance::findForShiftAssignmentToday($record);
+                        if (! $attendance || ! $attendance->check_in || $attendance->check_out) {
+                            return false;
+                        }
+
+                        $window = $record->shiftWindowForInstant($now);
+                        if (! $window) {
+                            return false;
+                        }
+
+                        $shiftEnd = $window['end'];
+                        $workedHours = $now->diffInHours(Carbon::parse($attendance->check_in));
+                        $isEarly = $now->lessThan($shiftEnd->copy()->subHours(Attendance::HALF_DAY_THRESHOLD_HOURS))
+                            || $workedHours < Attendance::HALF_DAY_THRESHOLD_HOURS;
+                        $isHalfDay = $attendance->previewAttendanceStatusAfterCheckout($now) === Attendance::STATUS_HALF_DAY;
+
+                        return ($isEarly || $isHalfDay);
+                    })
+                    ->disabled(function (ShiftAssignment $record): bool {
+                        return static::isBlockBlocked($record);
+                    })
+                    ->action(function (ShiftAssignment $record, array $data) {
+                        if (static::isBlockBlocked($record)) {
+                            Notification::make()->title('This block is blocked for shift attendance processing.')->danger()->send();
+                            return;
+                        }
+
+                        $attendance = Attendance::findForShiftAssignmentToday($record);
+                        if (! $attendance || ! $attendance->check_in || $attendance->check_out) {
+                            return;
+                        }
+
+                        $now = Carbon::now('Africa/Addis_Ababa');
+                        $window = $record->shiftWindowForInstant($now);
+                        if (! $window) {
+                            Notification::make()->title('Unable to determine shift window.')->danger()->send();
+                            return;
+                        }
+
+                        $shiftEnd = $window['end'];
+                        $workedHours = $now->diffInHours(Carbon::parse($attendance->check_in));
+                        $isEarly = $now->lessThan($shiftEnd->copy()->subHours(Attendance::HALF_DAY_THRESHOLD_HOURS))
+                            || $workedHours < Attendance::HALF_DAY_THRESHOLD_HOURS;
+                        $isHalfDay = $attendance->previewAttendanceStatusAfterCheckout($now) === Attendance::STATUS_HALF_DAY;
+
+                        $earlyCheckoutReason = trim((string) ($data['earlyCheckoutReason'] ?? ''));
+                        $halfDayReason = trim((string) ($data['halfDayReason'] ?? ''));
+
+                        if ($isEarly && $earlyCheckoutReason === '') {
+                            Notification::make()->title('Reason is required for early checkout.')->danger()->send();
+                            return;
+                        }
+
+                        if ($isHalfDay && $halfDayReason === '') {
+                            Notification::make()->title('Reason is required for half day.')->danger()->send();
+                            return;
+                        }
+
+                        $reasons = [];
+                        if ($isEarly) {
+                            $reasons[] = 'Early checkout: '.$earlyCheckoutReason;
+                        }
+                        if ($isHalfDay) {
+                            $reasons[] = 'Half day: '.$halfDayReason;
+                        }
+
+                        $existingRemarks = trim((string) $attendance->remarks);
+                        $attendance->remarks = $existingRemarks !== ''
+                            ? trim($existingRemarks."\n".implode("\n", $reasons))
+                            : implode("\n", $reasons);
+
+                        $attendance->check_out = $now;
+                        $attendance->check_out_location = null;
+                        $attendance->save();
+
+                        $reportUrl = ShiftReportResource::getUrl('create').'?'.http_build_query([
+                            'employee_id' => $record->employee_id,
+                            'shift_assignment_id' => $record->id,
+                        ]);
+
+                        Notification::make()->title('Check-out recorded. Redirecting to shift report…')->success()->send();
+                        return redirect()->away($reportUrl);
                     }),
             ]);
     }

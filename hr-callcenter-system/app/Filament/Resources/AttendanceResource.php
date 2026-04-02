@@ -158,7 +158,7 @@ class AttendanceResource extends Resource
                             return (bool) ($user?->hasRole('officer') && $defaultEmployeeId);
                         }),
                     Forms\Components\DateTimePicker::make('check_in')
-                        ->label(__('Check in'))
+                        ->label(__('Check in (Ethiopian calendar)'))
                         ->ethiopic()
                         ->firstDayOfWeek(1)
                         ->seconds(false)
@@ -166,7 +166,7 @@ class AttendanceResource extends Resource
                         ->disabled()
                         ->dehydrated(false),
                     Forms\Components\DateTimePicker::make('check_out')
-                        ->label(__('Check out'))
+                        ->label(__('Check out (Ethiopian calendar)'))
                         ->ethiopic()
                         ->firstDayOfWeek(1)
                         ->seconds(false),
@@ -187,45 +187,17 @@ class AttendanceResource extends Resource
                     ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmdAmharic($state) ?? '-')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('attendance_date')
-                    ->label('Attendance date (EC)')
-                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmd($state) ?? '-')
+                    ->label(__('Attendance date (Ethiopian)'))
+                    ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmdAmharic($state) ?? '-')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('shiftAssignment.shift.name')->label('Shift'),
                 Tables\Columns\TextColumn::make('check_in')
-                    ->label(__('Check in (Ethiopian time)'))
-                    ->formatStateUsing(function ($state) {
-                        if (! $state) {
-                            return '-';
-                        }
-
-                        $instant = $state instanceof Carbon
-                            ? $state
-                            : Carbon::parse($state)->timezone('Africa/Addis_Ababa');
-
-                        $h24 = (int) $instant->format('G');
-                        $m = (int) $instant->format('i');
-                        [$ethHm] = EthiopianTime::from24Hour($h24, $m);
-
-                        return $ethHm;
-                    })
+                    ->label(__('Check in (Ethiopian date & time)'))
+                    ->formatStateUsing(fn ($state) => $state ? (EthiopianDate::toEcAmharicDateAndTime($state) ?? '-') : '-')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('check_out')
-                    ->label(__('Check out (Ethiopian time)'))
-                    ->formatStateUsing(function ($state) {
-                        if (! $state) {
-                            return '-';
-                        }
-
-                        $instant = $state instanceof Carbon
-                            ? $state
-                            : Carbon::parse($state)->timezone('Africa/Addis_Ababa');
-
-                        $h24 = (int) $instant->format('G');
-                        $m = (int) $instant->format('i');
-                        [$ethHm] = EthiopianTime::from24Hour($h24, $m);
-
-                        return $ethHm;
-                    })
+                    ->label(__('Check out (Ethiopian date & time)'))
+                    ->formatStateUsing(fn ($state) => $state ? (EthiopianDate::toEcAmharicDateAndTime($state) ?? '-') : '-')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('attendance_status')->badge()
                     ->color(fn (string $state): string => match ($state) {
@@ -242,7 +214,7 @@ class AttendanceResource extends Resource
                     ->wrap()
                     ->toggleable(isToggledHiddenByDefault: false),
             ])
-            ->defaultSort('created_at', 'desc')
+            ->defaultSort('attendance_date', 'desc')
             ->filters([
                 Tables\Filters\SelectFilter::make('attendance_status')
                     ->options([

@@ -29,6 +29,14 @@ class OfficerAttendanceWidget extends Widget
 
     public ?string $halfDayReason = null;
 
+    public bool $showLateCheckInModal = false;
+
+    public bool $showCheckoutReasonModal = false;
+
+    public bool $checkoutModalNeedsEarly = false;
+
+    public bool $checkoutModalNeedsHalfDay = false;
+
     public function mount(): void
     {
         if (! $this->isOfficer()) {
@@ -103,16 +111,8 @@ class OfficerAttendanceWidget extends Widget
         $shiftNotStarted = $shiftWindow && $now->lessThan($shiftWindow['start']) && ! $withinShift;
         $shiftEnded = $shiftWindow && $now->greaterThan($shiftWindow['end']) && ! $withinShift;
 
-        $requiresEarlyCheckoutReason = false;
-        $requiresLateReason = false;
-        $requiresHalfDayReason = false;
-
-        if ($withinShift && $attendance && $attendance->check_in && ! $attendance->check_out && $shiftWindow) {
-            // We only request reasons before check-out is submitted.
-            $requiresEarlyCheckoutReason = $this->isEarlyCheckout($attendance->check_in, $now, $shiftWindow['end']);
-            $requiresLateReason = $this->isLateCheckIn($attendance->check_in, $shiftWindow['start']);
-            $requiresHalfDayReason = $attendance->previewAttendanceStatusAfterCheckout($now) === Attendance::STATUS_HALF_DAY;
-        }
+        $checkedOut = $attendance && $attendance->check_out;
+        $shiftEndedWithoutCheckIn = $shiftEnded && $attendance && ! $attendance->check_in;
 
         return [
             'show' => true,
@@ -123,12 +123,10 @@ class OfficerAttendanceWidget extends Widget
             'shiftWindow' => $shiftWindow,
             'shiftNotStarted' => $shiftNotStarted,
             'shiftEnded' => $shiftEnded,
+            'shiftEndedWithoutCheckIn' => $shiftEndedWithoutCheckIn,
             'canCheckIn' => $withinShift && (! $attendance || ! $attendance->check_in),
             'canCheckOut' => $withinShift && $attendance && $attendance->check_in && ! $attendance->check_out,
-            'checkedOut' => $attendance && $attendance->check_out,
-            'requiresEarlyCheckoutReason' => $requiresEarlyCheckoutReason,
-            'requiresLateReason' => $requiresLateReason,
-            'requiresHalfDayReason' => $requiresHalfDayReason,
+            'checkedOut' => $checkedOut,
         ];
     }
 
@@ -189,7 +187,10 @@ class OfficerAttendanceWidget extends Widget
             || $workedHours < \App\Models\Attendance::HALF_DAY_THRESHOLD_HOURS;
     }
 
-    public function checkIn(): void
+    /**
+     * Start check-in: if late, open modal; otherwise record immediately.
+     */
+    public function requestCheckIn(): void
     {
         if (! $this->isOfficer()) {
             return;
@@ -216,11 +217,83 @@ class OfficerAttendanceWidget extends Widget
             return;
         }
 
+        $shiftWindow = $this->buildShiftWindow($assignment, now('Africa/Addis_Ababa'));
+        if (! $shiftWindow) {
+            Notification::make()
+                ->title('Unable to determine shift window.')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $now = now('Africa/Addis_Ababa');
+        $graceEnd = $shiftWindow['start']->copy()->addMinutes(Attendance::GRACE_MINUTES);
+
+        if ($now->greaterThan($graceEnd)) {
+            $this->lateReason = null;
+            $this->showLateCheckInModal = true;
+
+            return;
+        }
+
+        $this->performCheckIn(null);
+    }
+
+    public function cancelLateCheckInModal(): void
+    {
+        $this->showLateCheckInModal = false;
+        $this->lateReason = null;
+    }
+
+    public function confirmLateCheckIn(): void
+    {
+        if (! filled(trim((string) $this->lateReason))) {
+            Notification::make()
+                ->title(__('Please explain why you are late.'))
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        $this->performCheckIn(trim((string) $this->lateReason));
+    }
+
+    /**
+     * @param  string|null  $lateReason  If set, appended to remarks as late check-in reason.
+     */
+    protected function performCheckIn(?string $lateReason): void
+    {
+        if (! $this->isOfficer()) {
+            return;
+        }
+
+        $assignment = $this->getTodaysAssignment();
+        if (! $assignment || ! $assignment->isWithinShift()) {
+            return;
+        }
+
+        $attendance = Attendance::firstOrNewForShiftAssignmentToday($assignment);
+
+        if ($attendance->check_in) {
+            return;
+        }
+
         $attendance->check_in = now('Africa/Addis_Ababa');
         $attendance->check_in_location = $this->checkInLocation ?: null;
+
+        if ($lateReason !== null && $lateReason !== '') {
+            $line = 'Late check-in: '.$lateReason;
+            $existing = trim((string) $attendance->remarks);
+            $attendance->remarks = $existing !== '' ? $existing."\n".$line : $line;
+        }
+
         $attendance->save();
 
         $this->checkInLocation = null;
+        $this->lateReason = null;
+        $this->showLateCheckInModal = false;
 
         Notification::make()
             ->title('Check-in recorded successfully.')
@@ -228,7 +301,10 @@ class OfficerAttendanceWidget extends Widget
             ->send();
     }
 
-    public function checkOut(): void
+    /**
+     * Start check-out: if early leave / half day, open modal; otherwise complete checkout.
+     */
+    public function requestCheckOut(): void
     {
         if (! $this->isOfficer()) {
             return;
@@ -277,52 +353,92 @@ class OfficerAttendanceWidget extends Widget
         }
 
         $isEarlyCheckout = $this->isEarlyCheckout($attendance->check_in, $now, $shiftWindow['end']);
-        $isLate = $this->isLateCheckIn($attendance->check_in, $shiftWindow['start']);
         $isHalfDay = $attendance->previewAttendanceStatusAfterCheckout($now) === Attendance::STATUS_HALF_DAY;
 
-        if ($isEarlyCheckout && ! filled($this->earlyCheckoutReason)) {
+        if ($isEarlyCheckout || $isHalfDay) {
+            $this->checkoutModalNeedsEarly = $isEarlyCheckout;
+            $this->checkoutModalNeedsHalfDay = $isHalfDay;
+            $this->earlyCheckoutReason = null;
+            $this->halfDayReason = null;
+            $this->showCheckoutReasonModal = true;
+
+            return;
+        }
+
+        $this->performCheckOut();
+    }
+
+    public function cancelCheckoutReasonModal(): void
+    {
+        $this->showCheckoutReasonModal = false;
+        $this->earlyCheckoutReason = null;
+        $this->halfDayReason = null;
+    }
+
+    public function confirmCheckoutReasons(): void
+    {
+        if ($this->checkoutModalNeedsEarly && ! filled(trim((string) $this->earlyCheckoutReason))) {
             Notification::make()
-                ->title('Reason is required for early checkout.')
+                ->title(__('Reason is required for early checkout.'))
                 ->danger()
                 ->send();
 
             return;
         }
 
-        if ($isLate && ! filled($this->lateReason)) {
+        if ($this->checkoutModalNeedsHalfDay && ! filled(trim((string) $this->halfDayReason))) {
             Notification::make()
-                ->title('Reason is required for late check-in.')
+                ->title(__('Reason is required for half day.'))
                 ->danger()
                 ->send();
 
             return;
         }
 
-        if ($isHalfDay && ! filled($this->halfDayReason)) {
-            Notification::make()
-                ->title('Reason is required for half day.')
-                ->danger()
-                ->send();
+        $this->performCheckOut();
+    }
 
+    protected function performCheckOut(): void
+    {
+        if (! $this->isOfficer()) {
             return;
         }
 
-        // Attach reasons to the attendance record for supervisor visibility.
+        $assignment = $this->getTodaysAssignment();
+        if (! $assignment || ! $assignment->isWithinShift()) {
+            return;
+        }
+
+        $attendance = Attendance::findForShiftAssignmentToday($assignment);
+
+        if (! $attendance || ! $attendance->check_in || $attendance->check_out) {
+            return;
+        }
+
+        $now = now('Africa/Addis_Ababa');
+        $shiftWindow = $this->buildShiftWindow($assignment, $now);
+
+        if (! $shiftWindow) {
+            return;
+        }
+
+        $isEarlyCheckout = $this->isEarlyCheckout($attendance->check_in, $now, $shiftWindow['end']);
+        $isHalfDay = $attendance->previewAttendanceStatusAfterCheckout($now) === Attendance::STATUS_HALF_DAY;
+
         $reasons = [];
-        if ($isLate) {
-            $reasons[] = 'Late check-in: '.trim((string) $this->lateReason);
-        }
-        if ($isEarlyCheckout) {
+        if ($isEarlyCheckout && filled(trim((string) $this->earlyCheckoutReason))) {
             $reasons[] = 'Early checkout: '.trim((string) $this->earlyCheckoutReason);
         }
-        if ($isHalfDay) {
+        if ($isHalfDay && filled(trim((string) $this->halfDayReason))) {
             $reasons[] = 'Half day: '.trim((string) $this->halfDayReason);
         }
 
-        $existingRemarks = trim((string) $attendance->remarks);
-        $attendance->remarks = $existingRemarks !== ''
-            ? trim($existingRemarks."\n".implode("\n", $reasons))
-            : implode("\n", $reasons);
+        if ($reasons !== []) {
+            $existingRemarks = trim((string) $attendance->remarks);
+            $attendance->remarks = $existingRemarks !== ''
+                ? trim($existingRemarks."\n".implode("\n", $reasons))
+                : implode("\n", $reasons);
+        }
 
         $attendance->check_out = $now;
         $attendance->check_out_location = $this->checkOutLocation ?: null;
@@ -330,8 +446,10 @@ class OfficerAttendanceWidget extends Widget
 
         $this->checkOutLocation = null;
         $this->earlyCheckoutReason = null;
-        $this->lateReason = null;
         $this->halfDayReason = null;
+        $this->showCheckoutReasonModal = false;
+        $this->checkoutModalNeedsEarly = false;
+        $this->checkoutModalNeedsHalfDay = false;
 
         Notification::make()
             ->title('Check-out recorded. Redirecting to shift report…')
