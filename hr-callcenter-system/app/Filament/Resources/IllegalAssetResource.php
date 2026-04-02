@@ -3,11 +3,6 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\IllegalAssetResource\Pages;
-use App\Filament\Resources\IllegalAssetResource\RelationManagers\HandoversRelationManager;
-use App\Filament\Resources\IllegalAssetResource\RelationManagers\EstimationsRelationManager;
-use App\Filament\Resources\IllegalAssetResource\RelationManagers\TransfersRelationManager;
-use App\Filament\Resources\IllegalAssetResource\RelationManagers\SalesRelationManager;
-use App\Filament\Resources\IllegalAssetResource\RelationManagers\DisposalsRelationManager;
 use App\Models\IllegalAsset;
 use App\Models\Department;
 use App\Models\Officer;
@@ -229,17 +224,6 @@ class IllegalAssetResource extends Resource
                     DeleteBulkAction::make(),
                 ]),
             ]);
-    }
-
-    public static function getRelations(): array
-    {
-        return [
-            HandoversRelationManager::class,
-            EstimationsRelationManager::class,
-            TransfersRelationManager::class,
-            SalesRelationManager::class,
-            DisposalsRelationManager::class,
-        ];
     }
 
     public static function getPages(): array
