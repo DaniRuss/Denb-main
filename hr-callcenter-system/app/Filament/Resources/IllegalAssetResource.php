@@ -23,10 +23,14 @@ use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Actions\Action;
-use Filament\Actions\EditAction;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\BulkActionGroup;
+use Filament\Actions\Action as PageAction;
+use Filament\Actions\EditAction as PageEditAction;
+use Filament\Actions\DeleteBulkAction as PageDeleteBulkAction;
+use Filament\Actions\BulkActionGroup as PageBulkActionGroup;
+use Filament\Tables\Actions\Action;
+use Filament\Tables\Actions\EditAction;
+use Filament\Tables\Actions\DeleteBulkAction;
+use Filament\Tables\Actions\BulkActionGroup;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 
@@ -35,9 +39,8 @@ class IllegalAssetResource extends Resource
     protected static ?string $model = IllegalAsset::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-archive-box';
-    // protected static string|\UnitEnum|null $navigationGroup = 'Asset Management';
+    protected static string|\UnitEnum|null $navigationGroup = 'Asset Management';
     protected static ?string $navigationLabel = 'Illegal Assets';
-    protected static ?int $navigationSort = 1;
 
     public static function form(Schema $schema): Schema
     {
@@ -48,24 +51,22 @@ class IllegalAssetResource extends Resource
                         Forms\Components\TextInput::make('asset_type')
                             ->required()
                             ->maxLength(255),
-                        Forms\Components\Textarea::make('description')
+                        Forms\Components\DatePicker::make('date_confiscated')
                             ->required()
-                            ->maxLength(65535),
+                            ->default(now()),
                         Forms\Components\TextInput::make('location_found')
                             ->required()
                             ->maxLength(255),
-                        Forms\Components\DatePicker::make('date_confiscated')
-                            ->required(),
-                        Forms\Components\Select::make('officer_id')
-                            ->relationship('officer', 'badge_number')
-                            ->searchable()
-                            ->preload()
-                            ->required(),
                         Forms\Components\Select::make('department_id')
-                            ->relationship('department', 'name_en')
+                            ->label('Department Confiscated By')
+                            ->options(Department::pluck('name_en', 'id')->toArray())
                             ->searchable()
-                            ->preload()
-                            ->required(),
+                            ->nullable(),
+                        Forms\Components\Select::make('officer_id')
+                            ->label('Confiscating Officer')
+                            ->options(Officer::pluck('badge_number', 'id')->toArray())
+                            ->searchable()
+                            ->nullable(),
                         Forms\Components\Select::make('status')
                             ->options([
                                 'Registered' => 'Registered',
@@ -77,6 +78,8 @@ class IllegalAssetResource extends Resource
                             ])
                             ->required()
                             ->default('Registered'),
+                        Forms\Components\Textarea::make('description')
+                            ->columnSpanFull(),
                     ])->columns(2),
             ]);
     }
@@ -85,31 +88,22 @@ class IllegalAssetResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('asset_type')
-                    ->searchable()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('date_confiscated')
-                    ->date()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('location_found')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('officer.badge_number')
-                    ->label('Officer Badge')
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('department.name_en')
-                    ->label('Department')
-                    ->sortable(),
+                Tables\Columns\TextColumn::make('id')->sortable(),
+                Tables\Columns\TextColumn::make('asset_type')->searchable(),
+                Tables\Columns\TextColumn::make('date_confiscated')->date()->sortable(),
+                Tables\Columns\TextColumn::make('location_found')->searchable(),
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
-                        'Registered' => 'gray',
-                        'Handed Over' => 'info',
-                        'Estimated' => 'warning',
-                        'Transferred' => 'primary',
-                        'Sold' => 'success',
-                        'Disposed' => 'danger',
-                        default => 'gray',
+                        'Registered'  => 'primary',
+                        'Handed Over' => 'warning',
+                        'Estimated'   => 'info',
+                        'Transferred' => 'gray',
+                        'Sold'        => 'success',
+                        'Disposed'    => 'danger',
+                        default       => 'secondary',
                     }),
+                Tables\Columns\TextColumn::make('department.name_en')->label('Department')->searchable(),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('status')
