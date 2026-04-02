@@ -41,7 +41,10 @@ return new class extends Migration
 
     private function indexExists(string $table, string $index): bool
     {
-        $indexes = collect(Schema::getIndexes($table))->pluck('name');
-        return $indexes->contains($index);
+        return DB::table('information_schema.statistics')
+            ->where('table_schema', DB::getDatabaseName())
+            ->where('table_name', $table)
+            ->where('index_name', $index)
+            ->exists();
     }
 };

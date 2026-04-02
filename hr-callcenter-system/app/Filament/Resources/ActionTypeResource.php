@@ -8,11 +8,6 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Actions\EditAction;
-use Filament\Actions\ViewAction;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\BulkActionGroup;
 
 class ActionTypeResource extends Resource
 {
@@ -52,9 +47,9 @@ class ActionTypeResource extends Resource
             ])
             ->defaultSort('name')
             ->actions([
-                ViewAction::make(),
-                EditAction::make(),
-                DeleteAction::make(),
+                Tables\Actions\ViewAction::make(),
+                Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
             ]);
     }
 

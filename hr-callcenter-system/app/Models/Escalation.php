@@ -10,30 +10,19 @@ class Escalation extends Model
     use HasFactory;
 
     protected $fillable = [
-        'caseable_type',
-        'caseable_id',
         'complaint_id',
         'escalated_by',
         'escalated_to',
-        'from_level',
-        'to_level',
+        'level',
         'reason',
-        'reason_details',
         'notes',
-        'escalated_at',
-        'responded_at',
+        'resolved_at',
         'status',
     ];
 
     protected $casts = [
-        'escalated_at' => 'datetime',
-        'responded_at' => 'datetime',
+        'resolved_at' => 'datetime',
     ];
-
-    public function caseable()
-    {
-        return $this->morphTo();
-    }
 
     public function complaint()
     {
