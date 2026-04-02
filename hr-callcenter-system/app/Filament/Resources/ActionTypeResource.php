@@ -47,9 +47,9 @@ class ActionTypeResource extends Resource
             ])
             ->defaultSort('name')
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                // Tables\Actions\ViewAction::make(),
+                // Tables\Actions\EditAction::make(),
+                // Tables\Actions\DeleteAction::make(),
             ]);
     }
 
@@ -68,4 +68,3 @@ class ActionTypeResource extends Resource
         return (bool) $user && ($user->hasRole('admin') || $user->can('manage_penalty_action'));
     }
 }
-

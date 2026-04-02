@@ -39,8 +39,14 @@ class FollowUpActionsRelationManager extends RelationManager
                 ->default('pending')
                 ->required()
                 ->reactive(),
-            Forms\Components\DatePicker::make('due_date'),
+            Forms\Components\DatePicker::make('due_date')
+                ->ethiopic()
+                ->firstDayOfWeek(1)
+                ->closeOnDateSelection(),
             Forms\Components\DateTimePicker::make('completed_at')
+                ->ethiopic()
+                ->firstDayOfWeek(1)
+                ->seconds(false)
                 ->visible(fn ($get) => $get('status') === 'done'),
             Forms\Components\Select::make('assigned_to')
                 ->label('Assigned To')
@@ -90,4 +96,3 @@ class FollowUpActionsRelationManager extends RelationManager
             ]);
     }
 }
-

@@ -2,18 +2,18 @@
 
 namespace App\Filament\Resources\Employees\RelationManagers;
 
+use App\Models\User;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\CreateAction;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
 use Filament\Forms;
-use Filament\Schemas\Schema;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
-use App\Models\User;
-use Filament\Actions\CreateAction;
-use Filament\Actions\EditAction;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\ViewAction;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
 
 class UniformDistributionRelationManager extends RelationManager
 {
@@ -53,6 +53,9 @@ class UniformDistributionRelationManager extends RelationManager
 
                 Forms\Components\DatePicker::make('distribution_date')
                     ->label('Distribution Date')
+                    ->ethiopic()
+                    ->firstDayOfWeek(1)
+                    ->closeOnDateSelection()
                     ->default(now())
                     ->required(),
 
@@ -90,7 +93,7 @@ class UniformDistributionRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('item_type')
                     ->label('Item')
                     ->badge()
-                    ->formatStateUsing(fn($state) => ucfirst(str_replace('_', ' ', $state))),
+                    ->formatStateUsing(fn ($state) => ucfirst(str_replace('_', ' ', $state))),
 
                 Tables\Columns\TextColumn::make('size')
                     ->label('Size'),
@@ -106,7 +109,7 @@ class UniformDistributionRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('distribution_type')
                     ->label('Type')
                     ->badge()
-                    ->color(fn(string $state): string => match ($state) {
+                    ->color(fn (string $state): string => match ($state) {
                         'new' => 'success',
                         'replacement' => 'warning',
                         'additional' => 'info',
