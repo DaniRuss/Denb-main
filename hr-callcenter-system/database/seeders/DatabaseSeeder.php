@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Spatie\Permission\Models\Role;
 
 class DatabaseSeeder extends Seeder
 {
@@ -15,11 +16,41 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        // Make sure roles & permissions exist.
+        $this->call(RolesAndPermissionsSeeder::class);
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        // Create test users for main roles.
+        $adminUser = User::updateOrCreate(
+            ['email' => 'admin-test@example.com'],
+            [
+                'name' => 'Admin Test',
+                'username' => 'admin_test',
+                'password' => bcrypt('password'),
+            ]
+        );
+        $adminUser->syncRoles(['admin']);
+
+        $supervisorUser = User::updateOrCreate(
+            ['email' => 'supervisor-test@example.com'],
+            [
+                'name' => 'Supervisor Test',
+                'username' => 'supervisor_test',
+                'password' => bcrypt('password'),
+            ]
+        );
+        $supervisorUser->syncRoles(['supervisor']);
+
+        $officerUser = User::updateOrCreate(
+            ['email' => 'officer-test@example.com'],
+            [
+                'name' => 'Officer Test',
+                'username' => 'officer_test',
+                'password' => bcrypt('password'),
+            ]
+        );
+        $officerUser->syncRoles(['officer']);
+
+        // Seed shift types (Morning, Afternoon, Night). Run after migrations.
+        $this->call(ShiftsSeeder::class);
     }
 }

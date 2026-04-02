@@ -2,15 +2,13 @@
 
 namespace App\Filament\Resources\Employees\Schemas;
 
-use Filament\Schemas\Schema;
+use App\Models\User;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
-use Filament\Schemas\Components\Section;
-use App\Models\SubCity;
-use App\Models\Woreda;
-use App\Models\User;
-use Spatie\Permission\Models\Role;
+use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Permission\Models\Role;
 
 class EmployeeForm
 {
@@ -60,6 +58,9 @@ class EmployeeForm
                                             ->minValue(18)
                                             ->maxValue(100),
                                         \Filament\Forms\Components\DatePicker::make('birth_date')
+                                            ->ethiopic()
+                                            ->firstDayOfWeek(1)
+                                            ->closeOnDateSelection()
                                             ->required()
                                             ->maxDate(now()),
                                         \Filament\Forms\Components\TextInput::make('birthplace')
@@ -112,6 +113,7 @@ class EmployeeForm
                                             return \App\Models\Woreda::where('sub_city_id', $subCityId)
                                                 ->pluck('name_am', 'id');
                                         }
+
                                         return [];
                                     })
                                     ->required(),
@@ -161,6 +163,9 @@ class EmployeeForm
                                     ->prefix('ETB'),
 
                                 \Filament\Forms\Components\DatePicker::make('hire_date')
+                                    ->ethiopic()
+                                    ->firstDayOfWeek(1)
+                                    ->closeOnDateSelection()
                                     ->required(),
 
                                 \Filament\Forms\Components\Select::make('status')
@@ -177,13 +182,16 @@ class EmployeeForm
 
                                 \Filament\Forms\Components\Toggle::make('is_suspended_payment')
                                     ->label('Suspend Payment?')
-                                    ->visible(fn($get) => $get('status') === 'suspended'),
+                                    ->visible(fn ($get) => $get('status') === 'suspended'),
 
                                 \Filament\Forms\Components\TextInput::make('suspension_reason')
-                                    ->visible(fn($get) => $get('status') === 'suspended'),
+                                    ->visible(fn ($get) => $get('status') === 'suspended'),
 
                                 \Filament\Forms\Components\DatePicker::make('suspension_date')
-                                    ->visible(fn($get) => $get('status') === 'suspended'),
+                                    ->ethiopic()
+                                    ->firstDayOfWeek(1)
+                                    ->closeOnDateSelection()
+                                    ->visible(fn ($get) => $get('status') === 'suspended'),
 
                             ])->columns(2),
 
@@ -286,7 +294,10 @@ class EmployeeForm
                             ->schema([
                                 \Filament\Forms\Components\TextInput::make('training_round')
                                     ->numeric(),
-                                \Filament\Forms\Components\DatePicker::make('last_training_date'),
+                                \Filament\Forms\Components\DatePicker::make('last_training_date')
+                                    ->ethiopic()
+                                    ->firstDayOfWeek(1)
+                                    ->closeOnDateSelection(),
                                 \Filament\Forms\Components\Textarea::make('training_notes')
                                     ->columnSpanFull(),
                             ])->columns(2),

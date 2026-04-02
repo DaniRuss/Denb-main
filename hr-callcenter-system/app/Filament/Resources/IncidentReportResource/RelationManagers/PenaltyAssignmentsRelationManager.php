@@ -31,12 +31,18 @@ class PenaltyAssignmentsRelationManager extends RelationManager
                 ->searchable()
                 ->required(),
             Forms\Components\DatePicker::make('assigned_date')
+                ->ethiopic()
+                ->firstDayOfWeek(1)
+                ->closeOnDateSelection()
                 ->default(now())
                 ->required(),
             Forms\Components\TextInput::make('duration_days')
                 ->numeric()
                 ->minValue(1),
-            Forms\Components\DatePicker::make('due_date'),
+            Forms\Components\DatePicker::make('due_date')
+                ->ethiopic()
+                ->firstDayOfWeek(1)
+                ->closeOnDateSelection(),
             Forms\Components\Select::make('status')
                 ->options([
                     'assigned' => 'Assigned',
@@ -93,4 +99,3 @@ class PenaltyAssignmentsRelationManager extends RelationManager
             ]);
     }
 }
-

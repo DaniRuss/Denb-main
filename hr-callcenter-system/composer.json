@@ -10,6 +10,8 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "agelgil/filament-ethiopic-calendar": "dev-main@dev",
+        "andegna/calender": "^2.4",
         "filament/filament": "^5.3",
         "laravel/framework": "^12.0",
         "laravel/sanctum": "^4.3",
