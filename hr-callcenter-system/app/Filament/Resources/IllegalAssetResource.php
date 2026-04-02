@@ -8,7 +8,6 @@ use App\Filament\Resources\IllegalAssetResource\RelationManagers\EstimationsRela
 use App\Filament\Resources\IllegalAssetResource\RelationManagers\TransfersRelationManager;
 use App\Filament\Resources\IllegalAssetResource\RelationManagers\SalesRelationManager;
 use App\Filament\Resources\IllegalAssetResource\RelationManagers\DisposalsRelationManager;
-use App\Filament\Resources\IllegalAssetResource\RelationManagers\ActivitiesRelationManager;
 use App\Models\IllegalAsset;
 use App\Models\Department;
 use App\Models\Officer;
@@ -17,22 +16,16 @@ use App\Models\AssetEstimation;
 use App\Models\AssetTransfer;
 use App\Models\AssetSale;
 use App\Models\AssetDisposal;
-use App\Models\AssetActivity;
 use Filament\Forms;
 use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Actions\Action as PageAction;
-use Filament\Actions\EditAction as PageEditAction;
-use Filament\Actions\DeleteBulkAction as PageDeleteBulkAction;
-use Filament\Actions\BulkActionGroup as PageBulkActionGroup;
-use Filament\Tables\Actions\Action;
-use Filament\Tables\Actions\EditAction;
-use Filament\Tables\Actions\DeleteBulkAction;
-use Filament\Tables\Actions\BulkActionGroup;
+use Filament\Actions\Action;
+use Filament\Actions\EditAction;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\BulkActionGroup;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Auth;
 
 class IllegalAssetResource extends Resource
 {
@@ -59,12 +52,12 @@ class IllegalAssetResource extends Resource
                             ->maxLength(255),
                         Forms\Components\Select::make('department_id')
                             ->label('Department Confiscated By')
-                            ->options(Department::pluck('name_en', 'id')->toArray())
+                            ->relationship('department', 'name_en')
                             ->searchable()
                             ->nullable(),
                         Forms\Components\Select::make('officer_id')
                             ->label('Confiscating Officer')
-                            ->options(Officer::pluck('badge_number', 'id')->toArray())
+                            ->relationship('officer', 'badge_number')
                             ->searchable()
                             ->nullable(),
                         Forms\Components\Select::make('status')
@@ -127,7 +120,7 @@ class IllegalAssetResource extends Resource
                     ->label('Hand Over')
                     ->icon('heroicon-o-hand-raised')
                     ->color('warning')
-                    ->visible(fn ($record) => $record->status === 'Registered' && Auth::user()->can('handover', $record))
+                    ->visible(fn ($record) => $record->status === 'Registered')
                     ->form([
                         Forms\Components\Select::make('department_id')
                             ->label('Hand Over To Department')
@@ -141,16 +134,9 @@ class IllegalAssetResource extends Resource
                             ->default(now())->required(),
                         Forms\Components\Textarea::make('notes'),
                     ])
-                    ->action(function (array $data, IllegalAsset $record): void {
+                    ->action(function (array $data, $record): void {
                         AssetHandover::create(array_merge($data, ['illegal_asset_id' => $record->id]));
                         $record->update(['status' => 'Handed Over']);
-                        
-                        AssetActivity::create([
-                            'illegal_asset_id' => $record->id,
-                            'user_id' => Auth::id(),
-                            'action' => 'Handed Over',
-                            'description' => "Asset handed over to department ID: {$data['department_id']}",
-                        ]);
                     }),
 
                 // Asset Estimation Modal Action
@@ -158,32 +144,25 @@ class IllegalAssetResource extends Resource
                     ->label('Estimate')
                     ->icon('heroicon-o-currency-dollar')
                     ->color('info')
-                    ->visible(fn ($record) => in_array($record->status, ['Registered', 'Handed Over']) && Auth::user()->can('estimate', $record))
+                    ->visible(fn ($record) => in_array($record->status, ['Registered', 'Handed Over']))
                     ->form([
                         Forms\Components\TextInput::make('estimated_value')
-                            ->numeric()->prefix('ETB')->required(),
+                            ->numeric()->prefix('$')->required(),
                         Forms\Components\TextInput::make('evaluator_name')->required(),
                         Forms\Components\DatePicker::make('evaluation_date')->default(now())->required(),
                         Forms\Components\Textarea::make('notes'),
                     ])
-                    ->action(function (array $data, IllegalAsset $record): void {
+                    ->action(function (array $data, $record): void {
                         AssetEstimation::create(array_merge($data, ['illegal_asset_id' => $record->id]));
                         $record->update(['status' => 'Estimated']);
-                        
-                        AssetActivity::create([
-                            'illegal_asset_id' => $record->id,
-                            'user_id' => Auth::id(),
-                            'action' => 'Estimated',
-                            'description' => "Asset estimated value: {$data['estimated_value']} ETB by {$data['evaluator_name']}",
-                        ]);
                     }),
 
                 // Asset Transfer Modal Action
                 Action::make('transfer')
                     ->label('Transfer')
                     ->icon('heroicon-o-arrows-right-left')
-                    ->color('gray')
-                    ->visible(fn ($record) => in_array($record->status, ['Handed Over', 'Estimated']) && Auth::user()->can('transfer', $record))
+                    ->color('purple')
+                    ->visible(fn ($record) => in_array($record->status, ['Handed Over', 'Estimated']))
                     ->form([
                         Forms\Components\Select::make('from_department_id')
                             ->label('From Dept')
@@ -201,16 +180,9 @@ class IllegalAssetResource extends Resource
                         Forms\Components\DatePicker::make('transfer_date')->default(now())->required(),
                         Forms\Components\Textarea::make('notes'),
                     ])
-                    ->action(function (array $data, IllegalAsset $record): void {
+                    ->action(function (array $data, $record): void {
                         AssetTransfer::create(array_merge($data, ['illegal_asset_id' => $record->id]));
                         $record->update(['status' => 'Transferred']);
-                        
-                        AssetActivity::create([
-                            'illegal_asset_id' => $record->id,
-                            'user_id' => Auth::id(),
-                            'action' => 'Transferred',
-                            'description' => "Asset transferred from department ID: {$data['from_department_id']} to {$data['to_department_id']}",
-                        ]);
                     }),
 
                 // Asset Sale Modal Action
@@ -218,27 +190,20 @@ class IllegalAssetResource extends Resource
                     ->label('Sell')
                     ->icon('heroicon-o-banknotes')
                     ->color('success')
-                    ->visible(fn ($record) => in_array($record->status, ['Estimated', 'Transferred']) && Auth::user()->can('sell', $record))
+                    ->visible(fn ($record) => in_array($record->status, ['Estimated', 'Transferred']))
                     ->form([
                         Forms\Components\TextInput::make('buyer_name')->required(),
                         Forms\Components\TextInput::make('buyer_contact'),
-                        Forms\Components\TextInput::make('sale_price')->numeric()->prefix('ETB')->required(),
+                        Forms\Components\TextInput::make('sale_price')->numeric()->prefix('$')->required(),
                         Forms\Components\Select::make('sold_by_officer_id')
                             ->options(Officer::pluck('badge_number', 'id')->toArray())
                             ->label('Sold By')->required(),
                         Forms\Components\DatePicker::make('sale_date')->default(now())->required(),
                         Forms\Components\Textarea::make('notes'),
                     ])
-                    ->action(function (array $data, IllegalAsset $record): void {
+                    ->action(function (array $data, $record): void {
                         AssetSale::create(array_merge($data, ['illegal_asset_id' => $record->id]));
                         $record->update(['status' => 'Sold']);
-                        
-                        AssetActivity::create([
-                            'illegal_asset_id' => $record->id,
-                            'user_id' => Auth::id(),
-                            'action' => 'Sold',
-                            'description' => "Asset sold to {$data['buyer_name']} for {$data['sale_price']} ETB",
-                        ]);
                     }),
 
                 // Asset Disposal Modal Action
@@ -246,7 +211,7 @@ class IllegalAssetResource extends Resource
                     ->label('Dispose')
                     ->icon('heroicon-o-trash')
                     ->color('danger')
-                    ->visible(fn ($record) => !in_array($record->status, ['Sold', 'Disposed']) && Auth::user()->can('dispose', $record))
+                    ->visible(fn ($record) => !in_array($record->status, ['Sold', 'Disposed']))
                     ->form([
                         Forms\Components\Select::make('disposal_method')
                             ->options([
@@ -261,16 +226,9 @@ class IllegalAssetResource extends Resource
                         Forms\Components\DatePicker::make('disposal_date')->default(now())->required(),
                         Forms\Components\Textarea::make('notes'),
                     ])
-                    ->action(function (array $data, IllegalAsset $record): void {
+                    ->action(function (array $data, $record): void {
                         AssetDisposal::create(array_merge($data, ['illegal_asset_id' => $record->id]));
                         $record->update(['status' => 'Disposed']);
-                        
-                        AssetActivity::create([
-                            'illegal_asset_id' => $record->id,
-                            'user_id' => Auth::id(),
-                            'action' => 'Disposed',
-                            'description' => "Asset disposed via {$data['disposal_method']}",
-                        ]);
                     }),
             ])
             ->bulkActions([
@@ -288,7 +246,6 @@ class IllegalAssetResource extends Resource
             TransfersRelationManager::class,
             SalesRelationManager::class,
             DisposalsRelationManager::class,
-            ActivitiesRelationManager::class,
         ];
     }
 

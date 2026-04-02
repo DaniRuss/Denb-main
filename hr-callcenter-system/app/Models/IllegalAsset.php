@@ -60,9 +60,4 @@ class IllegalAsset extends Model
     {
         return $this->hasOne(AssetDisposal::class);
     }
-
-    public function activities(): HasMany
-    {
-        return $this->hasMany(AssetActivity::class, 'illegal_asset_id');
-    }
 }
