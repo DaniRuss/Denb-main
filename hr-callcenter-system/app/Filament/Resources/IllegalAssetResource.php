@@ -35,7 +35,7 @@ class IllegalAssetResource extends Resource
     protected static ?string $model = IllegalAsset::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-archive-box';
-    protected static string|\UnitEnum|null $navigationGroup = 'Asset Management';
+    // protected static string|\UnitEnum|null $navigationGroup = 'Asset Management';
     protected static ?string $navigationLabel = 'Illegal Assets';
     protected static ?int $navigationSort = 1;
 
