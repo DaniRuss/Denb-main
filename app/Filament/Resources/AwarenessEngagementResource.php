@@ -94,11 +94,9 @@ class AwarenessEngagementResource extends Resource
                                             $campaign = \App\Models\Campaign::find($state);
                                             if ($campaign) {
                                                 if ($campaign->category) $set('engagement_type', $campaign->category);
-                                                $user = auth()->user();
-                                                if (!($user->hasRole('paramilitary') && $user->woreda_id)) {
-                                                    if ($campaign->sub_city_id) $set('sub_city_id', $campaign->sub_city_id);
-                                                    if ($campaign->woreda_id) $set('woreda_id', $campaign->woreda_id);
-                                                }
+                                                // Sync location directly from campaign always
+                                                if ($campaign->sub_city_id) $set('sub_city_id', $campaign->sub_city_id);
+                                                if ($campaign->woreda_id) $set('woreda_id', $campaign->woreda_id);
                                             }
                                         }
                                     }),
@@ -201,13 +199,19 @@ class AwarenessEngagementResource extends Resource
                             ->schema([
                                 Forms\Components\Select::make('sub_city_id')
                                     ->label(__('Sub-City'))
-                                    ->options(\App\Models\SubCity::pluck('name_am', 'id'))
-                                    ->required(),
+                                    ->relationship('subCity', 'name_am')
+                                    ->required()
+                                    ->disabled(fn (Get $get) => filled($get('campaign_id')))
+                                    ->dehydrated(),
                                 Forms\Components\Select::make('woreda_id')
                                     ->label(__('Woreda'))
-                                    ->options(\App\Models\Woreda::pluck('name_am', 'id'))
-                                    ->required(),
-                                Forms\Components\TextInput::make('block_number')->label(__('Block No.')),
+                                    ->relationship('woreda', 'name_am')
+                                    ->required()
+                                    ->disabled(fn (Get $get) => filled($get('campaign_id')))
+                                    ->dehydrated(),
+                                Forms\Components\TextInput::make('block_number')
+                                    ->label(__('Block No.'))
+                                    ->placeholder(__('Inherited if campaign has it')),
                             ]),
 
 
@@ -234,19 +238,23 @@ class AwarenessEngagementResource extends Resource
                 if ($user->hasAnyRole(['admin', 'super_admin'])) {
                     return $query;
                 }
+                
+                // Field roles (Paramilitary / Field) see their own logs always
+                if ($user->hasAnyRole(['paramilitary', 'field'])) {
+                    return $query->where('created_by', $user->id);
+                }
+
                 if ($user->hasRole('officer')) {
                     // Officers see all submitted/approved/rejected records system-wide for oversight
                     return $query->whereIn('status', ['submitted', 'approved', 'rejected']);
                 }
+
                 if ($user->hasRole('woreda_coordinator')) {
                     // Coordinators see submitted/approved/rejected records in their Woreda
                     return $query->where('woreda_id', $user->woreda_id)
                                  ->whereIn('status', ['submitted', 'approved', 'rejected']);
                 }
-                if ($user->hasRole('paramilitary')) {
-                    // Paramilitary only see their own logs
-                    return $query->where('created_by', $user->id);
-                }
+
                 return $query->whereRaw('1=0'); // Default deny
             })
             ->columns([
