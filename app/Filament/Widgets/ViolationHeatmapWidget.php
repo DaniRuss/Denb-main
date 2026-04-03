@@ -10,6 +10,7 @@ class ViolationHeatmapWidget extends ChartWidget
 {
     protected ?string $heading = 'Violations Addressed (የተዳሰሱ ጥሰቶች)';
     protected static ?int $sort = 3;
+    protected int | string | array $columnSpan = 1;
 
     public static function canView(): bool
     {

@@ -22,7 +22,7 @@ class QuarterlyReportResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->schema([
+        return $schema->columns(1)->schema([
             \Filament\Schemas\Components\Section::make('Report Identity')
                 ->schema([
                     \Filament\Forms\Components\TextInput::make('title')
@@ -59,7 +59,7 @@ class QuarterlyReportResource extends Resource
                         ->options(Department::pluck('name_en', 'id'))
                         ->nullable()
                         ->placeholder('All Departments'),
-                ])->columns(3),
+                ])->columns(1),
 
             \Filament\Schemas\Components\Section::make('Statistics')
                 ->schema([
@@ -92,7 +92,7 @@ class QuarterlyReportResource extends Resource
                         ->label('Total Escalations')
                         ->numeric()
                         ->default(0),
-                ])->columns(3),
+                ])->columns(1),
 
             \Filament\Schemas\Components\Section::make('Report Content')
                 ->schema([
@@ -132,7 +132,7 @@ class QuarterlyReportResource extends Resource
                         ->directory('quarterly-reports')
                         ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(20480),
-                ])->columns(2),
+                ])->columns(1),
         ]);
     }
 

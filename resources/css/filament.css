@@ -1,0 +1,458 @@
+/*
+ * =====================================================================
+ * GLOBAL FILAMENT FORM STYLES
+ * Matches the clean, minimal form design: white cards, flat inputs,
+ * clear labels, consistent across all roles and resources.
+ * =====================================================================
+ */
+
+/* ── Section / Card container ───────────────────────────────────────── */
+.fi-section {
+    background-color: #ffffff !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 0.75rem !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    overflow: hidden;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* ── Section Header (icon + title + description) ─────────────────────── */
+.fi-section-header {
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+    padding: 1.25rem 1.5rem 1rem 1.5rem !important;
+    border-bottom: 1px solid #f3f4f6 !important;
+    background-color: #ffffff !important;
+}
+
+.fi-section-header-icon {
+    color: #9ca3af !important;
+    flex-shrink: 0 !important;
+    margin-top: 2px !important;
+}
+
+.fi-section-header-heading {
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    color: #111827 !important;
+    line-height: 1.4 !important;
+}
+
+.fi-section-header-description {
+    font-size: 0.8125rem !important;
+    color: #6b7280 !important;
+    margin-top: 0.125rem !important;
+    line-height: 1.5 !important;
+}
+
+/* ── Section Content area ────────────────────────────────────────────── */
+.fi-section-content,
+.fi-section-content-ctn {
+    padding: 1.5rem !important;
+    background-color: #ffffff !important;
+}
+
+/* ── Field wrapper (label + input group) ─────────────────────────────── */
+.fi-fo-field-wrp {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.375rem !important;
+}
+
+/* ── Labels ──────────────────────────────────────────────────────────── */
+.fi-label,
+.fi-fo-field-wrp > label,
+label.fi-label {
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    color: #374151 !important;
+    display: block !important;
+    margin-bottom: 0.25rem !important;
+}
+
+/* Required asterisk */
+.fi-fo-field-wrp .fi-label .fi-required-mark,
+.fi-required-mark,
+span[data-required] {
+    color: #f59e0b !important;
+    font-weight: 600 !important;
+}
+
+/* ── Text Input ──────────────────────────────────────────────────────── */
+.fi-input-wrp,
+.fi-input {
+    border-radius: 0.5rem !important;
+    border: 1px solid #d1d5db !important;
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.fi-input-wrp:focus-within,
+.fi-input:focus {
+    border-color: #f59e0b !important;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12) !important;
+    outline: none !important;
+}
+
+/* Native input inside the wrapper */
+.fi-input-wrp input,
+input.fi-input {
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    color: #111827 !important;
+    font-size: 0.875rem !important;
+    padding: 0.5625rem 0.875rem !important;
+    width: 100% !important;
+    border-radius: 0.5rem !important;
+}
+
+.fi-input-wrp input::placeholder,
+input.fi-input::placeholder {
+    color: #9ca3af !important;
+    font-size: 0.875rem !important;
+}
+
+/* ── Textarea ────────────────────────────────────────────────────────── */
+textarea.fi-textarea {
+    border-radius: 0.5rem !important;
+    border: 1px solid #d1d5db !important;
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+    color: #111827 !important;
+    font-size: 0.875rem !important;
+    padding: 0.625rem 0.875rem !important;
+    width: 100% !important;
+    resize: vertical !important;
+    line-height: 1.6 !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+textarea.fi-textarea:focus {
+    border-color: #f59e0b !important;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12) !important;
+    outline: none !important;
+}
+
+textarea.fi-textarea::placeholder {
+    color: #9ca3af !important;
+}
+
+/* ── Select ──────────────────────────────────────────────────────────── */
+.fi-select-input {
+    border-radius: 0.5rem !important;
+    border: 1px solid #d1d5db !important;
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+    color: #111827 !important;
+    font-size: 0.875rem !important;
+    padding: 0.5625rem 2.5rem 0.5625rem 0.875rem !important;
+    width: 100% !important;
+    appearance: none !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.fi-select-input:focus {
+    border-color: #f59e0b !important;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12) !important;
+    outline: none !important;
+}
+
+/* Select wrapper to position chevron */
+.fi-select {
+    position: relative !important;
+    border-radius: 0.5rem !important;
+    border: 1px solid #d1d5db !important;
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.fi-select:focus-within {
+    border-color: #f59e0b !important;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12) !important;
+}
+
+.fi-select select {
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    background: transparent !important;
+    width: 100% !important;
+    padding: 0.5625rem 2.5rem 0.5625rem 0.875rem !important;
+    font-size: 0.875rem !important;
+    color: #111827 !important;
+}
+
+/* Placeholder option */
+.fi-select select option[value=""] {
+    color: #9ca3af !important;
+}
+
+/* ── Date picker / Date input ────────────────────────────────────────── */
+.fi-date-picker-input,
+input[type="date"].fi-input {
+    border-radius: 0.5rem !important;
+    border: 1px solid #d1d5db !important;
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+    color: #111827 !important;
+    font-size: 0.875rem !important;
+    padding: 0.5625rem 0.875rem !important;
+    transition: border-color 0.15s ease !important;
+}
+
+.fi-date-picker-input:focus {
+    border-color: #f59e0b !important;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12) !important;
+    outline: none !important;
+}
+
+/* ── Helper text / Hint text ─────────────────────────────────────────── */
+.fi-fo-helper-text,
+.fi-hint-text {
+    font-size: 0.75rem !important;
+    color: #6b7280 !important;
+    margin-top: 0.25rem !important;
+    line-height: 1.5 !important;
+}
+
+/* ── Validation error messages ───────────────────────────────────────── */
+.fi-fo-field-error,
+.fi-fo-field-wrp .fi-validation-error {
+    font-size: 0.75rem !important;
+    color: #ef4444 !important;
+    margin-top: 0.25rem !important;
+}
+
+/* ── Checkbox & Toggle ───────────────────────────────────────────────── */
+.fi-checkbox-input {
+    width: 1rem !important;
+    height: 1rem !important;
+    border-radius: 0.25rem !important;
+    border: 1px solid #d1d5db !important;
+    accent-color: #f59e0b !important;
+}
+
+.fi-toggle-input {
+    accent-color: #f59e0b !important;
+}
+
+/* ── File Upload ─────────────────────────────────────────────────────── */
+.fi-fo-file-upload {
+    border: 2px dashed #e5e7eb !important;
+    border-radius: 0.5rem !important;
+    background-color: #f9fafb !important;
+    padding: 1.5rem !important;
+    text-align: center !important;
+    transition: border-color 0.15s ease !important;
+}
+
+.fi-fo-file-upload:hover {
+    border-color: #f59e0b !important;
+    background-color: #fffbeb !important;
+}
+
+/* ── Tabs (wizard tabs like Personal/Location/Job/Account) ───────────── */
+.fi-tabs {
+    border-bottom: 1px solid #e5e7eb !important;
+    background-color: #ffffff !important;
+    padding: 0 1rem !important;
+}
+
+.fi-tabs-tab {
+    padding: 0.75rem 1rem !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    color: #6b7280 !important;
+    border-bottom: 2px solid transparent !important;
+    margin-bottom: -1px !important;
+    transition: color 0.15s ease, border-color 0.15s ease !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.375rem !important;
+}
+
+.fi-tabs-tab:hover {
+    color: #374151 !important;
+}
+
+.fi-tabs-tab[aria-selected="true"],
+.fi-tabs-tab.fi-active {
+    color: #f59e0b !important;
+    border-bottom-color: #f59e0b !important;
+}
+
+.fi-tabs-tab svg {
+    width: 1rem !important;
+    height: 1rem !important;
+}
+
+/* ── Force override Form Containers to reach Full Width ─────────────────── */
+.fi-form,
+.fi-fo-field-wrp,
+.fi-fo-component-ctn,
+.fi-resource-create-record-page form,
+.fi-resource-edit-record-page form,
+.fi-resource-view-record-page form {
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
+/* ── Remove center max-width constraints strictly for forms ─────────────────── */
+.fi-page-content .fi-form .mx-auto {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+
+/* ── Form page header (Create Campaign / Create Employee etc.) ────────── */
+.fi-header-heading {
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    color: #111827 !important;
+    letter-spacing: -0.01em !important;
+}
+
+.fi-breadcrumbs {
+    font-size: 0.8125rem !important;
+    color: #6b7280 !important;
+}
+
+/* ── Grid / Column layout inside sections ────────────────────────────── */
+.fi-fo-grid {
+    gap: 1.25rem !important;
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
+/* ── Submit / Action buttons ─────────────────────────────────────────── */
+.fi-btn-primary {
+    background-color: #f59e0b !important;
+    border-color: #f59e0b !important;
+    color: #ffffff !important;
+    border-radius: 0.5rem !important;
+    font-weight: 500 !important;
+    font-size: 0.875rem !important;
+    padding: 0.5625rem 1.25rem !important;
+    transition: background-color 0.15s ease !important;
+    box-shadow: none !important;
+}
+
+.fi-btn-primary:hover {
+    background-color: #d97706 !important;
+    border-color: #d97706 !important;
+}
+
+/* Secondary / outlined button */
+.fi-btn-secondary,
+.fi-btn:not(.fi-btn-primary) {
+    border-radius: 0.5rem !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    padding: 0.5625rem 1.25rem !important;
+    box-shadow: none !important;
+}
+
+/* ── Remove inner box-shadow that Filament adds to inputs ────────────── */
+[class*="fi-"] input:focus,
+[class*="fi-"] select:focus,
+[class*="fi-"] textarea:focus {
+    --tw-ring-shadow: none !important;
+    --tw-ring-color: transparent !important;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12) !important;
+}
+
+/* ── Override Tailwind ring utilities used by Filament ───────────────── */
+.fi-input-wrp:focus-within {
+    --tw-ring-shadow: none !important;
+}
+
+/* ── Filament v4 specific - schema/form container ────────────────────── */
+.fi-form {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1.25rem !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* ── Repeater items ──────────────────────────────────────────────────── */
+.fi-fo-repeater-item {
+    border: 1px solid #e5e7eb !important;
+    border-radius: 0.625rem !important;
+    background-color: #ffffff !important;
+    padding: 1.25rem !important;
+}
+
+/* ── Key-value pair builder ──────────────────────────────────────────── */
+.fi-fo-key-value {
+    border: 1px solid #e5e7eb !important;
+    border-radius: 0.5rem !important;
+    overflow: hidden !important;
+}
+
+/* ── Rich editor ─────────────────────────────────────────────────────── */
+.fi-fo-tiptap .ProseMirror,
+.fi-fo-rich-editor {
+    border: 1px solid #d1d5db !important;
+    border-radius: 0.5rem !important;
+    background: #ffffff !important;
+    min-height: 120px !important;
+    padding: 0.75rem 0.875rem !important;
+    font-size: 0.875rem !important;
+    color: #111827 !important;
+}
+
+/* ── Searchable select (choices.js / tom-select) ─────────────────────── */
+.choices__inner,
+.ts-wrapper .ts-control {
+    border: 1px solid #d1d5db !important;
+    border-radius: 0.5rem !important;
+    background-color: #ffffff !important;
+    box-shadow: none !important;
+    font-size: 0.875rem !important;
+    color: #111827 !important;
+    padding: 0.4375rem 0.75rem !important;
+    min-height: unset !important;
+}
+
+.choices__inner:focus,
+.ts-wrapper.focus .ts-control {
+    border-color: #f59e0b !important;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12) !important;
+}
+
+/* ── Dropdown popup for select search ───────────────────────────────── */
+.choices__list--dropdown,
+.ts-dropdown {
+    border: 1px solid #e5e7eb !important;
+    border-radius: 0.5rem !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08) !important;
+    background-color: #ffffff !important;
+    margin-top: 0.25rem !important;
+    overflow: hidden !important;
+}
+
+.choices__item--choice:hover,
+.ts-dropdown .option:hover,
+.ts-dropdown .option.active {
+    background-color: #fffbeb !important;
+    color: #92400e !important;
+}
+
+/* ── Number input ─────────────────────────────────────────────────────── */
+input[type="number"].fi-input {
+    -moz-appearance: textfield !important;
+    appearance: textfield !important;
+}
+input[type="number"].fi-input::-webkit-inner-spin-button,
+input[type="number"].fi-input::-webkit-outer-spin-button {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+}

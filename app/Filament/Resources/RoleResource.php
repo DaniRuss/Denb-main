@@ -33,7 +33,7 @@ class RoleResource extends Resource
                     ->multiple()
                     ->relationship('permissions', 'name')
                     ->preload(),
-            ]);
+            ])->columns(1);
     }
 
     public static function table(Table $table): Table

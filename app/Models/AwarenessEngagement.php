@@ -86,15 +86,15 @@ class AwarenessEngagement extends Model
     public static function violationLabels(): array
     {
         return [
-            'illegal_land_invasion'  => 'Illegal Land Invasion',
-            'illegal_construction'   => 'Illegal Construction',
-            'illegal_expansion'      => 'Illegal Expansion',
-            'illegal_waste_disposal' => 'Illegal Waste Disposal',
-            'road_safety'            => 'Road Safety',
-            'illegal_trade'          => 'Illegal Trade',
-            'illegal_animal_trade'   => 'Illegal Animal Trade',
-            'disturbing_acts'        => 'Disturbing Acts',
-            'illegal_advertisement'  => 'Illegal Advertisement',
+            'illegal_land_invasion'  => 'ህገ ወጥ የመሬት ወረራ',
+            'illegal_construction'   => 'ህገ ወጥ ግንባታ',
+            'illegal_expansion'      => 'ህገ ወጥ ማስፋፊያ',
+            'illegal_waste_disposal' => 'ህገ ወጥ የቆሻሻ አወጋገድ',
+            'road_safety'            => 'የመንገድ ደህንነት ጥሰት',
+            'illegal_trade'          => 'ህገ ወጥ ንግድ',
+            'illegal_animal_trade'   => 'ህገ ወጥ የእንስሳት ንግድ',
+            'disturbing_acts'        => 'ረብሻ እና ሁከት',
+            'illegal_advertisement'  => 'ህገ ወጥ ማስታወቂያ',
         ];
     }
 }

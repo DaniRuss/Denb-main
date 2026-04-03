@@ -15,4 +15,9 @@ class CreateCampaign extends CreateRecord
     {
         return Width::Full;
     }
+
+    public function getMaxWidth(): Width|string|null
+    {
+        return Width::Full;
+    }
 }

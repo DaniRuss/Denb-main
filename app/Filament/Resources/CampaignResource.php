@@ -48,7 +48,7 @@ class CampaignResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()->hasAnyRole(['admin', 'super_admin', 'woreda_coordinator', 'officer']);
+        return auth()->user()->hasAnyRole(['admin', 'super_admin', 'woreda_coordinator', 'officer', 'paramilitary']);
     }
 
     public static function canCreate(): bool
@@ -59,10 +59,12 @@ class CampaignResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->schema([
                 Section::make(__('Campaign Record'))
                     ->description(__('Fill in all required fields accurately for the campaign.'))
                     ->icon('heroicon-m-megaphone')
+                    ->columns(1)
                     ->schema([
 
                         Forms\Components\TextInput::make('name_am')

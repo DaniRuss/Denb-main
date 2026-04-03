@@ -54,13 +54,15 @@ class VolunteerTipResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->schema([
                 Section::make(__('Volunteer Tip Submission'))
                     ->description(__('Provide details regarding the suspected violation and person involved.'))
                     ->icon('heroicon-m-light-bulb')
+                    ->columns(1)
                     ->schema([
                         // ── Sub-Section: Reference & Linking ──
-                        Grid::make(2)
+                        Grid::make(1)
                             ->schema([
                                 Forms\Components\Select::make('engagement_id')
                                     ->relationship('engagement', 'engagement_code')
@@ -80,7 +82,7 @@ class VolunteerTipResource extends Resource
                                         }
                                     }),
                                 Forms\Components\Select::make('violation_type')
-                                    ->label(__('Violation Type'))
+                                    ->label(__('Violation Type (የጥሰት አይነት)'))
                                     ->options(AwarenessEngagement::violationLabels())
                                     ->required()
                                     ->prefixIcon('heroicon-m-exclamation-triangle'),
@@ -88,7 +90,7 @@ class VolunteerTipResource extends Resource
 
 
                         // ── Sub-Section: Suspect & Date ──
-                        Grid::make(2)
+                        Grid::make(1)
                             ->schema([
                                 Forms\Components\TextInput::make('suspect_name')
                                     ->label(__('Suspect Name'))
@@ -117,7 +119,7 @@ class VolunteerTipResource extends Resource
 
 
                         // ── Sub-Section: Location ──
-                        Grid::make(3)
+                        Grid::make(1)
                             ->schema([
                                 Forms\Components\Select::make('sub_city_id')
                                     ->label(__('Sub-City'))
@@ -143,7 +145,7 @@ class VolunteerTipResource extends Resource
 
 
                         // ── Sub-Section: Verification & Timeline ──
-                        Grid::make(2)
+                        Grid::make(1)
                             ->schema([
                                 Forms\Components\DatePicker::make('reported_date')
                                     ->label(__('Receipt Date'))
@@ -155,7 +157,7 @@ class VolunteerTipResource extends Resource
                                     ->placeholder(__('Auto-generated')),
                             ]),
 
-                        Grid::make(2)
+                        Grid::make(1)
                             ->schema([
                                 Forms\Components\ViewField::make('volunteer_signature_path')
                                     ->view('filament.forms.components.offline-signature')
@@ -197,7 +199,7 @@ class VolunteerTipResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('tip_code')->label(__('Code'))->searchable(),
                 Tables\Columns\TextColumn::make('suspect_name')->label(__('Suspect Name'))->searchable(),
-                Tables\Columns\TextColumn::make('violation_type')->label(__('Violation Type'))->badge(),
+                Tables\Columns\TextColumn::make('violation_type')->label(__('Violation Type (የጥሰት አይነት)'))->badge(),
                 Tables\Columns\TextColumn::make('woreda.name_am')->label(__('Woreda')),
 
                 Tables\Columns\TextColumn::make('reported_date')->label(__('Receipt Date'))->date(),

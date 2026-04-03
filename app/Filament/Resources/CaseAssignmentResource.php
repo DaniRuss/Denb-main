@@ -23,7 +23,7 @@ class CaseAssignmentResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->schema([
+        return $schema->columns(1)->schema([
             \Filament\Schemas\Components\Section::make('Assignment Details')
                 ->schema([
                     \Filament\Forms\Components\Select::make('complaint_id')
@@ -61,7 +61,7 @@ class CaseAssignmentResource extends Resource
                     \Filament\Forms\Components\Textarea::make('notes')
                         ->label('Assignment Notes')
                         ->columnSpanFull(),
-                ])->columns(2),
+                ])->columns(1),
         ]);
     }
 

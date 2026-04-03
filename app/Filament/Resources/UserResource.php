@@ -56,7 +56,7 @@ class UserResource extends Resource
                         }
                         return [];
                     }),
-            ]);
+            ])->columns(1);
     }
 
     public static function table(Table $table): Table

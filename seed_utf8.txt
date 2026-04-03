@@ -1,0 +1,26 @@
+﻿
+   INFO  Seeding database.  
+
+  Database\Seeders\AddisAbabaLocationSeeder  RUNNING  
+
+   Illuminate\Database\QueryException 
+
+  SQLSTATE[23000]: Integrity constraint violation: 1451 Cannot delete or update a parent row: a foreign key constraint fails (`callcenter`.`awareness_engagements`, CONSTRAINT `awareness_engagements_woreda_id_foreign` FOREIGN KEY (`woreda_id`) REFERENCES `woredas` (`id`)) (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: callcenter, SQL: delete from `woredas`)
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834Γûò             $exceptionType = $this->isUniqueConstraintError($e)
+    835Γûò                 ? UniqueConstraintViolationException::class
+    836Γûò                 : QueryException::class;
+    837Γûò 
+  Γ₧£ 838Γûò             throw new $exceptionType(
+    839Γûò                 $this->getNameWithReadWriteType(),
+    840Γûò                 $query,
+    841Γûò                 $this->prepareBindings($bindings),
+    842Γûò                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:609
+      PDOException::("SQLSTATE[23000]: Integrity constraint violation: 1451 Cannot delete or update a parent row: a foreign key constraint fails (`callcenter`.`awareness_engagements`, CONSTRAINT `awareness_engagements_woreda_id_foreign` FOREIGN KEY (`woreda_id`) REFERENCES `woredas` (`id`))")
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:609
+      PDOStatement::execute()
+

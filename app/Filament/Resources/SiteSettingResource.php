@@ -32,6 +32,7 @@ class SiteSettingResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->schema([
                 Tabs::make('Site Settings')
                     ->tabs([
@@ -62,7 +63,7 @@ class SiteSettingResource extends Resource
                                             ->afterStateHydrated(fn($component, $state) => $component->state(SiteSetting::get('tagline_en')))
                                             ->afterStateUpdated(fn($state) => SiteSetting::set('tagline_en', $state)),
 
-                                        Grid::make(2)
+                                        Grid::make(1)
                                             ->schema([
                                                 Forms\Components\TextInput::make('footer_text_am')
                                                     ->label('Footer Text (አማርኛ)')
@@ -79,11 +80,11 @@ class SiteSettingResource extends Resource
                                             ->label('Copyright Text')
                                             ->afterStateHydrated(fn($component, $state) => $component->state(SiteSetting::get('copyright_text')))
                                             ->afterStateUpdated(fn($state) => SiteSetting::set('copyright_text', $state)),
-                                    ])->columns(2),
+                                    ])->columns(1),
 
                                 Section::make('Logos & Branding')
                                     ->schema([
-                                        Grid::make(2)
+                                        Grid::make(1)
                                             ->schema([
                                                 FileUpload::make('logo_light')
                                                     ->label('Logo (Light Background)')
@@ -102,7 +103,7 @@ class SiteSettingResource extends Resource
                                                     ->afterStateUpdated(fn($state) => $state && SiteSetting::set('logo_dark', $state)),
                                             ]),
 
-                                        Grid::make(2)
+                                        Grid::make(1)
                                             ->schema([
                                                 FileUpload::make('favicon')
                                                     ->label('Favicon')
@@ -129,7 +130,7 @@ class SiteSettingResource extends Resource
                             ->schema([
                                 Section::make('Contact Details')
                                     ->schema([
-                                        Grid::make(2)
+                                        Grid::make(1)
                                             ->schema([
                                                 Forms\Components\TextInput::make('phone_primary')
                                                     ->label('Primary Phone')
@@ -142,7 +143,7 @@ class SiteSettingResource extends Resource
                                                     ->afterStateUpdated(fn($state) => SiteSetting::set('phone_secondary', $state)),
                                             ]),
 
-                                        Grid::make(2)
+                                        Grid::make(1)
                                             ->schema([
                                                 Forms\Components\TextInput::make('email_primary')
                                                     ->label('Primary Email')
@@ -189,7 +190,7 @@ class SiteSettingResource extends Resource
                             ->schema([
                                 Section::make('Colors')
                                     ->schema([
-                                        Grid::make(3)
+                                        Grid::make(1)
                                             ->schema([
                                                 ColorPicker::make('primary_color')
                                                     ->afterStateHydrated(fn($component, $state) => $component->state(SiteSetting::get('primary_color')))
@@ -210,7 +211,7 @@ class SiteSettingResource extends Resource
                             ->schema([
                                 Section::make('Hero Content')
                                     ->schema([
-                                        Grid::make(2)
+                                        Grid::make(1)
                                             ->schema([
                                                 Forms\Components\TextInput::make('hero_title_am')
                                                     ->label('Hero Title (አማርኛ)')
@@ -251,7 +252,7 @@ class SiteSettingResource extends Resource
                                                 Forms\Components\TextInput::make('label_en')->label('Label (English)')->required(),
                                                 Forms\Components\TextInput::make('value')->label('Value')->required(),
                                             ])
-                                            ->columns(3)
+                                            ->columns(1)
                                             ->afterStateHydrated(fn($component, $state) => $component->state(json_decode(SiteSetting::get('stats', '[]'), true)))
                                             ->afterStateUpdated(fn($state) => SiteSetting::set('stats', json_encode($state))),
                                     ]),
@@ -263,7 +264,7 @@ class SiteSettingResource extends Resource
                             ->schema([
                                 Section::make('Modules & Maintenance')
                                     ->schema([
-                                        Grid::make(3)
+                                        Grid::make(1)
                                             ->schema([
                                                 Toggle::make('enable_complaints')
                                                     ->afterStateHydrated(fn($component, $state) => $component->state((bool) SiteSetting::get('enable_complaints', true)))

@@ -35,6 +35,7 @@ class AdminPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Amber,
             ])
+            ->maxContentWidth(\Filament\Support\Enums\Width::Full)
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
@@ -65,14 +66,23 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
-                fn (): string => '
+                function (): string {
+                    $html = '
                     <link rel="manifest" href="/manifest.json">
                     <meta name="theme-color" content="#3b82f6">
                     <meta name="mobile-web-app-capable" content="yes">
                     <meta name="apple-mobile-web-app-capable" content="yes">
                     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-                    <meta name="apple-mobile-web-app-title" content="ዴንብ">
-                '
+                    <meta name="apple-mobile-web-app-title" content="ዴንብ">';
+
+                    // Only apply CSS overrides if we are NOT on the login page
+                    if (!request()->routeIs('filament.admin.auth.login')) {
+                        $html .= '
+                        <link rel="stylesheet" href="/filament.css?v=' . time() . '">';
+                    }
+
+                    return $html;
+                }
             )
 
             ->renderHook(

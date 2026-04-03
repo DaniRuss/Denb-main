@@ -29,7 +29,7 @@ class PermissionResource extends Resource
                     ->required()
                     ->maxLength(255)
                     ->unique(ignoreRecord: true),
-            ]);
+            ])->columns(1);
     }
 
     public static function table(Table $table): Table

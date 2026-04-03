@@ -30,6 +30,7 @@ class UniformDistributionResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->schema([
                 Section::make('Distribution Details')
                     ->schema([
@@ -96,7 +97,7 @@ class UniformDistributionResource extends Resource
                             ->label('Notes')
                             ->maxLength(65535)
                             ->columnSpanFull(),
-                    ])->columns(2)
+                    ])->columns(1)
             ]);
     }
 

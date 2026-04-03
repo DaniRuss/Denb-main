@@ -26,7 +26,7 @@ class OfficerResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->schema([
+        return $schema->columns(1)->schema([
             \Filament\Schemas\Components\Section::make('Officer Details')
                 ->schema([
                     \Filament\Forms\Components\TextInput::make('badge_number')
@@ -93,7 +93,7 @@ class OfficerResource extends Resource
                         ->label('Notes')
                         ->maxLength(500)
                         ->columnSpanFull(),
-                ])->columns(2),
+                ])->columns(1),
         ]);
     }
 

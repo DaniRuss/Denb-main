@@ -47,7 +47,7 @@ class ConfiscatedAssetResource extends Resource
     // Only Admins can manage confiscated assets
     public static function canViewAny(): bool
     {
-        return auth()->user()?->hasAnyRole(['admin', 'super_admin']) ?? false;
+        return false;
     }
 
     public static function canCreate(): bool
@@ -57,12 +57,13 @@ class ConfiscatedAssetResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->schema([
+        return $schema->columns(1)->schema([
 
             Section::make(__('Seized Item Details'))
                 ->icon('heroicon-o-archive-box')
+                ->columns(1)
                 ->schema([
-                    Grid::make(2)->schema([
+                    Grid::make(1)->schema([
                         Forms\Components\Select::make('volunteer_tip_id')
                             ->label(__('Linked Volunteer Tip'))
                             ->options(
@@ -80,7 +81,7 @@ class ConfiscatedAssetResource extends Resource
                             ->maxLength(255),
                     ]),
 
-                    Grid::make(2)->schema([
+                    Grid::make(1)->schema([
                         Forms\Components\TextInput::make('seizure_location')
                             ->label(__('Seizure Location'))
                             ->required()
@@ -92,7 +93,7 @@ class ConfiscatedAssetResource extends Resource
                             ->default(now()),
                     ]),
 
-                    Grid::make(2)->schema([
+                    Grid::make(1)->schema([
                         Forms\Components\TextInput::make('estimated_value')
                             ->label(__('Estimated Value (ETB)'))
                             ->numeric()

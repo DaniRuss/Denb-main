@@ -14,6 +14,7 @@ class EmployeeForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->schema([
                 Tabs::make('Employee Information')
                     ->columnSpanFull()

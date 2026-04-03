@@ -66,13 +66,15 @@ class AwarenessEngagementResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
+            ->columns(1)
             ->schema([
                 Section::make(__('Awareness Engagement Record'))
                     ->description(__('Fill in all required fields accurately for the engagement report.'))
                     ->icon('heroicon-m-document-text')
+                    ->columns(1)
                     ->schema([
                         // ── Sub-Section: Objective ──
-                        Grid::make(2)
+                        Grid::make(1)
                             ->schema([
                                 Forms\Components\Select::make('campaign_id')
                                     ->label(__('Select Active Campaign'))
@@ -119,7 +121,7 @@ class AwarenessEngagementResource extends Resource
                                 ->label(__('Citizen Name'))
                                 ->placeholder(__('Full name as stated'))
                                 ->required(),
-                            Grid::make(3)
+                            Grid::make(1)
                                 ->schema([
                                     Forms\Components\Select::make('citizen_gender')
                                         ->label(__('Gender'))
@@ -133,7 +135,7 @@ class AwarenessEngagementResource extends Resource
                         ])->visible(fn (Get $get) => $get('engagement_type') === 'house_to_house'),
 
                         Group::make([
-                            Grid::make(2)
+                            Grid::make(1)
                                 ->schema([
                                     Forms\Components\TextInput::make('headcount')
                                         ->label(__('Attendance Count'))
@@ -158,7 +160,7 @@ class AwarenessEngagementResource extends Resource
                                 ])
                                 ->required()
                                 ->searchable(),
-                            Grid::make(2)
+                            Grid::make(1)
                                 ->schema([
                                     Forms\Components\TextInput::make('org_headcount_male')->label(__('Male Total'))->numeric(),
                                     Forms\Components\TextInput::make('org_headcount_female')->label(__('Female Total'))->numeric(),
@@ -174,14 +176,14 @@ class AwarenessEngagementResource extends Resource
                                 Forms\Components\Select::make('gender')->label(__('Gender'))
                                     ->options(['male' => __('Male'), 'female' => __('Female')])->required(),
                                 Forms\Components\TextInput::make('age')->label(__('Age'))->numeric()->required(),
-                            ])->columns(3)
+                            ])->columns(1)
                             ->collapsed()
                             ->itemLabel(fn (array $state): ?string => $state['name_am'] ?? null)
                             ->visible(fn (Get $get) => in_array($get('engagement_type'), ['house_to_house', 'coffee_ceremony'])),
 
 
                         // ── Sub-Section: Context & Verification ──
-                        Grid::make(3)
+                        Grid::make(1)
                             ->schema([
                                 Forms\Components\DateTimePicker::make('session_datetime')
                                     ->label(__('Date & Time'))
@@ -190,12 +192,12 @@ class AwarenessEngagementResource extends Resource
                                     ->label(__('Round'))
                                     ->numeric()->default(1)->required(),
                                 Forms\Components\Select::make('violation_type')
-                                    ->label(__('Violation Type'))
+                                    ->label(__('Violation Type (የጥሰት አይነት)'))
                                     ->options(AwarenessEngagement::violationLabels())
                                     ->required(),
                             ]),
 
-                        Grid::make(3)
+                        Grid::make(1)
                             ->schema([
                                 Forms\Components\Select::make('sub_city_id')
                                     ->label(__('Sub-City'))
@@ -209,7 +211,7 @@ class AwarenessEngagementResource extends Resource
                             ]),
 
 
-                        Grid::make(2)
+                        Grid::make(1)
                             ->schema([
                                 Forms\Components\ViewField::make('officer_signature')
                                     ->view('filament.forms.components.offline-signature')

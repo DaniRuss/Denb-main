@@ -23,8 +23,10 @@ class AddisAbabaLocationSeeder extends Seeder
 
     public function run(): void
     {
-        Woreda::query()->delete();
-        SubCity::query()->delete();
+        \Illuminate\Support\Facades\Schema::disableForeignKeyConstraints();
+        Woreda::truncate();
+        SubCity::truncate();
+        \Illuminate\Support\Facades\Schema::enableForeignKeyConstraints();
 
         $subCities = [
             ['code' => 1, 'name_en' => 'Addis Ketema', 'name_am' => 'አዲስ ከተማ', 'woredas' => 14],

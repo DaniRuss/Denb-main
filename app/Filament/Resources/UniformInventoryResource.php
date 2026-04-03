@@ -21,7 +21,7 @@ class UniformInventoryResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->schema([
+        return $schema->columns(1)->schema([
             \Filament\Schemas\Components\Section::make('Item Details')
                 ->schema([
                     \Filament\Forms\Components\TextInput::make('item_name')
@@ -89,7 +89,7 @@ class UniformInventoryResource extends Resource
                     \Filament\Forms\Components\Textarea::make('notes')
                         ->label('Notes')
                         ->columnSpanFull(),
-                ])->columns(2),
+                ])->columns(1),
         ]);
     }
 
