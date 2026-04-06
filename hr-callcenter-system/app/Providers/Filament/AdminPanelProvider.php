@@ -11,7 +11,6 @@ use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Widgets\AccountWidget;
-use Filament\Widgets\FilamentInfoWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -28,6 +27,12 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login(\App\Filament\Pages\Auth\Login::class)
+            // Faster panel boot: skip Echo/realtime wiring when not using Pusher/Laravel Echo.
+            ->broadcasting(false)
+            // Avoids indexing every searchable resource on each request (major CPU win on large panels).
+            ->globalSearch(false)
+            // Client-side navigations + link prefetch: fewer full page loads between Filament pages.
+            ->spa(condition: true, hasPrefetching: true)
             ->colors([
                 'primary' => Color::Amber,
             ])
@@ -39,7 +44,6 @@ class AdminPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
                 AccountWidget::class,
-                FilamentInfoWidget::class,
                 \App\Widgets\CaseManagementWidget::class,
             ])
             ->middleware([
