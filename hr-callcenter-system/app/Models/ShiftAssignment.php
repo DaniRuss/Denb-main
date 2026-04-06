@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use App\Support\EthiopianDate;
 use App\Support\EthiopianTime;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 class ShiftAssignment extends Model
@@ -58,6 +60,15 @@ class ShiftAssignment extends Model
     public function attendances()
     {
         return $this->hasMany(Attendance::class);
+    }
+
+    /**
+     * Today's attendance row for this assignment (Addis Ababa calendar date).
+     */
+    public function todayAttendance(): HasOne
+    {
+        return $this->hasOne(Attendance::class, 'shift_assignment_id')
+            ->whereDate('attendance_date', EthiopianDate::todayGregorianInAddisAbaba());
     }
 
     public function shiftSwaps()
