@@ -20,25 +20,17 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Auth;
 
 class EmployeeResource extends Resource
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
-    public static function getModelLabel(): string
-    {
-        return app()->getLocale() === 'am' ? 'ፓራሚሊተሪ' : 'Paramilitary';
-    }
+    protected static string|\UnitEnum|null $navigationGroup = 'Human Resources';
 
-    public static function getPluralModelLabel(): string
-    {
-        return app()->getLocale() === 'am' ? 'ፓራሚሊተሪዎች' : 'Paramilitaries';
-    }
+    protected static ?string $navigationLabel = 'Employees';
 
-    public static function getNavigationLabel(): string
-    {
-        return static::getPluralModelLabel();
-    }
+    protected static ?int $navigationSort = 1;
 
     public static function getMaxContentWidth(): \Filament\Support\Enums\Width|string|null
     {
@@ -84,5 +76,38 @@ class EmployeeResource extends Resource
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);
+    }
+
+    /** Shift Management: only roles that assign shifts see Employees. */
+    public static function canViewAny(): bool
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return (bool) $user?->can('assign_shifts');
+    }
+
+    public static function canCreate(): bool
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return (bool) $user?->can('assign_shifts');
+    }
+
+    public static function canEdit($record): bool
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return (bool) $user?->can('assign_shifts');
+    }
+
+    public static function canDelete($record): bool
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return (bool) $user?->can('assign_shifts');
     }
 }

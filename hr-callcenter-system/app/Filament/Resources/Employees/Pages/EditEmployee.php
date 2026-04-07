@@ -68,7 +68,7 @@ class EditEmployee extends EditRecord
                 'name' => $name !== '' ? $name : 'Paramilitary',
                 'email' => $record->email,
                 'username' => $userUsername,
-                'password' => Hash::make((string) $userPassword),
+                'password' => (string) $userPassword,
             ]);
 
             $record->update(['user_id' => $user->id]);
@@ -82,7 +82,7 @@ class EditEmployee extends EditRecord
             ];
 
             if (filled($userPassword)) {
-                $updates['password'] = Hash::make((string) $userPassword);
+                $updates['password'] = (string) $userPassword;
             }
 
             $user->update($updates);

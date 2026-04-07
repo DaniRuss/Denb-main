@@ -2,26 +2,30 @@
 
 namespace App\Filament\Resources;
 
-use App\Models\Officer;
+use App\Filament\Resources\Officers\Pages;
 use App\Models\Department;
+use App\Models\Officer;
 use App\Models\User;
-use Filament\Schemas\Schema;
-use Filament\Resources\Resource;
-use Filament\Tables;
-use Filament\Tables\Table;
-use Filament\Tables\Filters\SelectFilter;
-use Filament\Actions\EditAction;
-use Filament\Actions\ViewAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
-use App\Filament\Resources\Officers\Pages;
+use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
+use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
+use Filament\Tables;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
 
 class OfficerResource extends Resource
 {
     protected static ?string $model = Officer::class;
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-shield-check';
+
     protected static string|\UnitEnum|null $navigationGroup = 'Human Resources';
+
     protected static ?string $navigationLabel = 'Officers';
+
     protected static ?int $navigationSort = 1;
 
     public static function form(Schema $schema): Schema
@@ -75,7 +79,10 @@ class OfficerResource extends Resource
                         ->maxLength(20),
 
                     \Filament\Forms\Components\DatePicker::make('date_joined')
-                        ->label('Date Joined'),
+                        ->label('Date Joined')
+                        ->ethiopic()
+                        ->firstDayOfWeek(1)
+                        ->closeOnDateSelection(),
 
                     \Filament\Forms\Components\Select::make('status')
                         ->label('Status')
@@ -121,13 +128,13 @@ class OfficerResource extends Resource
 
                 Tables\Columns\TextColumn::make('specialization')
                     ->label('Specialization')
-                    ->formatStateUsing(fn($state) => ucwords(str_replace('_', ' ', $state ?? '')))
+                    ->formatStateUsing(fn ($state) => ucwords(str_replace('_', ' ', $state ?? '')))
                     ->badge(),
 
                 Tables\Columns\TextColumn::make('status')
                     ->label('Status')
                     ->badge()
-                    ->color(fn($state) => match ($state) {
+                    ->color(fn ($state) => match ($state) {
                         'active' => 'success',
                         'on_leave' => 'warning',
                         'suspended' => 'danger',

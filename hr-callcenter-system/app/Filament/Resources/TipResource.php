@@ -185,6 +185,13 @@ class TipResource extends Resource
                                 ->where('sub_city', $user->sub_city);
                         }
 
+                        if ($user->can('manage_woreda_call_tips') && filled($user->sub_city) && filled($user->woreda)) {
+                            return $query
+                                ->where('tip_source', Tip::SOURCE_CALL_CENTER)
+                                ->where('sub_city', $user->sub_city)
+                                ->where('woreda', $user->woreda);
+                        }
+
                         return $query;
                     })
                     ->toggle(),
@@ -276,16 +283,33 @@ class TipResource extends Resource
                     ->icon('heroicon-o-clipboard-document-check')
                     ->form([
                         Forms\Components\Select::make('investigation_status')
-                            ->options([
-                                Tip::STATUS_UNDER_INVESTIGATION => 'Under Investigation',
-                                Tip::STATUS_CLOSED => 'Closed',
-                            ])
+                            ->options(function () {
+                                $user = auth()->user();
+                                $options = [
+                                    Tip::STATUS_UNDER_INVESTIGATION => 'Under Investigation',
+                                    Tip::STATUS_CLOSED => 'Closed',
+                                ];
+
+                                if ($user->can('manage_woreda_call_tips')) {
+                                    $options[Tip::STATUS_ESCALATED_TO_SUB_CITY] = 'Escalate to Sub-City';
+                                }
+
+                                return $options;
+                            })
                             ->required(),
+                        Forms\Components\Select::make('woreda')
+                            ->label('Re-assign Woreda')
+                            ->options(Tip::getWoredaOptions())
+                            ->visible(fn () => auth()->user()->hasRole('admin') || auth()->user()->can('manage_sub_city_call_tips')),
                         Forms\Components\Textarea::make('sub_city_notes')
                             ->label('Notes')
                             ->maxLength(4000),
                     ])
                     ->action(function (Tip $record, array $data): void {
+                        if (isset($data['woreda']) && $data['woreda'] !== $record->woreda) {
+                            $record->update(['woreda' => $data['woreda']]);
+                        }
+                        
                         app(TipWorkflowService::class)->updateInvestigation($record, $data);
 
                         Notification::make()->title('Investigation status updated')->success()->send();
@@ -422,6 +446,13 @@ class TipResource extends Resource
                 ->where('sub_city', $user->sub_city);
         }
 
+        if ($user->can('manage_woreda_call_tips') && filled($user->sub_city) && filled($user->woreda)) {
+            return $query
+                ->where('tip_source', Tip::SOURCE_CALL_CENTER)
+                ->where('sub_city', $user->sub_city)
+                ->where('woreda', $user->woreda);
+        }
+
         if ($user->can('create_call_tips') || $user->can('view_own_call_tips')) {
             return $query
                 ->where('tip_source', Tip::SOURCE_CALL_CENTER)
@@ -441,6 +472,7 @@ class TipResource extends Resource
             $user->can('review_supervisor_call_tips') ||
             $user->can('review_director_call_tips') ||
             $user->can('manage_sub_city_call_tips') ||
+            $user->can('manage_woreda_call_tips') ||
             $user->can('create_call_tips') ||
             $user->can('view_own_call_tips')
         );
@@ -492,7 +524,8 @@ class TipResource extends Resource
             && in_array($record->status, [Tip::STATUS_DISPATCHED, Tip::STATUS_UNDER_INVESTIGATION], true)
             && (
                 $user->hasRole('admin') ||
-                ($user->can('manage_sub_city_call_tips') && filled($user->sub_city) && $user->sub_city === $record->sub_city)
+                ($user->can('manage_sub_city_call_tips') && filled($user->sub_city) && $user->sub_city === $record->sub_city) ||
+                ($user->can('manage_woreda_call_tips') && filled($user->sub_city) && filled($user->woreda) && $user->sub_city === $record->sub_city && $user->woreda === $record->woreda)
             );
     }
 

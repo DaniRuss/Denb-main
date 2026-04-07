@@ -29,6 +29,7 @@ class Tip extends Model
     public const STATUS_DISPATCHED = 'dispatched';
     public const STATUS_UNDER_INVESTIGATION = 'under_investigation';
     public const STATUS_REJECTED = 'rejected';
+    public const STATUS_ESCALATED_TO_SUB_CITY = 'escalated_to_sub_city';
 
     protected $fillable = [
         'tip_number',
@@ -177,6 +178,7 @@ class Tip extends Model
             self::STATUS_DISPATCHED => 'Dispatched',
             self::STATUS_UNDER_INVESTIGATION => 'Under Investigation',
             self::STATUS_REJECTED => 'Rejected',
+            self::STATUS_ESCALATED_TO_SUB_CITY => 'Escalated to Sub-City',
         ];
     }
 
@@ -196,6 +198,7 @@ class Tip extends Model
             self::STATUS_DISPATCHED => 'success',
             self::STATUS_UNDER_INVESTIGATION => 'warning',
             self::STATUS_REJECTED => 'danger',
+            self::STATUS_ESCALATED_TO_SUB_CITY => 'danger',
         ];
     }
 

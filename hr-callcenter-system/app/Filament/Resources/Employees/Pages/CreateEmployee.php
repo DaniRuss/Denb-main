@@ -50,7 +50,7 @@ class CreateEmployee extends CreateRecord
                 'name' => $name !== '' ? $name : 'Paramilitary',
                 'email' => $data['email'],
                 'username' => $userUsername,
-                'password' => Hash::make((string) $userPassword),
+                'password' => (string) $userPassword,
             ]);
 
             if (! empty($userRoles)) {
