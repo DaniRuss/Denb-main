@@ -16,7 +16,7 @@ class EmployeeForm
     {
         return $schema
             ->schema([
-                Tabs::make('Employee Information')
+                Tabs::make('Paramilitary Information')
                     ->columnSpanFull()
                     ->tabs([
                         Tab::make('Personal')
@@ -32,7 +32,7 @@ class EmployeeForm
                                             ->label('Last Name (አማርኛ)')
                                             ->required()
                                             ->maxLength(255),
-                                    ])->columns(2),
+                                    ])->columns(['default' => 2]),
 
                                 Section::make('Name in English')
                                     ->schema([
@@ -42,7 +42,7 @@ class EmployeeForm
                                         \Filament\Forms\Components\TextInput::make('last_name_en')
                                             ->label('Last Name (English)')
                                             ->maxLength(255),
-                                    ])->columns(2),
+                                    ])->columns(['default' => 2]),
 
                                 Section::make('Basic Information')
                                     ->schema([
@@ -66,7 +66,7 @@ class EmployeeForm
                                         \Filament\Forms\Components\TextInput::make('birthplace')
                                             ->required()
                                             ->maxLength(255),
-                                    ])->columns(2),
+                                    ])->columns(['default' => 2]),
 
                                 Section::make('Contact Information')
                                     ->schema([
@@ -83,7 +83,7 @@ class EmployeeForm
                                         \Filament\Forms\Components\TextInput::make('emergency_contact')
                                             ->tel()
                                             ->maxLength(20),
-                                    ])->columns(2),
+                                    ])->columns(['default' => 2]),
 
                                 Section::make('Identification')
                                     ->schema([
@@ -93,7 +93,7 @@ class EmployeeForm
                                         \Filament\Forms\Components\TextInput::make('ethio_coder')
                                             ->label('Ethio Coder ID')
                                             ->maxLength(255),
-                                    ])->columns(2),
+                                    ])->columns(['default' => 2]),
                             ]),
 
                         Tab::make('Location')
@@ -125,13 +125,13 @@ class EmployeeForm
                                 \Filament\Forms\Components\TextInput::make('house_number')
                                     ->label('House Number (የቤት ቁጥር)')
                                     ->maxLength(255),
-                            ])->columns(2),
+                            ])->columns(['default' => 2]),
 
                         Tab::make('Job')
                             ->icon('heroicon-o-briefcase')
                             ->schema([
                                 \Filament\Forms\Components\TextInput::make('employee_id')
-                                    ->label('Employee ID (የሰራተኛ መለያ)')
+                                    ->label('Paramilitary ID')
                                     ->required()
                                     ->unique(ignoreRecord: true)
                                     ->maxLength(50),
@@ -193,7 +193,7 @@ class EmployeeForm
                                     ->closeOnDateSelection()
                                     ->visible(fn ($get) => $get('status') === 'suspended'),
 
-                            ])->columns(2),
+                            ])->columns(['default' => 2]),
 
                         Tab::make('Account')
                             ->icon('heroicon-o-key')
@@ -201,7 +201,7 @@ class EmployeeForm
                                 Section::make('Login & Role')
                                     ->schema([
                                         \Filament\Forms\Components\Toggle::make('create_system_user')
-                                            ->label('Create system login for this employee')
+                                            ->label('Create system login for this paramilitary')
                                             ->default(true)
                                             ->reactive()
                                             ->afterStateHydrated(function ($state, callable $set, ?Model $record) {
@@ -251,7 +251,7 @@ class EmployeeForm
                                             ->dehydrated()
                                             ->visible(fn (callable $get) => (bool) $get('create_system_user')),
                                     ])
-                                    ->columns(2),
+                                    ->columns(['default' => 2]),
                             ]),
 
                         Tab::make('Education')
@@ -273,7 +273,7 @@ class EmployeeForm
                                 \Filament\Forms\Components\TextInput::make('institution')
                                     ->label('Educational Institution')
                                     ->maxLength(255),
-                            ])->columns(2),
+                            ])->columns(['default' => 2]),
 
                         Tab::make('Uniform')
                             ->icon('heroicon-o-puzzle-piece')
@@ -287,7 +287,7 @@ class EmployeeForm
                                 \Filament\Forms\Components\TextInput::make('rain_cloth_size')->label('Rain Cloth Size'),
                                 \Filament\Forms\Components\TextInput::make('jacket_size')->label('Jacket Size'),
                                 \Filament\Forms\Components\TextInput::make('t_shirt_size')->label('T-Shirt Size'),
-                            ])->columns(3),
+                            ])->columns(['default' => 3]),
 
                         Tab::make('Training')
                             ->icon('heroicon-o-academic-cap') // or another icon
@@ -300,7 +300,19 @@ class EmployeeForm
                                     ->closeOnDateSelection(),
                                 \Filament\Forms\Components\Textarea::make('training_notes')
                                     ->columnSpanFull(),
-                            ])->columns(2),
+                            ])->columns(['default' => 2]),
+
+                        Tab::make('Equipment')
+                            ->icon('heroicon-o-briefcase')
+                            ->schema([
+                                \Filament\Forms\Components\TextInput::make('walkie_talkie_serial')
+                                    ->label('Walkie Talkie Serial'),
+                                \Filament\Forms\Components\Toggle::make('stick_issued')
+                                    ->label('Stick Issued'),
+                                \Filament\Forms\Components\Textarea::make('other_equipment')
+                                    ->label('Other Equipment')
+                                    ->columnSpanFull(),
+                            ])->columns(['default' => 2]),
                     ]),
             ]);
     }

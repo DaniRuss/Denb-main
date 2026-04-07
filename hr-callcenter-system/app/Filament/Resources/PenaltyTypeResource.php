@@ -15,9 +15,15 @@ class PenaltyTypeResource extends Resource
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-exclamation-triangle';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Penalty & Action';
+    public static function getNavigationGroup(): ?string
+    {
+        return app()->getLocale() === 'am' ? 'ቅጣት እና እርምጃ' : 'Penalty & Action';
+    }
 
-    protected static ?string $navigationLabel = 'Penalty Types';
+    public static function getNavigationLabel(): string
+    {
+        return app()->getLocale() === 'am' ? 'የቅጣት አይነቶች' : 'Penalty Types';
+    }
 
     public static function form(Schema $schema): Schema
     {

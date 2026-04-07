@@ -7,12 +7,21 @@ use App\Http\Controllers\Public\ComplaintController;
 use App\Http\Controllers\Public\TipController;
 use App\Http\Controllers\Public\AnnouncementController;
 use App\Http\Controllers\Public\FaqController;
+use Illuminate\Http\Request;
 
 /*
 |--------------------------------------------------------------------------
 | Public Portal Routes
 |--------------------------------------------------------------------------
 */
+
+Route::get('/locale/{locale}', function (Request $request, string $locale) {
+    abort_unless(in_array($locale, config('app.supported_locales', ['en', 'am']), true), 404);
+
+    $request->session()->put('locale', $locale);
+
+    return redirect()->back();
+})->name('locale.switch');
 
 // Home
 Route::get('/', [HomeController::class, 'index'])->name('home');

@@ -32,7 +32,7 @@
                                         placeholder="e.g. CMP-2024-00001" required>
                                     <button class="btn btn-primary"><i class="bi bi-search me-1"></i>Track</button>
                                 </div>
-                                <div class="form-text mt-2">Your ticket number was provided after you submitted your complaint.
+                                <div class="form-text mt-2">{{ trans('messages.ticket_provided') }}
                                 </div>
                             </form>
 
@@ -74,7 +74,7 @@
                                         <div>Ticket: <strong>{{ $complaint->ticket_number }}</strong></div>
                                     </div>
                                     <div class="col-auto text-end">
-                                        <div style="font-size:0.85rem; opacity:0.85;">Submitted</div>
+                                        <div style="font-size:0.85rem; opacity:0.85;">{{ trans('messages.submitted') }}</div>
                                         <div class="fw-bold">{{ $complaint->created_at->format('d M Y') }}</div>
                                     </div>
                                 </div>
@@ -104,7 +104,7 @@
                                                 </span></td>
                                         </tr>
                                         <tr>
-                                            <td class="fw-semibold text-muted">Submitted:</td>
+                                            <td class="fw-semibold text-muted">{{ trans('messages.submitted_label') }}</td>
                                             <td>{{ $complaint->created_at->format('d M Y, g:i A') }}</td>
                                         </tr>
                                         <tr>
@@ -125,7 +125,7 @@
                                     </h5>
                                     <div class="timeline">
                                         <div class="timeline-item">
-                                            <div class="fw-semibold text-dark">Complaint Submitted</div>
+                                            <div class="fw-semibold text-dark">{{ trans('messages.complaint_submitted') }}</div>
                                             <div class="text-muted small">{{ $complaint->created_at->format('d M Y, g:i A') }}
                                             </div>
                                         </div>

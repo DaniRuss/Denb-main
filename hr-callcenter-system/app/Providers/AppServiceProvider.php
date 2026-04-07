@@ -8,6 +8,7 @@ use Filament\Support\Assets\AlpineComponent;
 use Filament\Support\Facades\FilamentAsset;
 use Filament\Support\Facades\FilamentView;
 use Filament\View\PanelsRenderHook;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\ServiceProvider;
@@ -41,7 +42,7 @@ class AppServiceProvider extends ServiceProvider
 
         FilamentView::registerRenderHook(
             PanelsRenderHook::HEAD_END,
-            fn (): HtmlString => new HtmlString('
+            fn (): string => new HtmlString('
                 <style>
                     /* Expand the outermost containers */
                     .fi-main-ctn, .fi-page, .fi-main, .fi-sc-form {
@@ -69,32 +70,15 @@ class AppServiceProvider extends ServiceProvider
             '),
         );
 
-        // Scroll sidebar so the active (clicked) item stays in view. Filament bundle uses scrollTo math that often snaps to top.
         FilamentView::registerRenderHook(
-            PanelsRenderHook::SCRIPTS_AFTER,
-            fn (): HtmlString => new HtmlString(<<<'HTML'
-<script>
-(function () {
-    function scrollActiveIntoView() {
-        var nav = document.querySelector('.fi-main-sidebar .fi-sidebar-nav');
-        if (!nav) return;
-        var el = document.querySelector('.fi-main-sidebar .fi-sidebar-item.fi-active');
-        if (!el || el.offsetParent === null) {
-            el = document.querySelector('.fi-main-sidebar .fi-sidebar-group.fi-active');
-        }
-        if (!el || el.offsetParent === null) return;
-        el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    }
+            PanelsRenderHook::TOPBAR_START,
+            fn(): string => view('filament.partials.language-switcher')->render(),
+        );
 
-    function run() {
-        setTimeout(scrollActiveIntoView, 60);
-    }
-
-    document.addEventListener('DOMContentLoaded', run);
-    document.addEventListener('livewire:navigated', run);
-})();
-</script>
-HTML
+        FilamentView::registerRenderHook(
+            PanelsRenderHook::AUTH_LOGIN_FORM_BEFORE,
+            fn(): string => new HtmlString(
+                '<div class="mb-4 flex justify-center">' . view('filament.partials.language-switcher')->render() . '</div>'
             ),
         );
     }

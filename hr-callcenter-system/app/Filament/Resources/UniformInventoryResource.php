@@ -10,6 +10,7 @@ use Filament\Tables\Table;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Notifications\Notification;
 use App\Filament\Resources\UniformInventories\Pages;
+use Illuminate\Database\Eloquent\Builder;
 
 class UniformInventoryResource extends Resource
 {
@@ -146,7 +147,16 @@ class UniformInventoryResource extends Resource
                     'belt_accessories' => 'Accessories',
                     'protective_equipment' => 'Protective Equipment',
                 ]),
+                SelectFilter::make('sub_city')
+                    ->label('Sub City')
+                    ->options(\App\Models\SubCity::all()->pluck('name_am', 'id')->toArray())
+                    ->query(fn (Builder $query) => $query), // Virtual filter
+                SelectFilter::make('woreda')
+                    ->label('Woreda')
+                    ->options(\App\Models\Woreda::all()->pluck('name_am', 'id')->toArray())
+                    ->query(fn (Builder $query) => $query), // Virtual filter
             ])
+            ->striped()
             ->defaultSort('quantity_in_stock')
             ->actions([
                 \Filament\Actions\EditAction::make(),

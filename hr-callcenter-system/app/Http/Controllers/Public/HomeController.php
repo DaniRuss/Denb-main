@@ -28,6 +28,6 @@ class HomeController extends Controller
         // TODO: handle contact form submission
 
         return redirect()->route('home')
-            ->with('success', 'Your message has been sent.');
+            ->with('success', __('messages.contact_message_sent'));
     }
 }

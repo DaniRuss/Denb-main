@@ -22,6 +22,21 @@ class DepartmentResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
+    public static function getNavigationLabel(): string
+    {
+        return app()->getLocale() === 'am' ? 'መምሪያዎች' : 'Departments';
+    }
+
+    public static function getModelLabel(): string
+    {
+        return app()->getLocale() === 'am' ? 'መምሪያ' : 'Department';
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return static::getNavigationLabel();
+    }
+
     public static function getMaxContentWidth(): \Filament\Support\Enums\Width|string|null
     {
         return 'full';

@@ -19,7 +19,15 @@ class RoleResource extends Resource
     protected static ?string $model = Role::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-user-group';
-    protected static string|\UnitEnum|null $navigationGroup = 'User Management';
+    public static function getNavigationGroup(): ?string
+    {
+        return app()->getLocale() === 'am' ? 'የተጠቃሚ አስተዳደር' : 'User Management';
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return app()->getLocale() === 'am' ? 'ሚናዎች' : 'Roles';
+    }
 
     public static function form(Schema $schema): Schema
     {

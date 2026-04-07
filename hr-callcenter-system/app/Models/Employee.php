@@ -55,7 +55,10 @@ class Employee extends Model
         'status',
         'is_suspended_payment',
         'suspension_reason',
-        'suspension_date'
+        'suspension_date',
+        'walkie_talkie_serial',
+        'stick_issued',
+        'other_equipment'
     ];
 
     protected $casts = [

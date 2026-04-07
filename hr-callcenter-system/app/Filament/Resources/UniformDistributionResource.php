@@ -36,7 +36,7 @@ class UniformDistributionResource extends Resource
                 Section::make('Distribution Details')
                     ->schema([
                         Forms\Components\Select::make('employee_id')
-                            ->label('Employee')
+                            ->label('Paramilitary')
                             ->relationship('employee', 'first_name_en')
                             ->getOptionLabelFromRecordUsing(fn ($record) => "{$record->first_name_en} {$record->last_name_en} ({$record->employee_id})")
                             ->searchable()
@@ -110,7 +110,7 @@ class UniformDistributionResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('employee.employee_id')
-                    ->label('Emp ID')
+                    ->label('Para ID')
                     ->searchable()
                     ->sortable(),
 
@@ -130,7 +130,8 @@ class UniformDistributionResource extends Resource
                 Tables\Columns\TextColumn::make('quantity')
                     ->label('Qty')
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->summarize(\Filament\Tables\Columns\Summarizers\Sum::make()->label('Total')),
 
                 Tables\Columns\TextColumn::make('distribution_date')
                     ->label('Date')
@@ -169,7 +170,19 @@ class UniformDistributionResource extends Resource
                         'replacement' => 'Replacement',
                         'additional' => 'Additional',
                     ]),
+
+                Tables\Filters\SelectFilter::make('sub_city')
+                    ->label('Sub City')
+                    ->relationship('employee.subCity', 'name_am')
+                    ->preload(),
+
+                Tables\Filters\SelectFilter::make('woreda')
+                    ->label('Woreda')
+                    ->relationship('employee.woreda', 'name_am')
+                    ->preload(),
             ])
+            ->striped()
+            ->defaultPaginationPageOption(25)
             ->actions([
                 ViewAction::make(),
                 EditAction::make(),

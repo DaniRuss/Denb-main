@@ -70,19 +70,9 @@ class TipResource extends Resource
                                 ->label('Caller Phone')
                                 ->maxLength(30),
                         ]),
-                    Forms\Components\TextInput::make('suspect_name')
-                        ->label('Suspect Name/Description (if known)')
+                    Forms\Components\TextInput::make('unique_place')
+                        ->label('Unique Place (ልዩ መጠርያ)')
                         ->maxLength(255),
-                    Forms\Components\Textarea::make('suspect_description')
-                        ->label('Suspect Description (Optional)')
-                        ->maxLength(1000)
-                        ->rows(3)
-                        ->columnSpanFull(),
-                    Forms\Components\Textarea::make('evidence_description')
-                        ->label('Evidence Description (Optional)')
-                        ->maxLength(1000)
-                        ->rows(3)
-                        ->columnSpanFull(),
                     Grid::make(3)
                         ->schema([
                             Forms\Components\Select::make('sub_city')
@@ -103,6 +93,14 @@ class TipResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->recordClasses(fn (Tip $record) => match ($record->status) {
+                Tip::STATUS_PENDING, Tip::STATUS_SUBMITTED => 'bg-gray-50/50 dark:bg-gray-900/50',
+                Tip::STATUS_DISPATCHED => 'bg-green-50/50 dark:bg-green-900/50',
+                Tip::STATUS_UNDER_INVESTIGATION, Tip::STATUS_INVESTIGATING => 'bg-yellow-50/50 dark:bg-yellow-900/50',
+                Tip::STATUS_CLOSED => 'bg-blue-50/50 dark:bg-blue-900/50',
+                Tip::STATUS_REJECTED, Tip::STATUS_FALSE_REPORT => 'bg-red-50/50 dark:bg-red-900/50',
+                default => null,
+            })
             ->columns([
                 Tables\Columns\TextColumn::make('tip_number')
                     ->label('Tip #')
@@ -240,14 +238,25 @@ class TipResource extends Resource
                     ->color('success')
                     ->icon('heroicon-o-paper-airplane')
                     ->form([
+                        Forms\Components\Radio::make('dispatch_to')
+                            ->label('Dispatch To')
+                            ->options(function (Tip $record) {
+                                return [
+                                    'sub_city' => "Sub City Office ({$record->sub_city})",
+                                    'woreda' => "Woreda Office (Woreda {$record->woreda})",
+                                ];
+                            })
+                            ->default('sub_city')
+                            ->required(),
                         Forms\Components\Textarea::make('comment')
                             ->label('Director Comment')
                             ->maxLength(2000),
                     ])
                     ->action(function (Tip $record, array $data): void {
-                        app(TipWorkflowService::class)->reviewByDirector($record, 'approve', $data['comment'] ?? null);
+                        app(TipWorkflowService::class)->reviewByDirector($record, 'approve', $data['comment'] ?? null, $data['dispatch_to']);
 
-                        Notification::make()->title('Tip dispatched to the sub-city office')->success()->send();
+                        $target = $data['dispatch_to'] === 'sub_city' ? "the sub-city office" : "Woreda {$record->woreda} office";
+                        Notification::make()->title("Tip dispatched to {$target}")->success()->send();
                     })
                     ->visible(fn (Tip $record): bool => static::canRunDirectorAction($record)),
 
@@ -383,13 +392,14 @@ class TipResource extends Resource
                             \Filament\Infolists\Components\TextEntry::make('created_at')->label('Created At')->dateTime(),
                         ]),
                 ]),
-            \Filament\Schemas\Components\Section::make('Suspect & Evidence')
+            \Filament\Schemas\Components\Section::make('Location Details')
                 ->schema([
-                    \Filament\Infolists\Components\TextEntry::make('suspect_name')->label('Suspect')->placeholder('Not provided'),
-                    \Filament\Infolists\Components\TextEntry::make('suspect_description')->label('Suspect Description')->placeholder('Not provided'),
-                    \Filament\Infolists\Components\TextEntry::make('evidence_description')->label('Evidence Description')->placeholder('Not provided'),
-                ])
-                ->visible(fn (?Tip $record): bool => (bool) $record),
+                    \Filament\Infolists\Components\TextEntry::make('sub_city')->label('Sub City'),
+                    \Filament\Infolists\Components\TextEntry::make('woreda')
+                        ->formatStateUsing(fn (?string $state): string => filled($state) ? 'Woreda ' . $state : '-'),
+                    \Filament\Infolists\Components\TextEntry::make('unique_place')->label('Unique Place (ልዩ መጠርያ)'),
+                    \Filament\Infolists\Components\TextEntry::make('specific_address')->label('Specific Address'),
+                ]),
             \Filament\Schemas\Components\Section::make('Workflow Notes')
                 ->schema([
                     \Filament\Infolists\Components\TextEntry::make('supervisor_comment')->label('Supervisor Comment')->placeholder('No supervisor comment'),

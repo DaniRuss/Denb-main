@@ -1,22 +1,39 @@
+@php
+    $locale = app()->getLocale();
+    $supportedLocales = config('app.supported_locales', ['en', 'am']);
+    $organizationName = \App\Models\SiteSetting::get(
+        'organization_name_' . $locale,
+        $locale === 'am' ? 'የአዲስ አበባ ከተማ አስተዳደር ኮድ ማስከበር ባለስልጣን' : 'Addis Ababa City Administration Code Enforcement Authority'
+    );
+    $tagline = \App\Models\SiteSetting::get(
+        'tagline_' . $locale,
+        $locale === 'am' ? 'የህግ ማስከበር ባለስልጣን' : 'Law Enforcement Authority'
+    );
+    $footerText = \App\Models\SiteSetting::get('footer_text_' . $locale, __('messages.footer_text'));
+    $address = \App\Models\SiteSetting::get(
+        'address_' . $locale,
+        $locale === 'am' ? 'አዲስ አበባ፣ ኢትዮጵያ' : 'Addis Ababa, Ethiopia'
+    );
+@endphp
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ app()->getLocale() }}">
 
 <head>
     <meta charset="utf-8">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
-    <title>@yield('title', \App\Models\SiteSetting::get('site_title', 'Addis Ababa Law Enforcement Portal'))</title>
+    <title>@yield('title', trans('messages.site_title'))</title>
     <meta name="description"
-        content="@yield('description', \App\Models\SiteSetting::get('meta_description', 'Official portal for submitting complaints and anonymous tips to Addis Ababa Law Enforcement Authority'))">
+        content="@yield('description', trans('messages.meta_description'))">
     <meta name="keywords"
-        content="{{ \App\Models\SiteSetting::get('meta_keywords', 'law enforcement, complaints, tips') }}">
+        content="{{ trans('messages.meta_keywords') }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- Open Graph / Social Media -->
     <meta property="og:type" content="website">
     <meta property="og:title"
-        content="@yield('title', \App\Models\SiteSetting::get('site_title', 'Addis Ababa Law Enforcement Portal'))">
+        content="@yield('title', trans('messages.site_title'))">
     <meta property="og:description"
-        content="@yield('description', \App\Models\SiteSetting::get('meta_description', 'Official portal for submitting complaints and anonymous tips'))">
+        content="@yield('description', trans('messages.og_description'))">
     @php $ogImage = \App\Models\SiteSetting::get('og_image'); @endphp
     @if($ogImage)
         <meta property="og:image" content="{{ asset('storage/' . $ogImage) }}">
@@ -471,10 +488,10 @@
                 @endif
                 <div>
                     <div class="navbar-brand-text text-white">
-                        {{ \App\Models\SiteSetting::get('organization_name_en', 'Addis Ababa') }}
+                        {{ $organizationName }}
                     </div>
                     <div class="navbar-brand-sub text-white">
-                        {{ \App\Models\SiteSetting::get('tagline_en', 'Law Enforcement Authority') }}
+                        {{ $tagline }}
                     </div>
                     <div class="badge-amharic text-warning">
                         {{ \App\Models\SiteSetting::get('organization_name_am', 'አዲስ አበባ የሕግ ማስከበር ባለሥልጣን') }}
@@ -484,37 +501,45 @@
 
             <nav id="navmenu" class="navmenu">
                 <ul>
-                    <li><a href="{{ route('home') }}" class="{{ request()->routeIs('home') ? 'active' : '' }}">Home</a>
+                    <li><a href="{{ route('home') }}" class="{{ request()->routeIs('home') ? 'active' : '' }}">{{ __('messages.home') }}</a>
                     </li>
                     <li class="dropdown">
-                        <a href="#"><span>Report</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a>
+                        <a href="#"><span>{{ __('messages.report') }}</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a>
                         <ul>
-                            <li><a href="{{ route('complaint.create') }}"><i class="bi bi-megaphone me-1"></i> Submit
-                                    Complaint</a></li>
-                            <li><a href="{{ route('tip.create') }}"><i class="bi bi-eye-slash me-1"></i> Anonymous
-                                    Tip</a></li>
+                        <li><a href="{{ route('complaint.create') }}"><i class="bi bi-megaphone me-1"></i> {{ __('messages.submit_complaint') }}</a></li>
+                            <li><a href="{{ route('tip.create') }}"><i class="bi bi-eye-slash me-1"></i> {{ __('messages.anonymous_tip') }}</a></li>
                         </ul>
                     </li>
                     <li class="dropdown">
-                        <a href="#"><span>Track Status</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a>
+                        <a href="#"><span>{{ __('messages.track_status') }}</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a>
                         <ul>
-                            <li><a href="{{ route('complaint.track') }}"><i class="bi bi-search me-1"></i> Track
-                                    Complaint</a></li>
+                            <li><a href="{{ route('complaint.track') }}"><i class="bi bi-search me-1"></i> {{ __('messages.track_complaint') }}</a></li>
                         </ul>
                     </li>
                     <li><a href="{{ route('announcements.index') }}"
-                            class="{{ request()->routeIs('announcements.*') ? 'active' : '' }}">Announcements</a></li>
-                    <li><a href="{{ route('faq') }}" class="{{ request()->routeIs('faq') ? 'active' : '' }}">FAQ</a>
+                            class="{{ request()->routeIs('announcements.*') ? 'active' : '' }}">{{ __('messages.announcements') }}</a></li>
+                    <li><a href="{{ route('faq') }}" class="{{ request()->routeIs('faq') ? 'active' : '' }}">{{ __('messages.faq') }}</a>
                     </li>
                     <li><a href="{{ route('contact') }}"
-                            class="{{ request()->routeIs('contact') ? 'active' : '' }}">Contact</a></li>
+                            class="{{ request()->routeIs('contact') ? 'active' : '' }}">{{ __('messages.contact') }}</a></li>
                 </ul>
                 <i class="mobile-nav-toggle d-xl-none bi bi-list"></i>
             </nav>
 
-            <a class="btn-getstarted" href="/admin" style="background: #e8b84b; color: #1e3a5f; font-weight: 700;">
-                <i class="bi bi-person-lock me-1"></i> Admin
-            </a>
+            <div class="d-flex align-items-center gap-2">
+                <div class="d-none d-lg-flex align-items-center gap-1">
+                    @foreach($supportedLocales as $supportedLocale)
+                        <a href="{{ route('locale.switch', $supportedLocale) }}"
+                            class="btn btn-sm {{ $locale === $supportedLocale ? 'btn-warning' : 'btn-outline-light' }}">
+                            {{ strtoupper($supportedLocale) }}
+                        </a>
+                    @endforeach
+                </div>
+
+                <a class="btn-getstarted" href="{{ url('admin') }}" style="background: #e8b84b; color: #1e3a5f; font-weight: 700;">
+                    <i class="bi bi-person-lock me-1"></i> {{ __('messages.admin') }}
+                </a>
+            </div>
 
         </div>
     </header>
@@ -545,32 +570,30 @@
             <div class="row gy-4">
                 <div class="col-lg-4">
                     <h5><i
-                            class="bi bi-shield-check me-2 text-warning"></i>{{ \App\Models\SiteSetting::get('organization_name_en', 'AALEA Portal') }}
+                            class="bi bi-shield-check me-2 text-warning"></i>{{ $organizationName }}
                     </h5>
                     <p style="font-size:0.9rem;">
-                        {{ \App\Models\SiteSetting::get('footer_text_en', 'Official digital platform for citizens to submit complaints and anonymous tips.') }}
+                        {{ $footerText }}
                     </p>
                     <p class="text-warning" style="font-size:0.85rem;">
                         {{ \App\Models\SiteSetting::get('footer_text_am', 'አዲስ አበባ ህጋዊ ጉዳዮች ማስከበሪያ ዳይሬክቶሬት') }}
                     </p>
                 </div>
                 <div class="col-lg-2 col-6">
-                    <h5>Quick Links</h5>
+                    <h5>{{ __('messages.quick_links') }}</h5>
                     <ul class="list-unstyled">
-                        <li><a href="{{ route('complaint.create') }}"><i class="bi bi-chevron-right"></i> Submit
-                                Complaint</a></li>
-                        <li><a href="{{ route('tip.create') }}"><i class="bi bi-chevron-right"></i> Report a Tip</a>
+                        <li><a href="{{ route('complaint.create') }}"><i class="bi bi-chevron-right"></i> {{ __('messages.submit_complaint') }}</a></li>
+                        <li><a href="{{ route('tip.create') }}"><i class="bi bi-chevron-right"></i> {{ __('messages.report_tip') }}</a>
                         </li>
-                        <li><a href="{{ route('complaint.track') }}"><i class="bi bi-chevron-right"></i> Track
-                                Status</a></li>
-                        <li><a href="{{ route('faq') }}"><i class="bi bi-chevron-right"></i> FAQ</a></li>
+                        <li><a href="{{ route('complaint.track') }}"><i class="bi bi-chevron-right"></i> {{ __('messages.track_status') }}</a></li>
+                        <li><a href="{{ route('faq') }}"><i class="bi bi-chevron-right"></i> {{ __('messages.faq') }}</a></li>
                     </ul>
                 </div>
                 <div class="col-lg-3 col-6">
-                    <h5>Contact Us</h5>
+                    <h5>{{ __('messages.contact_us') }}</h5>
                     <ul class="list-unstyled">
                         <li class="mb-2"><i
-                                class="bi bi-geo-alt me-2 text-warning"></i>{{ \App\Models\SiteSetting::get('address_en', 'Addis Ababa, Ethiopia') }}
+                                class="bi bi-geo-alt me-2 text-warning"></i>{{ $address }}
                         </li>
                         <li class="mb-2"><i
                                 class="bi bi-telephone me-2 text-warning"></i>{{ \App\Models\SiteSetting::get('phone_primary', '+251 11 XXX XXXX') }}
@@ -579,18 +602,18 @@
                             \App\Models\SiteSetting::get('email_primary', 'info@aalea.gov.et') }}</li>
                         @php $hours = json_decode(\App\Models\SiteSetting::get('working_hours', '[]'), true); @endphp
                         @if(!empty($hours))
-                            <li class="mb-2"><i class="bi bi-clock me-2 text-warning"></i>{{ $hours[0]['days_en'] ?? '' }},
+                            <li class="mb-2"><i class="bi bi-clock me-2 text-warning"></i>{{ $hours[0]['days_' . $locale] ?? ($hours[0]['days_en'] ?? '') }},
                                 {{ $hours[0]['hours'] ?? '' }}
                             </li>
                         @endif
                     </ul>
                 </div>
                 <div class="col-lg-3">
-                    <h5>Emergency Hotline</h5>
+                    <h5>{{ __('messages.emergency_hotline') }}</h5>
                     <div class="p-3"
                         style="background: rgba(232,184,75,0.15); border-radius: 8px; border: 1px solid rgba(232,184,75,0.4);">
                         <p class="text-warning fw-bold fs-4 mb-1"><i class="bi bi-telephone-fill me-2"></i>991</p>
-                        <p style="font-size:0.85rem;" class="mb-0">24/7 Emergency Response</p>
+                        <p style="font-size:0.85rem;" class="mb-0">{{ __('messages.emergency_response') }}</p>
                     </div>
                     <div class="mt-3">
                         <a href="#" class="me-2 text-warning fs-5"><i class="bi bi-facebook"></i></a>
