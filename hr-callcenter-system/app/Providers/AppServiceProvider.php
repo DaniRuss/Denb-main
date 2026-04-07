@@ -10,6 +10,7 @@ use Filament\Support\Facades\FilamentView;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -44,9 +45,9 @@ class AppServiceProvider extends ServiceProvider
             fn (): string => new HtmlString('
                 <style>
                     /* Expand the outermost containers */
-                    .fi-main-ctn, .fi-page, .fi-main, .fi-sc-form { 
-                        max-width: none !important; 
-                        width: 100% !important; 
+                    .fi-main-ctn, .fi-page, .fi-main, .fi-sc-form {
+                        max-width: none !important;
+                        width: 100% !important;
                     }
                     /* Force any grid inside the form to be 1-column or elements to span full */
                     .fi-sc-form .fi-grid {
@@ -58,6 +59,12 @@ class AppServiceProvider extends ServiceProvider
                     /* Ensure tabs and other large components use all space */
                     .fi-tabs {
                         width: 100% !important;
+                    }
+                    .fi-main-sidebar {
+                        min-height: 0;
+                    }
+                    .fi-main-sidebar .fi-sidebar-nav {
+                        min-height: 0;
                     }
                 </style>
             '),

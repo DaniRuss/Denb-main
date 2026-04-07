@@ -187,7 +187,7 @@ class ShiftAssignmentResource extends Resource
         /** @var \App\Models\User|null $user */
         $user = Auth::user();
 
-        $query = parent::getEloquentQuery();
+        $query = parent::getEloquentQuery()->with(['todayAttendance']);
 
         if (! $user) {
             return $query;
@@ -240,7 +240,7 @@ class ShiftAssignmentResource extends Resource
                     ->when($geo['sub_city_id'], fn ($q, $v) => $q->where('employees.sub_city_id', $v))
                     ->when($geo['woreda_id'], fn ($q, $v) => $q->where('employees.woreda_id', $v)),
                 $guard
-            )->distinct();
+            )->distinct()->with(['todayAttendance']);
         }
 
         return $query;
@@ -516,6 +516,48 @@ class ShiftAssignmentResource extends Resource
                         'no_show' => 'danger',
                         default => 'gray',
                     }),
+                Tables\Columns\TextColumn::make('today_attendance_status')
+                    ->label("Today's attendance")
+                    ->state(function (ShiftAssignment $record): ?string {
+                        if (($record->status ?? null) === 'unassigned' || (int) $record->id <= 0) {
+                            return null;
+                        }
+
+                        return $record->todayAttendance?->attendance_status
+                            ?? Attendance::STATUS_PENDING;
+                    })
+                    ->badge()
+                    ->formatStateUsing(function (?string $state): string {
+                        if ($state === null) {
+                            return '—';
+                        }
+
+                        return match ($state) {
+                            Attendance::STATUS_PENDING => 'Pending',
+                            Attendance::STATUS_PRESENT => 'Present',
+                            Attendance::STATUS_ABSENT => 'Absent',
+                            Attendance::STATUS_LATE => 'Late',
+                            Attendance::STATUS_HALF_DAY => 'Half day',
+                            Attendance::STATUS_OVERTIME => 'Overtime',
+                            default => ucfirst(str_replace('_', ' ', $state)),
+                        };
+                    })
+                    ->color(function (?string $state): string {
+                        if ($state === null) {
+                            return 'gray';
+                        }
+
+                        return match ($state) {
+                            Attendance::STATUS_PENDING => 'gray',
+                            Attendance::STATUS_PRESENT => 'success',
+                            Attendance::STATUS_ABSENT => 'danger',
+                            Attendance::STATUS_LATE => 'warning',
+                            Attendance::STATUS_HALF_DAY => 'warning',
+                            Attendance::STATUS_OVERTIME => 'info',
+                            default => 'gray',
+                        };
+                    })
+                    ->placeholder('—'),
                 Tables\Columns\TextColumn::make('assignedBy.name')->label('Assigned by')->toggleable(isToggledHiddenByDefault: true)->placeholder('---'),
             ])
             ->defaultSort('employee_id')
