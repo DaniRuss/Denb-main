@@ -22,9 +22,15 @@ class IncidentReportResource extends Resource
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-document-text';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Penalty & Action';
+    public static function getNavigationGroup(): ?string
+    {
+        return app()->getLocale() === 'am' ? 'ቅጣት እና እርምጃ' : 'Penalty & Action';
+    }
 
-    protected static ?string $navigationLabel = 'Incident Reports';
+    public static function getNavigationLabel(): string
+    {
+        return app()->getLocale() === 'am' ? 'የክስተት ሪፖርቶች' : 'Incident Reports';
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -32,7 +38,7 @@ class IncidentReportResource extends Resource
             Section::make('Incident Reporting')
                 ->schema([
                     Forms\Components\Select::make('employee_id')
-                        ->label('Employee')
+                        ->label('Paramilitary')
                         ->options(Employee::query()->orderBy('first_name_am')->get()->mapWithKeys(fn ($e) => [$e->id => $e->employee_id . ' - ' . $e->full_name_am])->all())
                         ->searchable()
                         ->required(),
@@ -88,11 +94,11 @@ class IncidentReportResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('employee.employee_id')
-                    ->label('Employee ID')
+                    ->label('Paramilitary ID')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('employee.full_name_am')
-                    ->label('Employee Name')
+                    ->label('Paramilitary Name')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('incident_type')
                     ->badge()
@@ -163,4 +169,3 @@ class IncidentReportResource extends Resource
         return parent::getEloquentQuery()->with(['employee', 'reportedBy']);
     }
 }
-

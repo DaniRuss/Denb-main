@@ -23,9 +23,22 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class EmployeeResource extends Resource
 {
-    protected static ?string $model = Employee::class;
-
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+
+    public static function getModelLabel(): string
+    {
+        return app()->getLocale() === 'am' ? 'ፓራሚሊተሪ' : 'Paramilitary';
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return app()->getLocale() === 'am' ? 'ፓራሚሊተሪዎች' : 'Paramilitaries';
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return static::getPluralModelLabel();
+    }
 
     public static function getMaxContentWidth(): \Filament\Support\Enums\Width|string|null
     {

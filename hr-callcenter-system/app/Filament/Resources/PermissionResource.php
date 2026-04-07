@@ -19,7 +19,15 @@ class PermissionResource extends Resource
     protected static ?string $model = Permission::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-key';
-    protected static string|\UnitEnum|null $navigationGroup = 'User Management';
+    public static function getNavigationGroup(): ?string
+    {
+        return app()->getLocale() === 'am' ? 'የተጠቃሚ አስተዳደር' : 'User Management';
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return app()->getLocale() === 'am' ? 'ፍቃዶች' : 'Permissions';
+    }
 
     public static function form(Schema $schema): Schema
     {

@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use Filament\Support\Facades\FilamentView;
+use Filament\View\PanelsRenderHook;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,9 +22,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        \Filament\Support\Facades\FilamentView::registerRenderHook(
-            \Filament\View\PanelsRenderHook::HEAD_END,
-            fn(): string => new \Illuminate\Support\HtmlString('
+        FilamentView::registerRenderHook(
+            PanelsRenderHook::HEAD_END,
+            fn(): string => new HtmlString('
                 <style>
                     /* Expand the outermost containers */
                     .fi-main-ctn, .fi-page, .fi-main, .fi-sc-form { 
@@ -41,6 +44,18 @@ class AppServiceProvider extends ServiceProvider
                     }
                 </style>
             '),
+        );
+
+        FilamentView::registerRenderHook(
+            PanelsRenderHook::TOPBAR_START,
+            fn(): string => view('filament.partials.language-switcher')->render(),
+        );
+
+        FilamentView::registerRenderHook(
+            PanelsRenderHook::AUTH_LOGIN_FORM_BEFORE,
+            fn(): string => new HtmlString(
+                '<div class="mb-4 flex justify-center">' . view('filament.partials.language-switcher')->render() . '</div>'
+            ),
         );
     }
 }

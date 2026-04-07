@@ -22,6 +22,21 @@ class AnnouncementResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'title_en';
 
+    public static function getNavigationLabel(): string
+    {
+        return app()->getLocale() === 'am' ? 'ማስታወቂያዎች' : 'Announcements';
+    }
+
+    public static function getModelLabel(): string
+    {
+        return app()->getLocale() === 'am' ? 'ማስታወቂያ' : 'Announcement';
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return static::getNavigationLabel();
+    }
+
     public static function form(Schema $schema): Schema
     {
         return AnnouncementForm::configure($schema);

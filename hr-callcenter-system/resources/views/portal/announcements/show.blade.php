@@ -1,19 +1,25 @@
-{{-- resources/views/portal/announcements/show.blade.php --}}
 @extends('layouts.portal')
 
-@section('title', $announcement->title_am ?: $announcement->title_en)
+@php
+    $locale = app()->getLocale();
+    $title = $announcement->{'title_' . $locale} ?: ($announcement->title_en ?: $announcement->title_am);
+    $altTitle = $locale === 'am' ? $announcement->title_en : $announcement->title_am;
+    $primaryContent = $announcement->{'content_' . $locale} ?: ($announcement->content_en ?: $announcement->content_am);
+    $secondaryContent = $locale === 'am' ? $announcement->content_en : $announcement->content_am;
+@endphp
+
+@section('title', $title)
 
 @section('content')
-
 <div class="breadcrumb-portal">
     <div class="container">
-        <h2 data-aos="fade-down"><i class="bi bi-megaphone me-2"></i>{{ $announcement->title_am ?: $announcement->title_en }}</h2>
+        <h2 data-aos="fade-down"><i class="bi bi-megaphone me-2"></i>{{ $title }}</h2>
         <nav aria-label="breadcrumb" data-aos="fade-down" data-aos-delay="100">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ route('home') }}">Home</a></li>
-                <li class="breadcrumb-item"><a href="{{ route('announcements.index') }}">Announcements</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('home') }}">{{ __('messages.home') }}</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('announcements.index') }}">{{ __('messages.announcements') }}</a></li>
                 <li class="breadcrumb-item active">
-                    {{ \Illuminate\Support\Str::limit($announcement->title_en ?? $announcement->title_am, 30) }}
+                    {{ \Illuminate\Support\Str::limit($title, 30) }}
                 </li>
             </ol>
         </nav>
@@ -27,7 +33,7 @@
                 <div class="card shadow">
                     @if($announcement->featured_image)
                         <img src="{{ Storage::url($announcement->featured_image) }}" class="card-img-top"
-                            alt="{{ $announcement->title_am }}" style="max-height: 400px; object-fit: cover;">
+                            alt="{{ $title }}" style="max-height: 400px; object-fit: cover;">
                     @endif
 
                     <div class="card-body p-5">
@@ -35,14 +41,14 @@
                             <div class="alert alert-danger d-flex align-items-center" role="alert">
                                 <i class="bi bi-exclamation-triangle-fill me-2 fs-4"></i>
                                 <div>
-                                    <strong>አስቸኳይ ማስታወቂያ!</strong> እባክዎ ይህን ማስታወቂያ በትኩረት ያንብቡ።
+                                    <strong>{{ __('messages.urgent_announcement') }}</strong> {{ __('messages.read_carefully') }}
                                 </div>
                             </div>
                         @endif
 
-                        <h1 class="card-title mb-1">{{ $announcement->title_am }}</h1>
-                        @if($announcement->title_en)
-                            <h4 class="card-subtitle text-muted mb-3">{{ $announcement->title_en }}</h4>
+                        <h1 class="card-title mb-1">{{ $title }}</h1>
+                        @if($altTitle)
+                            <h4 class="card-subtitle text-muted mb-3">{{ $altTitle }}</h4>
                         @endif
 
                         <div class="d-flex align-items-center text-muted mb-4">
@@ -50,21 +56,17 @@
                             <span class="me-3">{{ $announcement->publish_date->format('Y-m-d') }}</span>
 
                             <i class="bi bi-person me-1"></i>
-                            <span>{{ $announcement->creator?->name ?? 'የስርዓት አስተዳዳሪ (System Admin)' }}</span>
+                            <span>{{ $announcement->creator?->name ?? __('messages.system_admin') }}</span>
                         </div>
 
-                        @if($announcement->content_am)
-                            <div class="announcement-content">
-                                {!! $announcement->content_am !!}
-                            </div>
+                        @if($primaryContent)
+                            <div class="announcement-content">{!! $primaryContent !!}</div>
                         @endif
 
-                        @if($announcement->content_en)
-                            @if($announcement->content_am)
-                                <hr class="my-4 border-light">
-                            @endif
+                        @if($secondaryContent)
+                            <hr class="my-4 border-light">
                             <div class="announcement-content" style="font-family: 'Inter', sans-serif;">
-                                {!! $announcement->content_en !!}
+                                {!! $secondaryContent !!}
                             </div>
                         @endif
 
@@ -73,11 +75,11 @@
                         <div class="d-flex justify-content-between align-items-center">
                             <a href="{{ route('announcements.index') }}" class="btn btn-outline-primary">
                                 <i class="bi bi-arrow-left me-1"></i>
-                                ወደ ማስታወቂያዎች ተመለስ
+                                {{ __('messages.back_to_announcements') }}
                             </a>
 
                             <div class="share-buttons">
-                                <span class="me-2">አጋራ፡</span>
+                                <span class="me-2">{{ __('messages.share') }}</span>
                                 <a href="#" class="btn btn-sm btn-outline-primary me-1" onclick="shareOnFacebook()">
                                     <i class="bi bi-facebook"></i>
                                 </a>

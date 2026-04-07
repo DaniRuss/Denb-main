@@ -18,7 +18,7 @@ class EmployeesTable
         return $table
             ->columns([
                 \Filament\Tables\Columns\TextColumn::make('employee_id')
-                    ->label('ID')
+                    ->label('Paramilitary ID')
                     ->searchable()
                     ->sortable(),
 
@@ -69,7 +69,27 @@ class EmployeesTable
                         'terminated' => 'Terminated',
                     ]),
                 \Filament\Tables\Filters\TrashedFilter::make(),
+
+                \Filament\Tables\Filters\SelectFilter::make('sub_city_id')
+                    ->label('Sub City')
+                    ->relationship('subCity', 'name_am')
+                    ->preload(),
+
+                \Filament\Tables\Filters\SelectFilter::make('woreda_id')
+                    ->label('Woreda')
+                    ->relationship('woreda', 'name_am')
+                    ->preload(),
+
+                \Filament\Tables\Filters\SelectFilter::make('shirt_size')
+                    ->label('Shirt Size')
+                    ->options(fn() => \App\Models\Employee::whereNotNull('shirt_size')->distinct()->pluck('shirt_size', 'shirt_size')),
+
+                \Filament\Tables\Filters\SelectFilter::make('pant_size')
+                    ->label('Pant Size')
+                    ->options(fn() => \App\Models\Employee::whereNotNull('pant_size')->distinct()->pluck('pant_size', 'pant_size')),
             ])
+            ->striped()
+            ->defaultPaginationPageOption(25)
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),

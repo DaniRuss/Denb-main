@@ -47,7 +47,7 @@ class CreateEmployee extends CreateRecord
             }
 
             $user = User::create([
-                'name' => $name !== '' ? $name : 'Employee',
+                'name' => $name !== '' ? $name : 'Paramilitary',
                 'email' => $data['email'],
                 'username' => $userUsername,
                 'password' => Hash::make((string) $userPassword),

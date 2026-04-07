@@ -6,6 +6,7 @@ use App\Filament\Resources\UserResource\Pages;
 use App\Models\Tip;
 use App\Models\User;
 use Filament\Forms;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -20,7 +21,15 @@ class UserResource extends Resource
     protected static ?string $model = User::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-users';
-    protected static string|\UnitEnum|null $navigationGroup = 'User Management';
+    public static function getNavigationGroup(): ?string
+    {
+        return app()->getLocale() === 'am' ? 'የተጠቃሚ አስተዳደር' : 'User Management';
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return app()->getLocale() === 'am' ? 'ተጠቃሚዎች' : 'Users';
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -31,6 +40,10 @@ class UserResource extends Resource
                     ->maxLength(255),
                 Forms\Components\TextInput::make('email')
                     ->email()
+                    ->required()
+                    ->maxLength(255)
+                    ->unique(ignoreRecord: true),
+                Forms\Components\TextInput::make('username')
                     ->required()
                     ->maxLength(255)
                     ->unique(ignoreRecord: true),
@@ -59,6 +72,8 @@ class UserResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('email')
+                    ->searchable(),
+                Tables\Columns\TextColumn::make('username')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('roles.name')
                     ->badge()

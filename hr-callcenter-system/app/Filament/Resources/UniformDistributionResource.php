@@ -6,6 +6,8 @@ use App\Filament\Resources\UniformDistributions\Pages;
 use App\Models\UniformDistribution;
 use App\Models\Employee;
 use App\Models\User;
+use App\Models\SubCity;
+use App\Models\Woreda;
 use Filament\Forms;
 use Filament\Schemas\Schema;
 use Filament\Schemas\Components\Section;
@@ -24,7 +26,7 @@ class UniformDistributionResource extends Resource
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-truck';
     protected static string|\UnitEnum|null $navigationGroup = 'Human Resources';
-    protected static ?string $navigationLabel = 'Uniform Distribution';
+    protected static ?string $navigationLabel = 'Uniform Distribution (Paramilitary)';
     protected static ?int $navigationSort = 6;
 
     public static function form(Schema $schema): Schema
@@ -34,7 +36,7 @@ class UniformDistributionResource extends Resource
                 Section::make('Distribution Details')
                     ->schema([
                         Forms\Components\Select::make('employee_id')
-                            ->label('Employee')
+                            ->label('Paramilitary')
                             ->relationship('employee', 'first_name_en')
                             ->getOptionLabelFromRecordUsing(fn($record) => "{$record->first_name_en} {$record->last_name_en} ({$record->employee_id})")
                             ->searchable()
@@ -105,18 +107,26 @@ class UniformDistributionResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('employee.employee_id')
-                    ->label('Emp ID')
+                    ->label('Para ID')
                     ->searchable()
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('employee.full_name')
-                    ->label('Employee')
-                    ->getStateUsing(fn($record) => "{$record->employee->first_name_en} {$record->employee->last_name_en}")
+                    ->label('Paramilitary')
+                    ->getStateUsing(fn($record) => $record->employee ? "{$record->employee->first_name_en} {$record->employee->last_name_en}" : 'N/A')
                     ->searchable(['first_name_en', 'last_name_en']),
 
                 Tables\Columns\TextColumn::make('item_type')
                     ->label('Item')
                     ->badge()
+                    ->icon(fn (string $state): string => match ($state) {
+                        'shirt' => 'heroicon-o-variable',
+                        'pant' => 'heroicon-o-list-bullet',
+                        'shoe_casual', 'shoe_leather' => 'heroicon-o-sparkles',
+                        'jacket' => 'heroicon-o-shield-check',
+                        'hat' => 'heroicon-o-user-circle',
+                        default => 'heroicon-o-cube',
+                    })
                     ->formatStateUsing(fn($state) => ucfirst(str_replace('_', ' ', $state))),
 
                 Tables\Columns\TextColumn::make('size')
@@ -125,7 +135,8 @@ class UniformDistributionResource extends Resource
                 Tables\Columns\TextColumn::make('quantity')
                     ->label('Qty')
                     ->numeric()
-                    ->sortable(),
+                    ->sortable()
+                    ->summarize(\Filament\Tables\Columns\Summarizers\Sum::make()->label('Total')),
 
                 Tables\Columns\TextColumn::make('distribution_date')
                     ->label('Date')
@@ -164,7 +175,19 @@ class UniformDistributionResource extends Resource
                         'replacement' => 'Replacement',
                         'additional' => 'Additional',
                     ]),
+
+                Tables\Filters\SelectFilter::make('sub_city')
+                    ->label('Sub City')
+                    ->relationship('employee.subCity', 'name_am')
+                    ->preload(),
+
+                Tables\Filters\SelectFilter::make('woreda')
+                    ->label('Woreda')
+                    ->relationship('employee.woreda', 'name_am')
+                    ->preload(),
             ])
+            ->striped()
+            ->defaultPaginationPageOption(25)
             ->actions([
                 ViewAction::make(),
                 EditAction::make(),

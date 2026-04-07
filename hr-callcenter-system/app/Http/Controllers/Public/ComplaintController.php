@@ -6,9 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Complaint;
 use App\Models\CaseUpdate as ComplaintUpdate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Log;
 
 class ComplaintController extends Controller
 {
@@ -57,14 +57,11 @@ class ComplaintController extends Controller
 
         $data = $validator->validated();
 
-        // Handle file uploads
         if ($request->hasFile('attachments')) {
             $attachments = [];
-            foreach ($request->file('attachments') as $file) {
-                // Generate a unique filename
-                $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
 
-                // Store the file
+            foreach ($request->file('attachments') as $file) {
+                $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
                 $path = $file->storeAs(
                     'complaints/' . date('Y/m/d'),
                     $filename,
@@ -73,23 +70,21 @@ class ComplaintController extends Controller
 
                 $attachments[] = $path;
             }
+
             $data['attachments'] = $attachments;
         }
 
-        // Set anonymous flag
         $data['is_anonymous'] = $request->has('is_anonymous');
 
-        // Create complaint
         $complaint = Complaint::create($data);
 
-        // Send confirmation email
         try {
             Mail::send(
                 'emails.complaint-confirmation',
                 ['complaint' => $complaint],
                 function ($message) use ($complaint) {
                     $message->to($complaint->email)
-                        ->subject('የቅሬታ ማረጋገጫ - ቲኬት ቁጥር: ' . $complaint->ticket_number);
+                        ->subject(__('messages.submit_complaint') . ' - ' . $complaint->ticket_number);
                 }
             );
 
@@ -99,7 +94,7 @@ class ComplaintController extends Controller
         }
 
         return redirect()->route('complaint.status', ['ticket' => $complaint->ticket_number])
-            ->with('success', 'ቅሬታዎ በተሳካ ሁኔታ ቀርቧል። የቲኬት ቁጥርዎ: ' . $complaint->ticket_number);
+            ->with('success', __('messages.complaint_submitted') . ': ' . $complaint->ticket_number);
     }
 
     /**
@@ -123,17 +118,14 @@ class ComplaintController extends Controller
     {
         $complaint = Complaint::where('ticket_number', $ticket)->first();
 
-        if (!$complaint) {
+        if (! $complaint) {
             return redirect()->route('complaint.track')
-                ->with('error', 'ቲኬት ቁጥሩ አልተገኘም። እባክዎ ዳግም ይሞክሩ።');
+                ->with('error', __('validation.exists', ['attribute' => __('validation.attributes.ticket_number')]));
         }
 
-        // Increment view count
         $complaint->increment('view_count');
         $complaint->update(['last_viewed_by_complainant' => now()]);
 
-        // Get public updates
-        // Using morphTo structure for updates via caseable
         $updates = $complaint->updates()
             ->where('is_public', true)
             ->orderBy('created_at', 'desc')
@@ -153,14 +145,13 @@ class ComplaintController extends Controller
 
         $complaint = Complaint::where('ticket_number', $request->ticket_number)->first();
 
-        if (!$complaint) {
+        if (! $complaint) {
             return response()->json([
                 'found' => false,
-                'message' => 'ቲኬት ቁጥሩ አልተገኘም'
+                'message' => __('validation.exists', ['attribute' => __('validation.attributes.ticket_number')]),
             ]);
         }
 
-        // Increment view count for AJAX checks too
         $complaint->increment('view_count');
         $complaint->update(['last_viewed_by_complainant' => now()]);
 
@@ -183,7 +174,7 @@ class ComplaintController extends Controller
                 'resolved' => 'success',
                 'closed' => 'secondary',
                 'reopened' => 'danger',
-                default => 'secondary'
+                default => 'secondary',
             },
         ]);
     }

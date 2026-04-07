@@ -15,9 +15,15 @@ class ActionTypeResource extends Resource
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-clipboard-document-check';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Penalty & Action';
+    public static function getNavigationGroup(): ?string
+    {
+        return app()->getLocale() === 'am' ? 'ቅጣት እና እርምጃ' : 'Penalty & Action';
+    }
 
-    protected static ?string $navigationLabel = 'Action Types';
+    public static function getNavigationLabel(): string
+    {
+        return app()->getLocale() === 'am' ? 'የእርምጃ አይነቶች' : 'Action Types';
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -68,4 +74,3 @@ class ActionTypeResource extends Resource
         return (bool) $user && ($user->hasRole('admin') || $user->can('manage_penalty_action'));
     }
 }
-

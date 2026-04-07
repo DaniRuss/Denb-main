@@ -73,6 +73,8 @@ class Tip extends Model
         'reward_claimed',
         'access_token',
         'last_accessed',
+        'unique_place',
+        'dispatch_to',
     ];
 
     protected $casts = [

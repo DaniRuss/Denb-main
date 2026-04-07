@@ -18,7 +18,8 @@ class TipWorkflowService
             'caller_phone' => $data['caller_phone'] ?? null,
             'sub_city' => $data['sub_city'],
             'woreda' => $data['woreda'],
-            'location' => $data['sub_city'] . ', Woreda ' . $data['woreda'],
+            'unique_place' => $data['unique_place'] ?? null,
+            'location' => $data['sub_city'] . ', Woreda ' . $data['woreda'] . ($data['unique_place'] ? ' (' . $data['unique_place'] . ')' : ''),
             'tip_type' => $data['tip_type'],
             'tip_type_other' => $data['tip_type_other'] ?? null,
             'urgency_level' => $data['urgency_level'],
@@ -50,7 +51,7 @@ class TipWorkflowService
         return $tip->refresh();
     }
 
-    public function reviewByDirector(Tip $tip, string $decision, ?string $comment = null): Tip
+    public function reviewByDirector(Tip $tip, string $decision, ?string $comment = null, ?string $dispatchTo = null): Tip
     {
         $this->ensureCallTip($tip);
         $this->ensureStatus($tip, [Tip::STATUS_PENDING_DIRECTOR_REVIEW]);
@@ -59,6 +60,7 @@ class TipWorkflowService
 
         $tip->update([
             'status' => $approved ? Tip::STATUS_DISPATCHED : Tip::STATUS_REJECTED,
+            'dispatch_to' => $approved ? ($dispatchTo ?? 'sub_city') : null,
             'director_comment' => $comment,
             'director_reviewed_at' => now(),
             'dispatched_at' => $approved ? now() : null,

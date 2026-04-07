@@ -71,6 +71,7 @@ class RolesAndPermissionsSeeder extends Seeder
             ['email' => 'admin@aalea.gov.et'],
             [
                 'name' => 'Super Admin',
+                'username' => 'admin',
                 'password' => Hash::make('admin123'),
             ]
         );
