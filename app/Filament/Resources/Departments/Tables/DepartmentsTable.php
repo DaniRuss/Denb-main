@@ -17,7 +17,8 @@ class DepartmentsTable
                 \Filament\Tables\Columns\TextColumn::make('code')
                     ->label('Code')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->hidden(),
 
                 \Filament\Tables\Columns\TextColumn::make('name_am')
                     ->label('Name (አማርኛ)')
@@ -38,6 +39,12 @@ class DepartmentsTable
                 \Filament\Tables\Columns\TextColumn::make('complaints_count')
                     ->label('Active Cases')
                     ->counts('complaints'),
+                    
+                \Filament\Tables\Columns\TextColumn::make('created_at')
+                    ->label('Created At')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->actions([
                 ViewAction::make(),

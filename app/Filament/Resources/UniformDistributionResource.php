@@ -27,6 +27,26 @@ class UniformDistributionResource extends Resource
     protected static ?string $navigationLabel = 'Uniform Distribution';
     protected static ?int $navigationSort = 6;
 
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = auth()->user();
+
+        if ($user->hasRole('super_admin')) {
+            return $query;
+        }
+
+        return $query->whereHas('employee', function ($q) use ($user) {
+            if ($user->hasRole('admin')) {
+                $subCityId = \App\Helpers\JurisdictionHelper::getSubCityId($user);
+                $q->where('sub_city_id', $subCityId);
+            } elseif ($user->hasRole('woreda_coordinator')) {
+                $woredaId = \App\Helpers\JurisdictionHelper::getWoredaId($user);
+                $q->where('woreda_id', $woredaId);
+            }
+        });
+    }
+
     public static function form(Schema $schema): Schema
     {
         return $schema

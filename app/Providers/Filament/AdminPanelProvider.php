@@ -37,18 +37,17 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->maxContentWidth(\Filament\Support\Enums\Width::Full)
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
-            ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
                 Dashboard::class,
+                \App\Intelligence\AwarenessLogAnalytic::class,
             ])
-            ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
                 AwarenessStatsOverview::class,
                 LatestEngagementsWidget::class,
+                \App\Intelligence\StrategyEfficiencyVisual::class,
 
                 AccountWidget::class,
                 FilamentInfoWidget::class,
-                \App\Widgets\CaseManagementWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,

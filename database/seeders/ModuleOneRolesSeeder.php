@@ -39,19 +39,16 @@ class ModuleOneRolesSeeder extends Seeder
             'create_engagements',
             'view_engagements',
             'edit_engagements',
+            'delete_engagements',
             'approve_engagements',
             'reject_engagements',
-            // Volunteer tips (Tikoma)
-            'submit_tips',
-            'view_tips',
-            'verify_tips',
-            'take_action_on_tips',
             // Analytics / Reports
             'view_reports',
             'view_all_reports',
             // Complaints
             'view_complaints',
             'manage_complaints',
+            'delete_complaints',
             'assign_cases',
         ];
 
@@ -70,19 +67,17 @@ class ModuleOneRolesSeeder extends Seeder
         $admin->syncPermissions([
             'manage_users', 'manage_settings',
             'create_campaigns', 'view_campaigns', 'edit_campaigns', 'delete_campaigns',
-            'view_engagements', 'approve_engagements', 'reject_engagements',
-            'view_tips', 'verify_tips', 'take_action_on_tips',
+            'view_engagements', 'delete_engagements', 'approve_engagements', 'reject_engagements',
             'view_reports', 'view_all_reports',
-            'view_complaints', 'manage_complaints', 'assign_cases',
+            'view_complaints', 'manage_complaints', 'delete_complaints', 'assign_cases',
         ]);
 
         // Woreda Coordinator — approver for their woreda
         $woredaCoordinator = Role::findOrCreate('woreda_coordinator');
         $woredaCoordinator->syncPermissions([
             'view_campaigns',
-            'create_engagements', 'view_engagements', 'edit_engagements',
+            'create_engagements', 'view_engagements', 'edit_engagements', 'delete_engagements',
             'approve_engagements', 'reject_engagements',
-            'view_tips', 'verify_tips',
             'view_reports',
         ]);
 
@@ -90,8 +85,7 @@ class ModuleOneRolesSeeder extends Seeder
         $paramilitary = Role::findOrCreate('paramilitary');
         $paramilitary->syncPermissions([
             'view_campaigns',
-            'create_engagements', 'view_engagements', 'edit_engagements',
-            'submit_tips', 'view_tips',
+            'create_engagements', 'view_engagements', 'edit_engagements', 'delete_engagements',
         ]);
 
         // Officer — handles enforcement after tips are verified
@@ -99,7 +93,6 @@ class ModuleOneRolesSeeder extends Seeder
         $officer->syncPermissions([
             'view_campaigns',
             'view_engagements',
-            'view_tips', 'take_action_on_tips',
             'view_complaints', 'manage_complaints',
             'view_reports',
         ]);

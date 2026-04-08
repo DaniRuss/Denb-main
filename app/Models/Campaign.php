@@ -49,6 +49,8 @@ class Campaign extends Model
     // Scope: only active campaigns (used by Field Officer form dropdown)
     public function scopeActive($q)
     {
-        return $q->where('status', 'active');
+        return $q->where('status', 'active')
+                 ->whereDate('start_date', '<=', today())
+                 ->whereDate('end_date', '>=', today());
     }
 }

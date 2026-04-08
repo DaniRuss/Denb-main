@@ -24,8 +24,12 @@ class ViolationHeatmapWidget extends ChartWidget
             ->select('violation_type', DB::raw('count(*) as total'))
             ->groupBy('violation_type');
 
-        if ($user->hasRole('woreda_coordinator') && $user->woreda_id) {
-            $query->where('woreda_id', $user->woreda_id);
+        if ($user->hasRole('admin')) {
+            $subCityId = \App\Helpers\JurisdictionHelper::getSubCityId($user);
+            $query->where('sub_city_id', $subCityId);
+        } elseif ($user->hasRole('woreda_coordinator')) {
+            $woredaId = \App\Helpers\JurisdictionHelper::getWoredaId($user);
+            $query->where('woreda_id', $woredaId);
         }
 
         $data = $query->get()->sortByDesc('total');

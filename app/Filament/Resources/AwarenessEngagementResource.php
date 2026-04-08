@@ -15,6 +15,7 @@ use Filament\Actions\ViewAction as TableViewAction;
 use Filament\Notifications\Notification;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
+use Filament\Actions\DeleteAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Schemas\Components\Section;
@@ -63,6 +64,36 @@ class AwarenessEngagementResource extends Resource
         return auth()->user()->hasRole('paramilitary');
     }
 
+    public static function canEdit(\Illuminate\Database\Eloquent\Model $record): bool
+    {
+        // Only creator can edit, and only if NOT yet submitted/approved
+        // AND the campaign end date has not passed
+        if (auth()->id() !== $record->created_by || !in_array($record->status, ['draft', 'rejected'])) {
+            return false;
+        }
+
+        // Check campaign end date visibility constraint
+        if ($record->campaign && $record->campaign->end_date && today()->gt($record->campaign->end_date)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool
+    {
+        // Creator (Field Role) can delete drafts/rejected if campaign end date hasn't passed
+        if (auth()->id() === $record->created_by && in_array($record->status, ['draft', 'rejected'])) {
+             if ($record->campaign && $record->campaign->end_date && today()->gt($record->campaign->end_date)) {
+                return false;
+            }
+            return true;
+        }
+
+        // Super Admin can always delete for cleanup
+        return auth()->user()->hasRole('super_admin');
+    }
+
     public static function form(Schema $schema): Schema
     {
         return $schema
@@ -94,9 +125,6 @@ class AwarenessEngagementResource extends Resource
                                             $campaign = \App\Models\Campaign::find($state);
                                             if ($campaign) {
                                                 if ($campaign->category) $set('engagement_type', $campaign->category);
-                                                // Sync location directly from campaign always
-                                                if ($campaign->sub_city_id) $set('sub_city_id', $campaign->sub_city_id);
-                                                if ($campaign->woreda_id) $set('woreda_id', $campaign->woreda_id);
                                             }
                                         }
                                     }),
@@ -129,6 +157,8 @@ class AwarenessEngagementResource extends Resource
                                         ->label(__('Age'))
                                         ->numeric()
                                         ->suffix(__('years old')),
+                                    Forms\Components\Hidden::make('citizen_registration_date')
+                                        ->default(now()),
                                 ]),
                         ])->visible(fn (Get $get) => $get('engagement_type') === 'house_to_house'),
 
@@ -177,15 +207,14 @@ class AwarenessEngagementResource extends Resource
                             ])->columns(1)
                             ->collapsed()
                             ->itemLabel(fn (array $state): ?string => $state['name_am'] ?? null)
-                            ->visible(fn (Get $get) => in_array($get('engagement_type'), ['house_to_house', 'coffee_ceremony'])),
+                            ->visible(fn (Get $get) => $get('engagement_type') === 'coffee_ceremony'),
 
 
                         // ── Sub-Section: Context & Verification ──
                         Grid::make(1)
                             ->schema([
-                                Forms\Components\DateTimePicker::make('session_datetime')
-                                    ->label(__('Date & Time'))
-                                    ->required()->default(now()),
+                                Forms\Components\Hidden::make('session_datetime')
+                                    ->default(now()),
                                 Forms\Components\TextInput::make('round_number')
                                     ->label(__('Round'))
                                     ->numeric()->default(1)->required(),
@@ -199,19 +228,46 @@ class AwarenessEngagementResource extends Resource
                             ->schema([
                                 Forms\Components\Select::make('sub_city_id')
                                     ->label(__('Sub-City'))
-                                    ->relationship('subCity', 'name_am')
-                                    ->required()
-                                    ->disabled(fn (Get $get) => filled($get('campaign_id')))
-                                    ->dehydrated(),
+                                    ->options(\App\Models\SubCity::orderBy('name_am')->pluck('name_am', 'id')->toArray())
+                                    ->default(fn () => \App\Helpers\JurisdictionHelper::getSubCityId())
+                                    ->visible(fn () => auth()->user()->hasRole('super_admin'))
+                                    ->required(),
+
+                                Forms\Components\TextInput::make('sub_city_display')
+                                    ->label(__('Sub-City'))
+                                    ->default(fn () => \App\Helpers\JurisdictionHelper::getSubCityName())
+                                    ->readOnly()
+                                    ->visible(fn () => !auth()->user()->hasRole('super_admin')),
+
+                                Forms\Components\Hidden::make('sub_city_id')
+                                    ->default(fn () => \App\Helpers\JurisdictionHelper::getSubCityId())
+                                    ->visible(fn () => !auth()->user()->hasRole('super_admin')),
+
                                 Forms\Components\Select::make('woreda_id')
                                     ->label(__('Woreda'))
-                                    ->relationship('woreda', 'name_am')
-                                    ->required()
-                                    ->disabled(fn (Get $get) => filled($get('campaign_id')))
-                                    ->dehydrated(),
+                                    ->options(function () {
+                                        $subCityId = \App\Helpers\JurisdictionHelper::getSubCityId();
+                                        if (!$subCityId) return [];
+                                        return \App\Models\Woreda::where('sub_city_id', $subCityId)
+                                            ->orderBy('name_am')
+                                            ->pluck('name_am', 'id')
+                                            ->toArray();
+                                    })
+                                    ->default(fn () => \App\Helpers\JurisdictionHelper::getWoredaId())
+                                    ->visible(fn () => auth()->user()->hasRole('super_admin') || !\App\Helpers\JurisdictionHelper::getWoredaId())
+                                    ->required(),
+
+                                Forms\Components\TextInput::make('woreda_display')
+                                    ->label(__('Woreda'))
+                                    ->default(fn () => \App\Models\Woreda::find(\App\Helpers\JurisdictionHelper::getWoredaId())?->name_am ?? '—')
+                                    ->readOnly()
+                                    ->visible(fn () => !auth()->user()->hasRole('super_admin') && \App\Helpers\JurisdictionHelper::getWoredaId()),
+
+                                Forms\Components\Hidden::make('woreda_id')
+                                    ->default(fn () => \App\Helpers\JurisdictionHelper::getWoredaId())
+                                    ->visible(fn () => !auth()->user()->hasRole('super_admin') && \App\Helpers\JurisdictionHelper::getWoredaId()),
                                 Forms\Components\TextInput::make('block_number')
-                                    ->label(__('Block No.'))
-                                    ->placeholder(__('Inherited if campaign has it')),
+                                    ->label(__('Block No.')),
                             ]),
 
 
@@ -223,6 +279,19 @@ class AwarenessEngagementResource extends Resource
                                 Forms\Components\ViewField::make('violation_photo_path')
                                     ->view('filament.forms.components.offline-photo'),
                             ]),
+                        
+                        Forms\Components\Textarea::make('final_description')
+                            ->label(__('Final Description'))
+                            ->placeholder(__('Enter any additional details or final description about the engagement'))
+                            ->nullable()
+                            ->columnSpanFull(),
+                        
+                        Forms\Components\Textarea::make('rejection_note')
+                            ->label(__('Rejection Reason'))
+                            ->visible(fn ($record) => $record && $record->status === 'rejected')
+                            ->readOnly()
+                            ->columnSpanFull()
+                            ->helperText(__('This note was provided by the coordinator during rejection.')),
                     ]),
 
                 Forms\Components\Hidden::make('created_by')->default(fn() => auth()->id()),
@@ -235,8 +304,13 @@ class AwarenessEngagementResource extends Resource
         return $table
             ->modifyQueryUsing(function ($query) {
                 $user = auth()->user();
-                if ($user->hasAnyRole(['admin', 'super_admin'])) {
+                if ($user->hasRole('super_admin')) {
                     return $query;
+                }
+
+                if ($user->hasRole('admin')) {
+                    $subCityId = \App\Helpers\JurisdictionHelper::getSubCityId($user);
+                    return $query->where('sub_city_id', $subCityId);
                 }
                 
                 // Field roles (Paramilitary / Field) see their own logs always
@@ -245,13 +319,15 @@ class AwarenessEngagementResource extends Resource
                 }
 
                 if ($user->hasRole('officer')) {
-                    // Officers see all submitted/approved/rejected records system-wide for oversight
-                    return $query->whereIn('status', ['submitted', 'approved', 'rejected']);
+                    // Officers see their own jurisdiction's submitted/approved/rejected records
+                    $subCityId = \App\Helpers\JurisdictionHelper::getSubCityId($user);
+                    return $query->where('sub_city_id', $subCityId)
+                                 ->whereIn('status', ['submitted', 'approved', 'rejected']);
                 }
 
                 if ($user->hasRole('woreda_coordinator')) {
-                    // Coordinators see submitted/approved/rejected records in their Woreda
-                    return $query->where('woreda_id', $user->woreda_id)
+                    $woredaId = \App\Helpers\JurisdictionHelper::getWoredaId($user);
+                    return $query->where('woreda_id', $woredaId)
                                  ->whereIn('status', ['submitted', 'approved', 'rejected']);
                 }
 
@@ -259,7 +335,7 @@ class AwarenessEngagementResource extends Resource
             })
             ->columns([
                 Tables\Columns\TextColumn::make('engagement_code')
-                    ->label(__('Code'))->searchable()->copyable(),
+                    ->label(__('Code'))->searchable()->copyable()->hidden(),
                 Tables\Columns\TextColumn::make('engagement_type')
                     ->label(__('Engagement Strategy'))
                     ->badge()->formatStateUsing(fn($state) => ucfirst(str_replace('_', ' ', $state))),
@@ -267,7 +343,10 @@ class AwarenessEngagementResource extends Resource
                     ->label(__('Campaign')),
                 Tables\Columns\TextColumn::make('woreda.name_am')
                     ->label(__('Woreda')),
-
+                Tables\Columns\TextColumn::make('subCity.name_am')
+                    ->label(__('Sub-City')),
+                Tables\Columns\TextColumn::make('createdBy.name')
+                    ->label(__('Created By')),
                 Tables\Columns\TextColumn::make('status')
                     ->label(__('Status'))
                     ->badge()
@@ -290,7 +369,11 @@ class AwarenessEngagementResource extends Resource
                     ->label(__('Submit'))
                     ->icon('heroicon-o-paper-airplane')
                     ->color('warning')
-                    ->visible(fn($record) => in_array($record->status, ['draft', 'rejected']) && auth()->id() === $record->created_by)
+                    ->visible(fn($record) => 
+                        in_array($record->status, ['draft', 'rejected']) && 
+                        auth()->id() === $record->created_by &&
+                        (!$record->campaign || !$record->campaign->end_date || today()->lte($record->campaign->end_date))
+                    )
                     ->requiresConfirmation()
                     ->action(function ($record) {
                         $record->update([
@@ -306,7 +389,7 @@ class AwarenessEngagementResource extends Resource
                     ->label(__('Approve'))
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
-                    ->visible(fn($record) => $record->status === 'submitted' && auth()->user()->can('approve_engagements'))
+                    ->visible(fn($record) => $record->status === 'submitted' && auth()->user()->hasRole('woreda_coordinator'))
                     ->action(function ($record) {
                         $record->update([
                             'status' => 'approved',
@@ -322,7 +405,7 @@ class AwarenessEngagementResource extends Resource
                     ->label(__('Reject'))
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
-                    ->visible(fn($record) => $record->status === 'submitted' && auth()->user()->can('reject_engagements'))
+                    ->visible(fn($record) => $record->status === 'submitted' && auth()->user()->hasRole('woreda_coordinator'))
                     ->form([
                         Forms\Components\Textarea::make('rejection_note')
                             ->label(__('Rejection Reason'))
@@ -338,7 +421,9 @@ class AwarenessEngagementResource extends Resource
 
                 TableViewAction::make(),
                 EditAction::make()
-                    ->visible(fn($record) => !in_array($record->status, ['submitted', 'approved']) || auth()->user()->hasAnyRole(['admin', 'super_admin'])),
+                    ->visible(fn($record) => static::canEdit($record)),
+                DeleteAction::make()
+                    ->visible(fn($record) => static::canDelete($record)),
             ])
 
             ->bulkActions([

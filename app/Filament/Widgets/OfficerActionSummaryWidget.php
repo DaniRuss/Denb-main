@@ -18,10 +18,29 @@ class OfficerActionSummaryWidget extends BaseWidget
 
     protected function getStats(): array
     {
-        $financialPenalties = VolunteerTip::where('action_taken', 'financial_penalty')->count();
-        $formalWarnings = VolunteerTip::where('action_taken', 'formal_warning')->count();
-        $confiscatedCount = ConfiscatedAsset::count();
-        $pendingActions = VolunteerTip::where('status', 'verified')->whereNull('action_taken')->count();
+        $user = auth()->user();
+        $tipQuery = VolunteerTip::query();
+
+        if ($user->hasRole('admin')) {
+            $subCityId = \App\Helpers\JurisdictionHelper::getSubCityId($user);
+            $tipQuery->where('sub_city_id', $subCityId);
+        } elseif ($user->hasRole('woreda_coordinator')) {
+            $woredaId = \App\Helpers\JurisdictionHelper::getWoredaId($user);
+            $tipQuery->where('woreda_id', $woredaId);
+        } elseif ($user->hasRole('officer')) {
+            // Enforcement officers see tips in their assigned jurisdiction
+            $woredaId = \App\Helpers\JurisdictionHelper::getWoredaId($user);
+            if ($woredaId) {
+                $tipQuery->where('woreda_id', $woredaId);
+            } else {
+                $subCityId = \App\Helpers\JurisdictionHelper::getSubCityId($user);
+                $tipQuery->where('sub_city_id', $subCityId);
+            }
+        }
+
+        $financialPenalties = (clone $tipQuery)->where('action_taken', 'financial_penalty')->count();
+        $formalWarnings = (clone $tipQuery)->where('action_taken', 'formal_warning')->count();
+        $pendingActions = (clone $tipQuery)->where('status', 'verified')->whereNull('action_taken')->count();
 
         return [
             Stat::make('Financial Penalties (የገንዘብ ቅጣት)', $financialPenalties)
@@ -33,11 +52,6 @@ class OfficerActionSummaryWidget extends BaseWidget
                 ->description('Official warnings issued')
                 ->descriptionIcon('heroicon-m-exclamation-triangle')
                 ->color('warning'),
-
-            Stat::make('Confiscated Assets (የተወረሰ ንብረት)', $confiscatedCount)
-                ->description('Total items seized')
-                ->descriptionIcon('heroicon-m-archive-box')
-                ->color('info'),
 
             Stat::make('Pending Enforcement (ውሳኔ የሚጠብቁ)', $pendingActions)
                 ->description('Verified tips awaiting officer action')

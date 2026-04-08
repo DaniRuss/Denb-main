@@ -21,8 +21,5 @@ class Woreda extends Model
         return $this->hasMany(AwarenessEngagement::class);
     }
 
-    public function volunteerTips()
-    {
-        return $this->hasMany(VolunteerTip::class);
-    }
+
 }

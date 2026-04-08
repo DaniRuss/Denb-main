@@ -25,6 +25,26 @@ class EmployeeResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = auth()->user();
+
+        if ($user->hasRole('super_admin')) {
+            return $query;
+        }
+
+        if ($user->hasRole('admin')) {
+            $subCityId = \App\Helpers\JurisdictionHelper::getSubCityId($user);
+            $query->where('sub_city_id', $subCityId);
+        } elseif ($user->hasRole('woreda_coordinator')) {
+            $woredaId = \App\Helpers\JurisdictionHelper::getWoredaId($user);
+            $query->where('woreda_id', $woredaId);
+        }
+
+        return $query;
+    }
+
     public static function getMaxContentWidth(): \Filament\Support\Enums\Width|string|null
     {
         return 'full';

@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Models\Officer;
 use App\Models\Department;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -23,6 +24,29 @@ class OfficerResource extends Resource
     protected static string|\UnitEnum|null $navigationGroup = 'Human Resources';
     protected static ?string $navigationLabel = 'Officers';
     protected static ?int $navigationSort = 1;
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = auth()->user();
+
+        if ($user->hasRole('super_admin')) {
+            return $query;
+        }
+
+        return $query->whereHas('user', function (Builder $q) use ($user) {
+            if ($user->hasRole('admin')) {
+                $subCityId = \App\Helpers\JurisdictionHelper::getSubCityId($user);
+                $q->where('sub_city_id', $subCityId);
+            } elseif ($user->hasRole('woreda_coordinator')) {
+                $woredaId = \App\Helpers\JurisdictionHelper::getWoredaId($user);
+                $q->where('woreda_id', $woredaId);
+            } else {
+                // For other roles, restrict to their own records if applicable
+                $q->where('id', $user->id);
+            }
+        });
+    }
 
     public static function form(Schema $schema): Schema
     {

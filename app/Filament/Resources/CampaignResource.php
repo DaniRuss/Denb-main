@@ -6,6 +6,7 @@ use App\Filament\Resources\CampaignResource\Pages;
 use App\Models\Campaign;
 use App\Models\SubCity;
 use App\Models\Woreda;
+use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms;
 use Filament\Schemas\Schema;
 use Filament\Schemas\Components\Section;
@@ -25,6 +26,40 @@ class CampaignResource extends Resource
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-megaphone';
     protected static ?int $navigationSort = 1;
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = auth()->user();
+
+        if ($user->hasRole('super_admin')) {
+            return $query;
+        }
+
+        // Sub City Admin
+        if ($user->hasRole('admin')) {
+            $subCityId = \App\Helpers\JurisdictionHelper::getSubCityId($user);
+            return $query->where('sub_city_id', $subCityId);
+        }
+
+        // Woreda Coordinator
+        if ($user->hasRole('woreda_coordinator')) {
+            return $query->where('woreda_id', $user->woreda_id);
+        }
+
+        // Field roles
+        if ($user->hasAnyRole(['officer', 'paramilitary'])) {
+            $woredaId = \App\Helpers\JurisdictionHelper::getWoredaId($user);
+            if ($woredaId) {
+                return $query->where('woreda_id', $woredaId);
+            }
+            $subCityId = \App\Helpers\JurisdictionHelper::getSubCityId($user);
+            return $query->where('sub_city_id', $subCityId);
+        }
+
+        // Default strict: if not super_admin and no jurisdiction found, show nothing
+        return $query->whereRaw('1=0');
+    }
 
     public static function getNavigationLabel(): string
     {
@@ -53,7 +88,20 @@ class CampaignResource extends Resource
 
     public static function canCreate(): bool
     {
-        return auth()->user()->hasAnyRole(['admin', 'super_admin']);
+        return auth()->user()->hasAnyRole(['woreda_coordinator', 'admin', 'super_admin']);
+    }
+
+    public static function canEdit(\Illuminate\Database\Eloquent\Model $record): bool
+    {
+        if (!auth()->user()->hasAnyRole(['woreda_coordinator', 'admin', 'super_admin'])) {
+            return false;
+        }
+
+        if ($record->end_date && today()->gt($record->end_date)) {
+            return false;
+        }
+
+        return true;
     }
 
     public static function form(Schema $schema): Schema
@@ -120,23 +168,46 @@ class CampaignResource extends Resource
 
                         Forms\Components\Select::make('sub_city_id')
                             ->label(__('Sub-City'))
-                            ->options(SubCity::orderBy('name_am')->pluck('name_am', 'id')->toArray())
+                            ->options(SubCity::all()->pluck('name_am', 'id'))
+                            ->default(fn () => \App\Helpers\JurisdictionHelper::getSubCityId())
+                            ->visible(fn () => auth()->user()->hasRole('super_admin'))
                             ->live()
-                            ->searchable()
-                            ->afterStateUpdated(fn (callable $set) => $set('woreda_id', null))
                             ->required(),
+
+                        Forms\Components\TextInput::make('sub_city_display')
+                            ->label(__('Sub-City'))
+                            ->default(fn () => \App\Helpers\JurisdictionHelper::getSubCityName())
+                            ->readOnly()
+                            ->visible(fn () => !auth()->user()->hasRole('super_admin')),
+
+                        Forms\Components\Hidden::make('sub_city_id')
+                            ->default(fn () => \App\Helpers\JurisdictionHelper::getSubCityId())
+                            ->visible(fn () => !auth()->user()->hasRole('super_admin')),
 
                         Forms\Components\Select::make('woreda_id')
                             ->label(__('Woreda'))
                             ->options(function (callable $get) {
                                 $subCityId = $get('sub_city_id');
+                                if (!$subCityId) {
+                                    $subCityId = \App\Helpers\JurisdictionHelper::getSubCityId();
+                                }
                                 if (!$subCityId) return [];
                                 return Woreda::where('sub_city_id', $subCityId)
-                                    ->orderBy('name_am')->pluck('name_am', 'id')->toArray();
+                                    ->pluck('name_am', 'id');
                             })
-                            ->live()
-                            ->searchable()
+                            ->default(fn () => \App\Helpers\JurisdictionHelper::getWoredaId())
+                            ->visible(fn () => auth()->user()->hasRole('super_admin') || !\App\Helpers\JurisdictionHelper::getWoredaId())
                             ->required(),
+
+                        Forms\Components\TextInput::make('woreda_display')
+                            ->label(__('Woreda'))
+                            ->default(fn () => Woreda::find(\App\Helpers\JurisdictionHelper::getWoredaId())?->name_am ?? '—')
+                            ->readOnly()
+                            ->visible(fn () => !auth()->user()->hasRole('super_admin') && \App\Helpers\JurisdictionHelper::getWoredaId()),
+
+                        Forms\Components\Hidden::make('woreda_id')
+                            ->default(fn () => \App\Helpers\JurisdictionHelper::getWoredaId())
+                            ->visible(fn () => !auth()->user()->hasRole('super_admin') && \App\Helpers\JurisdictionHelper::getWoredaId()),
 
                         Forms\Components\TextInput::make('block')
                             ->label(__('Block'))
@@ -168,7 +239,8 @@ class CampaignResource extends Resource
                 Tables\Columns\TextColumn::make('campaign_code')
                     ->label(__('Code'))
                     ->searchable()
-                    ->copyable(),
+                    ->copyable()
+                    ->hidden(),
                 Tables\Columns\TextColumn::make('name_am')
                     ->label(__('Campaign Name (Amharic)'))
                     ->searchable(),
@@ -176,6 +248,14 @@ class CampaignResource extends Resource
                     ->label(__('Campaign Name (English)'))
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('subCity.name_am')
+                    ->label(__('Sub-City'))
+                    ->searchable()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('woreda.name_am')
+                    ->label(__('Woreda'))
+                    ->searchable()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('category')
                     ->label(__('Category'))
                     ->badge()
@@ -220,7 +300,11 @@ class CampaignResource extends Resource
                     ]),
             ])
             ->actions([
-                EditAction::make(),
+                EditAction::make()
+                    ->visible(fn ($record) => 
+                        auth()->user()->hasAnyRole(['woreda_coordinator', 'admin', 'super_admin']) &&
+                        (! $record->end_date || today()->lte($record->end_date))
+                    ),
             ])
             ->bulkActions([
                 BulkActionGroup::make([

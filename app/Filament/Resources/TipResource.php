@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\TipResource\Pages;
 use App\Models\Tip;
+use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms;
 use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
@@ -27,6 +28,25 @@ class TipResource extends Resource
     protected static ?string $pluralLabel = 'Public Tips';
     protected static ?string $modelLabel = 'Tip';
     protected static ?int $navigationSort = 2;
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = auth()->user();
+
+        if ($user->hasRole('super_admin')) {
+            return $query;
+        }
+
+        if ($user->hasRole('admin') && $user->subCity) {
+            return $query->where(function ($q) use ($user) {
+                $q->where('sub_city', $user->subCity->name_am)
+                  ->orWhere('sub_city', $user->subCity->name_en);
+            });
+        }
+
+        return $query;
+    }
 
     // NO FORM - Admins don't create tips!
     public static function form(Schema $schema): Schema

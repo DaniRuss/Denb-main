@@ -14,29 +14,47 @@ class AwarenessStatsOverview extends BaseWidget
 
     public static function canView(): bool
     {
-        return auth()->check() && auth()->user()->hasAnyRole(['super_admin', 'admin', 'woreda_coordinator', 'paramilitary', 'officer']);
+        return auth()->check() && auth()->user()->hasAnyRole(['super_admin', 'admin', 'woreda_coordinator', 'paramilitary']);
     }
 
     protected function getStats(): array
     {
         $user = auth()->user();
 
-        // 1. Campaigns (Global/Admin)
-        $campaignCount = Campaign::active()->count();
+        // 1. Campaigns (Global/Admin/Coordinator)
+        $campaignQuery = \App\Models\Campaign::active();
+        if ($user->hasRole('admin')) {
+            $subCityId = \App\Helpers\JurisdictionHelper::getSubCityId($user);
+            $campaignQuery->where('sub_city_id', $subCityId);
+        } elseif ($user->hasRole('woreda_coordinator')) {
+            $woredaId = \App\Helpers\JurisdictionHelper::getWoredaId($user);
+            $campaignQuery->where('woreda_id', $woredaId);
+        }
+        $campaignCount = $campaignQuery->count();
 
         // 2. Pending Approvals (Scoped)
         $pendingQuery = AwarenessEngagement::where('status', 'submitted');
-        if ($user->hasRole('woreda_coordinator')) {
-            $pendingQuery->where('woreda_id', $user->woreda_id);
+        if ($user->hasRole('admin')) {
+            $subCityId = \App\Helpers\JurisdictionHelper::getSubCityId($user);
+            $pendingQuery->where('sub_city_id', $subCityId);
+        } elseif ($user->hasRole('woreda_coordinator')) {
+            $woredaId = \App\Helpers\JurisdictionHelper::getWoredaId($user);
+            $pendingQuery->where('woreda_id', $woredaId);
         }
         $pendingApprovals = $pendingQuery->count();
 
-        // 3. Verified Tips (Scoped)
-        $verifiedTipsQuery = VolunteerTip::verified();
-        if ($user->hasRole('woreda_coordinator')) {
-            $verifiedTipsQuery->where('woreda_id', $user->woreda_id);
+        // 3. Total Reach (Scoped)
+        $reachQuery = AwarenessEngagement::where('status', 'approved');
+        if ($user->hasRole('admin')) {
+            $subCityId = \App\Helpers\JurisdictionHelper::getSubCityId($user);
+            $reachQuery->where('sub_city_id', $subCityId);
+        } elseif ($user->hasRole('woreda_coordinator')) {
+            $woredaId = \App\Helpers\JurisdictionHelper::getWoredaId($user);
+            $reachQuery->where('woreda_id', $woredaId);
+        } elseif ($user->hasRole('paramilitary')) {
+            $reachQuery->where('created_by', $user->id);
         }
-        $verifiedTipsCount = $verifiedTipsQuery->count();
+        $totalReach = (clone $reachQuery)->select(\Illuminate\Support\Facades\DB::raw('SUM(COALESCE(headcount, 0) + COALESCE(org_headcount_male, 0) + COALESCE(org_headcount_female, 0)) as total'))->first()->total ?? 0;
 
         // 4. Personal Contributions (Paramilitary)
         $personalLogs = AwarenessEngagement::where('created_by', $user->id)->count();
@@ -52,9 +70,9 @@ class AwarenessStatsOverview extends BaseWidget
                 ->descriptionIcon('heroicon-m-clock')
                 ->color($pendingApprovals > 0 ? 'warning' : 'success'),
 
-            Stat::make(__('Verified Tips'), $verifiedTipsCount)
-                ->description(__('Verified community tips for action'))
-                ->descriptionIcon('heroicon-m-check-badge')
+            Stat::make(__('Total Reach (ዜጎች)'), number_format($totalReach))
+                ->description(__('Individuals educated and engaged'))
+                ->descriptionIcon('heroicon-m-user-group')
                 ->color('success'),
         ];
 

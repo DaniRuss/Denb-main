@@ -18,8 +18,12 @@ class LatestEngagementsWidget extends BaseWidget
 
         $query = AwarenessEngagement::query();
 
-        if ($user->hasRole('woreda_coordinator')) {
-            $query->where('woreda_id', $user->woreda_id);
+        if ($user->hasRole('admin')) {
+            $subCityId = \App\Helpers\JurisdictionHelper::getSubCityId($user);
+            $query->where('sub_city_id', $subCityId);
+        } elseif ($user->hasRole('woreda_coordinator')) {
+            $woredaId = \App\Helpers\JurisdictionHelper::getWoredaId($user);
+            $query->where('woreda_id', $woredaId);
         } elseif ($user->hasRole('paramilitary')) {
             $query->where('created_by', $user->id);
         }
@@ -29,9 +33,10 @@ class LatestEngagementsWidget extends BaseWidget
         return $table
             ->query($query)
             ->columns([
-                Tables\Columns\TextColumn::make('engagement_code')->label('Code'),
+                Tables\Columns\TextColumn::make('engagement_code')->label('Code')->hidden(),
                 Tables\Columns\TextColumn::make('engagement_type')->badge(),
                 Tables\Columns\TextColumn::make('campaign.name_am')->label('Campaign'),
+                Tables\Columns\TextColumn::make('woreda.name_am')->label('Woreda'),
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
                     ->color(fn ($state) => match ($state) {

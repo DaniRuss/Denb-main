@@ -15,13 +15,14 @@ class AwarenessEngagement extends Model
         'headcount', 'stakeholder_partner', 'organization_type', 'org_headcount_male',
         'org_headcount_female', 'session_datetime', 'created_by', 'status', 'approved_by',
         'approved_at', 'rejection_note',
-        // Media
-        'violation_photo_path', 'officer_signature',
+        // Media & Additional info
+        'violation_photo_path', 'officer_signature', 'final_description',
     ];
 
     protected $casts = [
-        'session_datetime'   => 'datetime',
-        'approved_at'        => 'timestamp',
+        'session_datetime'     => 'datetime',
+        'approved_at'          => 'timestamp',
+        'violation_photo_path' => 'array',
     ];
 
     protected static function boot()
@@ -50,10 +51,7 @@ class AwarenessEngagement extends Model
         return $this->hasMany(EngagementAttendee::class, 'engagement_id');
     }
 
-    public function volunteerTips()
-    {
-        return $this->hasMany(VolunteerTip::class, 'engagement_id');
-    }
+
 
     public function subCity()
     {
@@ -74,7 +72,10 @@ class AwarenessEngagement extends Model
         if ($user->hasRole('woreda_coordinator')) {
             return $q->where('woreda_id', $user->woreda_id);
         }
-        return $q; // Admin / Officer sees all
+        if ($user->hasRole('admin')) {
+            return $q->where('sub_city_id', $user->sub_city_id);
+        }
+        return $q; // Super Admin sees all
     }
 
     public function scopePendingApproval($q)

@@ -24,7 +24,9 @@ class EngagementByTypeChart extends ChartWidget
             ->select('engagement_type', DB::raw('count(*) as total'))
             ->groupBy('engagement_type');
 
-        if ($user->hasRole('woreda_coordinator') && $user->woreda_id) {
+        if ($user->hasRole('admin') && $user->sub_city_id) {
+            $query->where('sub_city_id', $user->sub_city_id);
+        } elseif ($user->hasRole('woreda_coordinator') && $user->woreda_id) {
             $query->where('woreda_id', $user->woreda_id);
         }
 

@@ -12,6 +12,7 @@ use Filament\Tables\Table;
 use Filament\Notifications\Notification;
 use Filament\Actions\Action;
 use Filament\Actions\ViewAction;
+use Filament\Actions\DeleteAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\BulkAction;
@@ -297,6 +298,8 @@ class ComplaintResource extends Resource
                             ->success()
                             ->send();
                     }),
+                DeleteAction::make()
+                    ->visible(fn() => auth()->user()->hasAnyRole(['admin', 'super_admin'])),
             ])
             ->bulkActions([
                 BulkActionGroup::make([

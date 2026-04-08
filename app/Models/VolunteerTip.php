@@ -30,10 +30,7 @@ class VolunteerTip extends Model
         static::creating(fn($m) => $m->tip_code = 'TIP-' . date('Ymd') . '-' . str_pad(random_int(0, 9999), 4, '0', STR_PAD_LEFT));
     }
 
-    public function engagement()
-    {
-        return $this->belongsTo(AwarenessEngagement::class);
-    }
+
 
     public function receivedBy()
     {
@@ -50,10 +47,7 @@ class VolunteerTip extends Model
         return $this->belongsTo(User::class, 'investigated_by');
     }
 
-    public function assets()
-    {
-        return $this->hasMany(ConfiscatedAsset::class, 'volunteer_tip_id');
-    }
+
 
     public function subCity()
     {
