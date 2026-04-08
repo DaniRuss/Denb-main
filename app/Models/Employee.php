@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Employee extends Model
@@ -11,6 +13,7 @@ class Employee extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'user_id',
         'employee_id',
         'first_name_am',
         'last_name_am',
@@ -52,7 +55,10 @@ class Employee extends Model
         'status',
         'is_suspended_payment',
         'suspension_reason',
-        'suspension_date'
+        'suspension_date',
+        'walkie_talkie_serial',
+        'stick_issued',
+        'other_equipment'
     ];
 
     protected $casts = [
@@ -63,19 +69,44 @@ class Employee extends Model
         'is_suspended_payment' => 'boolean',
     ];
 
-    public function subCity()
+    public function subCity(): BelongsTo
     {
         return $this->belongsTo(SubCity::class);
     }
 
-    public function woreda()
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function woreda(): BelongsTo
     {
         return $this->belongsTo(Woreda::class);
     }
 
-    public function uniformDistributions()
+    public function uniformDistributions(): HasMany
     {
         return $this->hasMany(UniformDistribution::class);
+    }
+
+    public function disciplineHistories(): HasMany
+    {
+        return $this->hasMany(EmployeeDisciplineHistory::class);
+    }
+
+    public function shiftAssignments(): HasMany
+    {
+        return $this->hasMany(ShiftAssignment::class);
+    }
+
+    public function attendances(): HasMany
+    {
+        return $this->hasMany(Attendance::class);
+    }
+
+    public function dailyShiftReports(): HasMany
+    {
+        return $this->hasMany(DailyShiftReport::class);
     }
 
     public function getFullNameAmAttribute()

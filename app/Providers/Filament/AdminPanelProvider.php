@@ -10,7 +10,6 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
-use Filament\View\PanelsRenderHook;
 use Filament\Widgets\AccountWidget;
 use Filament\Widgets\FilamentInfoWidget;
 use App\Filament\Widgets\AwarenessStatsOverview;
@@ -31,21 +30,29 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
-            ->login()
+            ->login(\App\Filament\Pages\Auth\Login::class)
+            // Performance: skip Echo/realtime wiring when not using Pusher/Laravel Echo
+            ->broadcasting(false)
+            // Avoids indexing every searchable resource on each request (major CPU win)
+            ->globalSearch(false)
+            // Client-side navigations + link prefetch: fewer full page loads
+            ->spa(condition: true, hasPrefetching: true)
             ->colors([
                 'primary' => Color::Amber,
             ])
             ->maxContentWidth(\Filament\Support\Enums\Width::Full)
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
+            ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
                 Dashboard::class,
                 \App\Intelligence\AwarenessLogAnalytic::class,
             ])
+            ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
                 AwarenessStatsOverview::class,
                 LatestEngagementsWidget::class,
                 \App\Intelligence\StrategyEfficiencyVisual::class,
-
+                \App\Widgets\CaseManagementWidget::class,
                 AccountWidget::class,
                 FilamentInfoWidget::class,
             ])
@@ -64,7 +71,7 @@ class AdminPanelProvider extends PanelProvider
                 Authenticate::class,
             ])
             ->renderHook(
-                PanelsRenderHook::HEAD_END,
+                \Filament\View\PanelsRenderHook::HEAD_END,
                 function (): string {
                     $html = '
                     <link rel="manifest" href="/manifest.json">
@@ -82,15 +89,6 @@ class AdminPanelProvider extends PanelProvider
 
                     return $html;
                 }
-            )
-
-            ->renderHook(
-                \Filament\View\PanelsRenderHook::USER_MENU_BEFORE,
-                fn (): string => '<div class="flex items-center gap-x-4 px-4 py-2 text-sm font-semibold">
-                    <a href="' . route('language.switch', 'en') . '" class="' . (app()->getLocale() === 'en' ? 'text-primary-600 font-bold' : 'text-gray-500 hover:text-gray-700') . '">English</a>
-                    <span class="text-gray-300">|</span>
-                    <a href="' . route('language.switch', 'am') . '" class="' . (app()->getLocale() === 'am' ? 'text-primary-600 font-bold' : 'text-gray-500 hover:text-gray-700') . '">አማርኛ</a>
-                </div>'
             );
     }
 }

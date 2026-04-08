@@ -1,4 +1,3 @@
-{{-- resources/views/filament/widgets/quick-actions.blade.php --}}
 <x-filament-widgets::widget>
     <x-filament::section>
         <div class="p-4">
@@ -10,7 +9,7 @@
                     <div class="text-sm text-gray-600">Pending Complaints</div>
                     <a href="{{ \App\Filament\Resources\ComplaintResource::getUrl('index', ['tableFilters[status][value]' => 'pending']) }}"
                         class="text-xs text-primary-600 mt-2 inline-block font-medium hover:underline">
-                        View All →
+                        View All ->
                     </a>
                 </div>
 
@@ -19,25 +18,25 @@
                     <div class="text-sm text-gray-600">Urgent Cases</div>
                     <a href="{{ \App\Filament\Resources\ComplaintResource::getUrl('index', ['tableFilters[priority][value]' => 'high']) }}"
                         class="text-xs text-danger-600 mt-2 inline-block font-medium hover:underline">
-                        View All →
+                        View All ->
                     </a>
                 </div>
 
                 <div class="bg-amber-50 border border-amber-100 p-4 rounded-lg">
-                    <div class="text-2xl font-bold text-warning-700">{{ $this->getUnassignedTipsCount() }}</div>
-                    <div class="text-sm text-gray-600">Unassigned Tips</div>
-                    <a href="{{ \App\Filament\Resources\TipResource::getUrl('index', ['tableFilters[unassigned][value]' => true]) }}"
+                    <div class="text-2xl font-bold text-warning-700">{{ $this->getSupervisorQueueCount() }}</div>
+                    <div class="text-sm text-gray-600">Pending Supervisor Review</div>
+                    <a href="{{ \App\Filament\Resources\TipResource::getUrl('index', ['tableFilters[status][value]' => \App\Models\Tip::STATUS_PENDING_SUPERVISOR_REVIEW]) }}"
                         class="text-xs text-warning-600 mt-2 inline-block font-medium hover:underline">
-                        View All →
+                        View All ->
                     </a>
                 </div>
 
                 <div class="bg-red-50 border border-red-100 p-4 rounded-lg">
-                    <div class="text-2xl font-bold text-danger-700">{{ $this->getImmediateTipsCount() }}</div>
-                    <div class="text-sm text-gray-600">Immediate Action Tips</div>
-                    <a href="{{ \App\Filament\Resources\TipResource::getUrl('index', ['tableFilters[urgency_level][value]' => 'immediate']) }}"
+                    <div class="text-2xl font-bold text-danger-700">{{ $this->getDirectorQueueCount() }}</div>
+                    <div class="text-sm text-gray-600">Pending Director Review</div>
+                    <a href="{{ \App\Filament\Resources\TipResource::getUrl('index', ['tableFilters[status][value]' => \App\Models\Tip::STATUS_PENDING_DIRECTOR_REVIEW]) }}"
                         class="text-xs text-danger-600 mt-2 inline-block font-medium hover:underline">
-                        View All →
+                        View All ->
                     </a>
                 </div>
             </div>

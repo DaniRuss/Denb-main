@@ -8,8 +8,10 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 use Spatie\Permission\Traits\HasRoles;
+use Filament\Panel;
+use Filament\Models\Contracts\FilamentUser;
 
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasRoles;
@@ -58,5 +60,11 @@ class User extends Authenticatable
     public function subCity()
     {
         return $this->belongsTo(SubCity::class);
+    }
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        // For this HR system, all authenticated users with roles can access the panel.
+        return true;
     }
 }
