@@ -13,7 +13,7 @@ class IllegalAssetPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasRole(['admin', 'supervisor', 'officer']);
+        return $user->hasRole(['admin', 'officer', 'woreda_officer', 'sub_city_officer', 'supervisor']);
     }
 
     /**
@@ -21,15 +21,7 @@ class IllegalAssetPolicy
      */
     public function view(User $user, IllegalAsset $illegalAsset): bool
     {
-        if ($user->hasRole('admin')) return true;
-        
-        // Supervisor can view assets in their department
-        if ($user->hasRole('supervisor')) {
-            return $user->department_id === $illegalAsset->department_id;
-        }
-
-        // Officer can view their own registered assets
-        return $user->hasRole('officer') && $user->id === $illegalAsset->officer_id;
+        return $user->hasRole(['admin', 'officer', 'woreda_officer', 'sub_city_officer', 'supervisor']);
     }
 
     /**
@@ -37,7 +29,7 @@ class IllegalAssetPolicy
      */
     public function create(User $user): bool
     {
-        return $user->hasRole(['admin', 'supervisor', 'officer']);
+        return $user->hasRole(['admin', 'officer', 'supervisor']);
     }
 
     /**
@@ -45,19 +37,7 @@ class IllegalAssetPolicy
      */
     public function update(User $user, IllegalAsset $illegalAsset): bool
     {
-        if ($user->hasRole('admin')) return true;
-        
-        // Supervisor can update assets in their department
-        if ($user->hasRole('supervisor')) {
-            return $user->department_id === $illegalAsset->department_id;
-        }
-
-        // Officer can only update if it is still 'Registered' and they are the owner
-        if ($user->hasRole('officer') && $illegalAsset->status === 'Registered') {
-            return $user->id === $illegalAsset->officer_id;
-        }
-
-        return false;
+        return $user->hasRole(['admin', 'officer', 'woreda_officer', 'sub_city_officer', 'supervisor']);
     }
 
     /**
@@ -73,14 +53,12 @@ class IllegalAssetPolicy
     
     public function handover(User $user, IllegalAsset $illegalAsset): bool
     {
-        return $user->hasRole('admin') || 
-               ($user->hasRole('supervisor') && $user->department_id === $illegalAsset->department_id);
+        return $user->hasRole(['admin', 'officer', 'woreda_officer']);
     }
 
     public function estimate(User $user, IllegalAsset $illegalAsset): bool
     {
-        return $user->hasRole('admin') || 
-               ($user->hasRole('supervisor') && $user->department_id === $illegalAsset->department_id);
+        return $user->hasRole(['admin', 'officer']);
     }
 
     public function transfer(User $user, IllegalAsset $illegalAsset): bool
@@ -90,11 +68,11 @@ class IllegalAssetPolicy
 
     public function sell(User $user, IllegalAsset $illegalAsset): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasRole(['admin', 'woreda_officer', 'sub_city_officer']);
     }
 
     public function dispose(User $user, IllegalAsset $illegalAsset): bool
     {
-        return $user->hasRole('admin');
+        return $user->hasRole(['admin', 'woreda_officer', 'sub_city_officer']);
     }
 }

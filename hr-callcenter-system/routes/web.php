@@ -54,6 +54,10 @@ Route::post('/contact', [HomeController::class, 'sendContact'])->name('contact.s
 // Filament handles these automatically at /admin
 // No need to define them here
 
+Route::middleware('auth')->prefix('admin/illegal-assets')->name('admin.illegal-assets.')->group(function () {
+    Route::get('/{id}/print-history', [\App\Http\Controllers\Admin\AssetHistoryController::class, 'print'])->name('print-history');
+});
+
 Route::middleware('auth')->prefix('admin/call-tips')->name('admin.call-tips.')->group(function () {
     Route::post('/', [CallTipWorkflowController::class, 'store'])->name('store');
     Route::patch('/{tip}/supervisor-review', [CallTipWorkflowController::class, 'supervisorReview'])->name('supervisor-review');

@@ -15,6 +15,12 @@ class IllegalAsset extends Model
     protected $fillable = [
         'asset_type',
         'description',
+        'owner_name',
+        'owner_phone',
+        'sub_city_id',
+        'woreda_id',
+        'kebele',
+        'house_number',
         'location_found',
         'date_confiscated',
         'officer_id',
@@ -34,6 +40,16 @@ class IllegalAsset extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function subCity(): BelongsTo
+    {
+        return $this->belongsTo(SubCity::class);
+    }
+
+    public function woreda(): BelongsTo
+    {
+        return $this->belongsTo(Woreda::class);
     }
 
     public function handovers(): HasMany

@@ -51,18 +51,43 @@ class IllegalAssetResource extends Resource
                         Forms\Components\Textarea::make('description')
                             ->required()
                             ->maxLength(65535),
-                        Forms\Components\TextInput::make('location_found')
+                        Forms\Components\TextInput::make('owner_name')
+                            ->label('Owner Name')
                             ->required()
                             ->maxLength(255),
+                        Forms\Components\TextInput::make('owner_phone')
+                            ->label('Owner Phone')
+                            ->tel()
+                            ->maxLength(20),
+                        \Filament\Schemas\Components\Section::make('Location Found')
+                            ->schema([
+                                Forms\Components\Select::make('sub_city_id')
+                                    ->label('Sub City (ክፍለ ከተማ)')
+                                    ->options(\App\Models\SubCity::all()->pluck('name_am', 'id'))
+                                    ->required()
+                                    ->live(),
+                                Forms\Components\Select::make('woreda_id')
+                                    ->label('Woreda (ወረዳ)')
+                                    ->options(function (callable $get) {
+                                        $subCityId = $get('sub_city_id');
+                                        if ($subCityId) {
+                                            return \App\Models\Woreda::where('sub_city_id', $subCityId)
+                                                ->pluck('name_am', 'id');
+                                        }
+                                        return [];
+                                    })
+                                    ->required(),
+                                Forms\Components\TextInput::make('kebele')
+                                    ->label('Kebele (ቀበሌ)')
+                                    ->maxLength(255),
+                                Forms\Components\TextInput::make('house_number')
+                                    ->label('House Number (የቤት ቁጥር)')
+                                    ->maxLength(255),
+                            ])->columns(2),
                         Forms\Components\DatePicker::make('date_confiscated')
                             ->required(),
                         Forms\Components\Select::make('officer_id')
                             ->relationship('officer', 'badge_number')
-                            ->searchable()
-                            ->preload()
-                            ->required(),
-                        Forms\Components\Select::make('department_id')
-                            ->relationship('department', 'name_en')
                             ->searchable()
                             ->preload()
                             ->required(),
@@ -91,8 +116,20 @@ class IllegalAssetResource extends Resource
                 Tables\Columns\TextColumn::make('date_confiscated')
                     ->date()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('location_found')
-                    ->searchable(),
+                Tables\Columns\TextColumn::make('owner_name')
+                    ->label('Owner Name')
+                    ->searchable()
+                    ->sortable()
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('subCity.name_am')
+                    ->label('Sub City')
+                    ->searchable()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('woreda.name_am')
+                    ->label('Woreda')
+                    ->searchable()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('officer.badge_number')
                     ->label('Officer Badge')
                     ->sortable(),
@@ -128,12 +165,19 @@ class IllegalAssetResource extends Resource
             ->actions([
                 EditAction::make(),
                 
+                Action::make('print_history')
+                    ->label('Print History')
+                    ->icon('heroicon-o-printer')
+                    ->color('gray')
+                    ->url(fn(IllegalAsset $record) => route('admin.illegal-assets.print-history', $record->id))
+                    ->openUrlInNewTab(),
+                
                 // Asset Handover Modal Action
                 Action::make('handover')
                     ->label('Hand Over')
                     ->icon('heroicon-o-hand-raised')
                     ->color('warning')
-                    ->visible(fn ($record) => $record->status === 'Registered' && Auth::user()->can('handover', $record))
+                    ->visible(fn ($record) => in_array($record->status, ['Registered', 'Handed Over', 'Estimated']) && Auth::user()->can('handover', $record))
                     ->form([
                         Forms\Components\Select::make('department_id')
                             ->label('Hand Over To Department')
@@ -224,7 +268,7 @@ class IllegalAssetResource extends Resource
                     ->label('Sell')
                     ->icon('heroicon-o-banknotes')
                     ->color('success')
-                    ->visible(fn ($record) => in_array($record->status, ['Estimated', 'Transferred']) && Auth::user()->can('sell', $record))
+                    ->visible(fn ($record) => in_array($record->status, ['Registered', 'Handed Over', 'Estimated', 'Transferred']) && Auth::user()->can('sell', $record))
                     ->form([
                         Forms\Components\TextInput::make('buyer_name')->required(),
                         Forms\Components\TextInput::make('buyer_contact'),
