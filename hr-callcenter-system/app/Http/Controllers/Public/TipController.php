@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\Tip;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Log;
 
 class TipController extends Controller
 {
@@ -55,7 +55,6 @@ class TipController extends Controller
 
         $data = $validator->validated();
 
-        // Handle anonymous flag
         if ($request->has('is_anonymous') && $request->is_anonymous) {
             $data['reporter_name'] = null;
             $data['reporter_email'] = null;
@@ -65,9 +64,9 @@ class TipController extends Controller
             $data['is_anonymous'] = false;
         }
 
-        // Handle evidence files
         if ($request->hasFile('evidence_files')) {
             $files = [];
+
             foreach ($request->file('evidence_files') as $file) {
                 $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
                 $path = $file->storeAs(
@@ -77,23 +76,20 @@ class TipController extends Controller
                 );
                 $files[] = $path;
             }
+
             $data['evidence_files'] = $files;
         }
 
-        // Set boolean flags
-        $data['has_evidence'] = $request->hasFile('evidence_files') || !empty($request->evidence_description);
+        $data['has_evidence'] = $request->hasFile('evidence_files') || ! empty($request->evidence_description);
         $data['is_ongoing'] = $request->has('is_ongoing');
 
-        // Create tip
         $tip = Tip::create($data);
 
-        // Generate tracking URL for anonymous tips
         $trackingUrl = null;
         if ($tip->is_anonymous && $tip->access_token) {
             $trackingUrl = route('tip.track.anonymous', ['token' => $tip->access_token]);
         }
 
-        // Send confirmation if email provided
         if ($tip->reporter_email) {
             try {
                 Mail::send(
@@ -101,7 +97,7 @@ class TipController extends Controller
                     ['tip' => $tip, 'tracking_url' => $trackingUrl],
                     function ($message) use ($tip) {
                         $message->to($tip->reporter_email)
-                            ->subject('የምክር ማረጋገጫ - ቁጥር: ' . $tip->tip_number);
+                            ->subject(__('messages.report_tip') . ' - ' . $tip->tip_number);
                     }
                 );
 
@@ -121,12 +117,11 @@ class TipController extends Controller
     {
         $tip = Tip::where('access_token', $token)->first();
 
-        if (!$tip) {
+        if (! $tip) {
             return redirect()->route('home')
-                ->with('error', 'ልክ ያልሆነ የመከታተያ አገናኝ');
+                ->with('error', __('validation.exists', ['attribute' => __('messages.report_tip')]));
         }
 
-        // Update last accessed
         $tip->update(['last_accessed' => now()]);
 
         return view('portal.tip.status', compact('tip'));

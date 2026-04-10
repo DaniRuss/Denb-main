@@ -1,18 +1,18 @@
 @extends('layouts.portal')
 
-@section('title', 'Submit a Complaint — AALEA Portal')
-@section('description', 'Submit a formal complaint to the Addis Ababa Law Enforcement Authority.')
+@section('title', trans('messages.complaint_title') . ' — ' . trans('messages.site_title'))
+@section('description', trans('messages.complaint_description'))
 
 @section('content')
 
 {{-- Page Header --}}
 <div class="breadcrumb-portal">
   <div class="container">
-    <h2 data-aos="fade-down"><i class="bi bi-megaphone me-2"></i>Submit a Complaint</h2>
+    <h2 data-aos="fade-down"><i class="bi bi-megaphone me-2"></i>{{ trans('messages.complaint_title') }}</h2>
     <nav aria-label="breadcrumb" data-aos="fade-down" data-aos-delay="100">
       <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{{ route('home') }}">Home</a></li>
-        <li class="breadcrumb-item active">Submit Complaint</li>
+        <li class="breadcrumb-item active">{{ trans('messages.submit_complaint') }}</li>
       </ol>
     </nav>
     <p class="text-white-50 mt-2" data-aos="fade-down" data-aos-delay="150">
@@ -217,7 +217,7 @@
                   After submission, you'll receive a <strong>ticket number</strong> to track your case status.
                 </div>
                 <button type="submit" class="btn btn-primary btn-lg px-5 fw-bold">
-                  <i class="bi bi-send me-2"></i>Submit Complaint
+                  <i class="bi bi-send me-2"></i>{{ trans('messages.submit_complaint') }}
                 </button>
               </div>
             </div>

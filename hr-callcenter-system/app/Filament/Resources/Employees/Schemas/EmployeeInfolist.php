@@ -14,7 +14,7 @@ class EmployeeInfolist
     {
         return $schema
             ->schema([
-                Tabs::make('Employee Details')
+                Tabs::make('Paramilitary Details')
                     ->columnSpanFull()
                     ->tabs([
                         Tab::make('Personal Information')
@@ -26,7 +26,7 @@ class EmployeeInfolist
                                         TextEntry::make('first_name_en')->label('First Name (English)'),
                                         TextEntry::make('last_name_en')->label('Last Name (English)'),
                                     ])
-                                    ->columns(2),
+                                    ->columns(['default' => 2]),
                                 Section::make('Basic & Contact')
                                     ->schema([
                                         TextEntry::make('gender'),
@@ -37,13 +37,13 @@ class EmployeeInfolist
                                         TextEntry::make('phone'),
                                         TextEntry::make('emergency_contact'),
                                     ])
-                                    ->columns(2),
+                                    ->columns(['default' => 2]),
                                 Section::make('Identification')
                                     ->schema([
                                         TextEntry::make('national_id')->label('National ID'),
                                         TextEntry::make('ethio_coder')->label('Ethio Coder ID'),
                                     ])
-                                    ->columns(2),
+                                    ->columns(['default' => 2]),
                             ]),
                         Tab::make('Location')
                             ->schema([
@@ -52,10 +52,10 @@ class EmployeeInfolist
                                 TextEntry::make('kebele'),
                                 TextEntry::make('house_number'),
                             ])
-                            ->columns(2),
+                            ->columns(['default' => 2]),
                         Tab::make('Employment')
                             ->schema([
-                                TextEntry::make('employee_id')->label('Employee ID'),
+                                TextEntry::make('employee_id')->label('Paramilitary ID'),
                                 TextEntry::make('position'),
                                 TextEntry::make('rank')->badge(),
                                 TextEntry::make('employee_type')
@@ -80,7 +80,7 @@ class EmployeeInfolist
                                     ->date()
                                     ->visible(fn ($record) => $record->status === 'suspended'),
                             ])
-                            ->columns(2),
+                            ->columns(['default' => 2]),
                         Tab::make('Education & Training')
                             ->schema([
                                 Section::make('Education')
@@ -100,14 +100,14 @@ class EmployeeInfolist
                                         TextEntry::make('field_of_study'),
                                         TextEntry::make('institution'),
                                     ])
-                                    ->columns(2),
+                                    ->columns(['default' => 2]),
                                 Section::make('Training')
                                     ->schema([
                                         TextEntry::make('training_round'),
                                         TextEntry::make('last_training_date')->date(),
                                         TextEntry::make('training_notes')->columnSpanFull(),
                                     ])
-                                    ->columns(2),
+                                    ->columns(['default' => 2]),
                             ]),
                         Tab::make('Uniform Sizes')
                             ->schema([
@@ -121,7 +121,18 @@ class EmployeeInfolist
                                 TextEntry::make('jacket_size'),
                                 TextEntry::make('t_shirt_size'),
                             ])
-                            ->columns(3),
+                            ->columns(['default' => 3]),
+                        Tab::make('Equipment')
+                            ->schema([
+                                TextEntry::make('walkie_talkie_serial')->label('Walkie Talkie Serial'),
+                                \Filament\Infolists\Components\TextEntry::make('stick_issued')
+                                    ->label('Stick Issued')
+                                    ->formatStateUsing(fn ($state) => $state ? 'Yes' : 'No')
+                                    ->badge()
+                                    ->color('success'),
+                                TextEntry::make('other_equipment')->label('Other Equipment'),
+                            ])
+                            ->columns(2),
                     ]),
             ]);
     }

@@ -14,11 +14,6 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Actions\EditAction;
-use Filament\Actions\ViewAction;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\BulkActionGroup;
 use Illuminate\Database\Eloquent\Builder;
 
 class IncidentReportResource extends Resource
@@ -27,9 +22,15 @@ class IncidentReportResource extends Resource
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-document-text';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Penalty & Action';
+    public static function getNavigationGroup(): ?string
+    {
+        return app()->getLocale() === 'am' ? 'ቅጣት እና እርምጃ' : 'Penalty & Action';
+    }
 
-    protected static ?string $navigationLabel = 'Incident Reports';
+    public static function getNavigationLabel(): string
+    {
+        return app()->getLocale() === 'am' ? 'የክስተት ሪፖርቶች' : 'Incident Reports';
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -38,7 +39,7 @@ class IncidentReportResource extends Resource
                 ->schema([
                     Forms\Components\Select::make('employee_id')
                         ->label('Employee')
-                        ->options(Employee::query()->orderBy('first_name_am')->get()->mapWithKeys(fn ($e) => [$e->id => $e->employee_id . ' - ' . $e->full_name_am])->all())
+                        ->options(Employee::query()->orderBy('first_name_am')->get()->mapWithKeys(fn ($e) => [$e->id => $e->employee_id.' - '.$e->full_name_am])->all())
                         ->searchable()
                         ->required(),
                     Forms\Components\Select::make('incident_type')
@@ -59,6 +60,10 @@ class IncidentReportResource extends Resource
                         ->maxLength(255),
                     Forms\Components\DatePicker::make('incident_date')
                         ->label('Date')
+                        ->ethiopic()
+                        ->firstDayOfWeek(1)
+                        ->closeOnDateSelection()
+                        ->displayFormat('Y-m-d')
                         ->default(now())
                         ->required(),
                     Forms\Components\Textarea::make('description')
@@ -93,11 +98,11 @@ class IncidentReportResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('employee.employee_id')
-                    ->label('Employee ID')
+                    ->label('Paramilitary ID')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('employee.full_name_am')
-                    ->label('Employee Name')
+                    ->label('Paramilitary Name')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('incident_type')
                     ->badge()
@@ -133,9 +138,9 @@ class IncidentReportResource extends Resource
                     ]),
             ])
             ->actions([
-                ViewAction::make(),
-                EditAction::make(),
-                DeleteAction::make(),
+                // Tables\Actions\ViewAction::make(),
+                // Tables\Actions\EditAction::make(),
+                // Tables\Actions\DeleteAction::make(),
             ]);
     }
 
@@ -160,6 +165,7 @@ class IncidentReportResource extends Resource
     public static function canViewAny(): bool
     {
         $user = auth()->user();
+
         return (bool) $user && ($user->hasRole('admin') || $user->can('manage_penalty_action'));
     }
 
@@ -168,4 +174,3 @@ class IncidentReportResource extends Resource
         return parent::getEloquentQuery()->with(['employee', 'reportedBy']);
     }
 }
-

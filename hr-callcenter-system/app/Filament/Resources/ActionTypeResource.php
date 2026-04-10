@@ -8,11 +8,6 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Actions\EditAction;
-use Filament\Actions\ViewAction;
-use Filament\Actions\DeleteAction;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\BulkActionGroup;
 
 class ActionTypeResource extends Resource
 {
@@ -20,9 +15,15 @@ class ActionTypeResource extends Resource
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-clipboard-document-check';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Penalty & Action';
+    public static function getNavigationGroup(): ?string
+    {
+        return app()->getLocale() === 'am' ? 'ቅጣት እና እርምጃ' : 'Penalty & Action';
+    }
 
-    protected static ?string $navigationLabel = 'Action Types';
+    public static function getNavigationLabel(): string
+    {
+        return app()->getLocale() === 'am' ? 'የእርምጃ አይነቶች' : 'Action Types';
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -52,9 +53,9 @@ class ActionTypeResource extends Resource
             ])
             ->defaultSort('name')
             ->actions([
-                ViewAction::make(),
-                EditAction::make(),
-                DeleteAction::make(),
+                // Tables\Actions\ViewAction::make(),
+                // Tables\Actions\EditAction::make(),
+                // Tables\Actions\DeleteAction::make(),
             ]);
     }
 
@@ -73,4 +74,3 @@ class ActionTypeResource extends Resource
         return (bool) $user && ($user->hasRole('admin') || $user->can('manage_penalty_action'));
     }
 }
-

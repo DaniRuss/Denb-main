@@ -4,11 +4,11 @@ namespace App\Filament\Resources\Announcements\Schemas;
 
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\RichEditor;
-use Filament\Schemas\Components\Section;
-use Filament\Schemas\Components\Grid;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 class AnnouncementForm
@@ -44,6 +44,9 @@ class AnnouncementForm
                                 ->columnSpanFull(),
                             DateTimePicker::make('publish_date')
                                 ->label('Publish Date')
+                                ->ethiopic()
+                                ->firstDayOfWeek(1)
+                                ->seconds(false)
                                 ->required(),
                             Grid::make(2)->schema([
                                 Toggle::make('is_urgent')
@@ -54,7 +57,7 @@ class AnnouncementForm
                                     ->default(true),
                             ])->columnSpan(1),
                         ]),
-                    ])
+                    ]),
             ]);
     }
 }

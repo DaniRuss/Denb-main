@@ -2,23 +2,26 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Resources\CaseAssignments\Pages;
 use App\Models\CaseAssignment;
 use App\Models\Complaint;
 use App\Models\Officer;
 use App\Models\User;
-use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Notifications\Notification;
-use App\Filament\Resources\CaseAssignments\Pages;
 
 class CaseAssignmentResource extends Resource
 {
     protected static ?string $model = CaseAssignment::class;
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-clipboard-document-check';
+
     protected static string|\UnitEnum|null $navigationGroup = 'Case Management';
+
     protected static ?string $navigationLabel = 'Case Assignments';
+
     protected static ?int $navigationSort = 4;
 
     public static function form(Schema $schema): Schema
@@ -30,69 +33,39 @@ class CaseAssignmentResource extends Resource
                         ->label('Complaint')
                         ->options(Complaint::pluck('ticket_number', 'id'))
                         ->searchable()
-                        ->nullable(),
+                        ->required(),
 
-                    \Filament\Forms\Components\Select::make('caseable_type')
-                        ->label('Case Type')
-                        ->options([
-                            'App\Models\Complaint' => 'Complaint',
-                            'App\Models\Tip' => 'Tip',
-                        ])
-                        ->required()
-                        ->reactive(),
-
-                    \Filament\Forms\Components\Select::make('caseable_id')
-                        ->label('Case ID')
-                        ->options(function (callable $get) {
-                            $type = $get('caseable_type');
-                            if (!$type) return [];
-                            return $type::pluck($type === 'App\Models\Complaint' ? 'ticket_number' : 'tip_number', 'id');
-                        })
+                    \Filament\Forms\Components\Select::make('officer_id')
+                        ->label('Assign to Officer')
+                        ->options(Officer::with('user')->get()->pluck('user.name', 'id'))
                         ->searchable()
                         ->required(),
 
                     \Filament\Forms\Components\Select::make('assigned_by')
                         ->label('Assigned By')
-                        ->options(User::pluck('name', 'id'))
+                        ->options(User::whereHas('roles', fn ($q) => $q->whereIn('name', ['admin', 'supervisor']))->pluck('name', 'id'))
                         ->searchable()
                         ->nullable(),
 
-                    \Filament\Forms\Components\Select::make('assigned_to')
-                        ->label('Assigned To')
-                        ->options(User::pluck('name', 'id'))
-                        ->searchable()
-                        ->required(),
-
-                    \Filament\Forms\Components\Select::make('department_id')
-                        ->relationship('department', 'name_en')
-                        ->searchable()
-                        ->required(),
-
-                    \Filament\Forms\Components\Select::make('assignment_type')
-                        ->options([
-                            'primary' => 'Primary',
-                            'supporting' => 'Supporting',
-                            'reviewer' => 'Reviewer',
-                        ])
-                        ->required(),
-
                     \Filament\Forms\Components\Select::make('status')
+                        ->label('Status')
                         ->options([
-                            'active' => 'Active',
+                            'assigned' => 'Assigned',
+                            'in_progress' => 'In Progress',
                             'completed' => 'Completed',
                             'reassigned' => 'Reassigned',
                         ])
-                        ->default('active')
+                        ->default('assigned')
                         ->required(),
 
-                    \Filament\Forms\Components\DateTimePicker::make('assigned_at')
-                        ->default(now())
-                        ->required(),
+                    \Filament\Forms\Components\DatePicker::make('due_date')
+                        ->label('Due Date')
+                        ->ethiopic()
+                        ->firstDayOfWeek(1)
+                        ->closeOnDateSelection(),
 
-                    \Filament\Forms\Components\DateTimePicker::make('deadline'),
-                    \Filament\Forms\Components\DateTimePicker::make('completed_at'),
-
-                    \Filament\Forms\Components\Textarea::make('assignment_notes')
+                    \Filament\Forms\Components\Textarea::make('notes')
+                        ->label('Assignment Notes')
                         ->columnSpanFull(),
                 ])->columns(2),
         ]);
@@ -102,37 +75,39 @@ class CaseAssignmentResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('caseable_type')
-                    ->label('Type')
-                    ->formatStateUsing(fn($state) => str($state)->afterLast('\\')->toString()),
+                Tables\Columns\TextColumn::make('complaint.ticket_number')
+                    ->label('Ticket #')
+                    ->searchable()
+                    ->sortable(),
 
-                Tables\Columns\TextColumn::make('caseable_id')
-                    ->label('ID'),
+                Tables\Columns\TextColumn::make('complaint.complaint_type')
+                    ->label('Complaint Type')
+                    ->formatStateUsing(fn ($state) => ucwords(str_replace('_', ' ', $state ?? ''))),
 
-                Tables\Columns\TextColumn::make('assignedTo.name')
-                    ->label('Assigned To'),
+                Tables\Columns\TextColumn::make('officer.user.name')
+                    ->label('Assigned Officer')
+                    ->searchable(),
 
-                Tables\Columns\TextColumn::make('department.name_en')
-                    ->label('Department'),
-
-                Tables\Columns\TextColumn::make('assignment_type')
-                    ->label('Type')
-                    ->badge(),
+                Tables\Columns\TextColumn::make('assignedBy.name')
+                    ->label('Assigned By'),
 
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
-                    ->color(fn($state) => match ($state) {
-                        'active' => 'info',
+                    ->color(fn ($state) => match ($state) {
+                        'assigned' => 'info',
+                        'in_progress' => 'warning',
                         'completed' => 'success',
                         'reassigned' => 'gray',
                         default => 'secondary',
                     }),
 
-                Tables\Columns\TextColumn::make('deadline')
-                    ->dateTime()
+                Tables\Columns\TextColumn::make('due_date')
+                    ->label('Due Date')
+                    ->date()
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('assigned_at')
+                Tables\Columns\TextColumn::make('created_at')
+                    ->label('Assigned On')
                     ->dateTime()
                     ->sortable(),
             ])

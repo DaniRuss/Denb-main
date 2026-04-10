@@ -1,0 +1,34 @@
+Here are the login credentials for each role:
+
+- **Role**: admin
+  - **Username/Email**: admin@aalea.gov.et (or admin@aalea.gov.et)
+  - **Password**: admin123
+
+- **Role**: supervisor
+  - **Username/Email**: superv@gmail.com (or superv@gmail.com)
+  - **Password**: password123
+
+- **Role**: officer
+  - **Username/Email**: Kedir@gmail.com (or Kedir@gmail.com)
+  - **Password**: password123
+
+- **Role**: call_record_officer
+  - **Username/Email**: Call@gmail.com (or Call@gmail.com)
+  - **Password**: password123
+
+- **Role**: call_center_director
+  - **Username/Email**: calld@gmail.com (or calld@gmail.com)
+  - **Password**: password123
+
+- **Role**: sub_city_officer
+  - **Username/Email**: Boles@gmail.com (or Boles@gmail.com)
+  - **Password**: password123
+
+- **Role**: penalty_action_officer
+  - **Username/Email**: Kedir@gmail.com (or Kedir@gmail.com)
+  - **Password**: password123
+
+- **Role**: woreda_officer
+  - **Username/Email**: woreda_officer@aalea.gov.et (or woreda_officer)
+  - **Password**: password123
+

@@ -12,22 +12,38 @@ class AssetTransfer extends Model
 
     protected $fillable = [
         'illegal_asset_id',
+        'from_woreda_id',
+        'to_sub_city_id',
         'from_department_id',
         'to_department_id',
         'from_storage_facility',
         'to_storage_facility',
-        'transfer_date',
         'transferred_by_officer_id',
+        'transfer_date',
         'notes',
+        'confirmation_status',
+        'confirmed_by_user_id',
+        'confirmed_at',
     ];
 
     protected $casts = [
         'transfer_date' => 'date',
+        'confirmed_at' => 'datetime',
     ];
 
     public function illegalAsset(): BelongsTo
     {
         return $this->belongsTo(IllegalAsset::class);
+    }
+
+    public function fromWoreda(): BelongsTo
+    {
+        return $this->belongsTo(Woreda::class, 'from_woreda_id');
+    }
+
+    public function toSubCity(): BelongsTo
+    {
+        return $this->belongsTo(SubCity::class, 'to_sub_city_id');
     }
 
     public function fromDepartment(): BelongsTo
@@ -43,5 +59,10 @@ class AssetTransfer extends Model
     public function transferredByOfficer(): BelongsTo
     {
         return $this->belongsTo(Officer::class, 'transferred_by_officer_id');
+    }
+
+    public function confirmedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'confirmed_by_user_id');
     }
 }

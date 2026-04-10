@@ -65,7 +65,7 @@ class EditEmployee extends EditRecord
             }
 
             $user = User::create([
-                'name' => $name !== '' ? $name : 'Employee',
+                'name' => $name !== '' ? $name : 'Paramilitary',
                 'email' => $record->email,
                 'username' => $userUsername,
                 'password' => (string) $userPassword,

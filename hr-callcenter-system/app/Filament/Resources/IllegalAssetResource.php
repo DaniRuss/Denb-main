@@ -102,6 +102,13 @@ class IllegalAssetResource extends Resource
                             ])
                             ->required()
                             ->default('Registered'),
+                        Forms\Components\FileUpload::make('attachments')
+                            ->label('Attachments')
+                            ->multiple()
+                            ->directory('illegal-asset-attachments')
+                            ->maxFiles(10)
+                            ->acceptedFileTypes(['image/*', 'application/pdf'])
+                            ->columnSpanFull(),
                     ])->columns(2),
             ]);
     }
@@ -137,11 +144,14 @@ class IllegalAssetResource extends Resource
                     ->label('Department')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('status')
+                    ->formatStateUsing(fn (string $state): string => str_replace('Handover Pending Confirmation', 'Transfer Pending Confirmation', $state))
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
                         'Registered' => 'gray',
+                        'Handover Pending Confirmation' => 'info',
                         'Handed Over' => 'info',
                         'Estimated' => 'warning',
+                        'Transfer Pending Confirmation' => 'warning',
                         'Transferred' => 'primary',
                         'Sold' => 'success',
                         'Disposed' => 'danger',
@@ -152,8 +162,10 @@ class IllegalAssetResource extends Resource
                 Tables\Filters\SelectFilter::make('status')
                     ->options([
                         'Registered' => 'Registered',
+                        'Handover Pending Confirmation' => 'Handover Pending Confirmation',
                         'Handed Over' => 'Handed Over',
                         'Estimated' => 'Estimated',
+                        'Transfer Pending Confirmation' => 'Transfer Pending Confirmation',
                         'Transferred' => 'Transferred',
                         'Sold' => 'Sold',
                         'Disposed' => 'Disposed',
@@ -174,32 +186,61 @@ class IllegalAssetResource extends Resource
                 
                 // Asset Handover Modal Action
                 Action::make('handover')
-                    ->label('Hand Over')
+                    ->label('Transfer')
                     ->icon('heroicon-o-hand-raised')
                     ->color('warning')
                     ->visible(fn ($record) => in_array($record->status, ['Registered', 'Handed Over', 'Estimated']) && Auth::user()->can('handover', $record))
                     ->form([
                         Forms\Components\Select::make('department_id')
-                            ->label('Hand Over To Department')
-                            ->options(Department::pluck('name_en', 'id')->toArray())
+                            ->label('To Department (Optional fallback)')
+                            ->options(Department::pluck('name_en', 'id')->toArray()),
+                        Forms\Components\Select::make('to_woreda_id')
+                            ->label('To Woreda')
+                            ->options(\App\Models\Woreda::pluck('name_am', 'id')->toArray())
                             ->required(),
                         Forms\Components\Select::make('handed_over_to_officer_id')
                             ->label('To Officer')
                             ->options(Officer::pluck('badge_number', 'id')->toArray())
                             ->required(),
                         Forms\Components\DatePicker::make('handover_date')
-                            ->default(now())->required(),
+                            ->default(now())->disabled()->dehydrated()->required(),
                         Forms\Components\Textarea::make('notes'),
                     ])
                     ->action(function (array $data, IllegalAsset $record): void {
+                        $data['confirmation_status'] = 'Pending';
                         AssetHandover::create(array_merge($data, ['illegal_asset_id' => $record->id]));
+                        $record->update(['status' => 'Handover Pending Confirmation']);
+                        
+                        AssetActivity::create([
+                            'illegal_asset_id' => $record->id,
+                            'user_id' => Auth::id(),
+                            'action' => 'Handover Pending',
+                            'description' => "Asset handover initiated to Woreda ID: {$data['to_woreda_id']}",
+                        ]);
+                    }),
+
+                // Asset Handover Confirmation Action
+                Action::make('confirm_handover')
+                    ->label('Confirm Transfer')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->visible(fn ($record) => $record->status === 'Handover Pending Confirmation')
+                    ->action(function (IllegalAsset $record): void {
+                        $handover = AssetHandover::where('illegal_asset_id', $record->id)->latest()->first();
+                        if ($handover) {
+                            $handover->update([
+                                'confirmation_status' => 'Confirmed',
+                                'confirmed_by_user_id' => Auth::id(),
+                                'confirmed_at' => now(),
+                            ]);
+                        }
                         $record->update(['status' => 'Handed Over']);
                         
                         AssetActivity::create([
                             'illegal_asset_id' => $record->id,
                             'user_id' => Auth::id(),
-                            'action' => 'Handed Over',
-                            'description' => "Asset handed over to department ID: {$data['department_id']}",
+                            'action' => 'Handover Confirmed',
+                            'description' => "Asset handover confirmed by Woreda",
                         ]);
                     }),
 
@@ -208,12 +249,12 @@ class IllegalAssetResource extends Resource
                     ->label('Estimate')
                     ->icon('heroicon-o-currency-dollar')
                     ->color('info')
-                    ->visible(fn ($record) => in_array($record->status, ['Registered', 'Handed Over']) && Auth::user()->can('estimate', $record))
+                    ->visible(fn ($record) => in_array($record->status, ['Registered', 'Handed Over', 'Handover Pending Confirmation']) && Auth::user()->can('estimate', $record))
                     ->form([
                         Forms\Components\TextInput::make('estimated_value')
                             ->numeric()->prefix('ETB')->required(),
                         Forms\Components\TextInput::make('evaluator_name')->required(),
-                        Forms\Components\DatePicker::make('evaluation_date')->default(now())->required(),
+                        Forms\Components\DatePicker::make('evaluation_date')->default(now())->disabled()->dehydrated()->required(),
                         Forms\Components\Textarea::make('notes'),
                     ])
                     ->action(function (array $data, IllegalAsset $record): void {
@@ -233,33 +274,73 @@ class IllegalAssetResource extends Resource
                     ->label('Transfer')
                     ->icon('heroicon-o-arrows-right-left')
                     ->color('gray')
-                    ->visible(fn ($record) => in_array($record->status, ['Handed Over', 'Estimated']) && Auth::user()->can('transfer', $record))
+                    ->visible(fn ($record) => in_array($record->status, ['Registered', 'Handed Over', 'Estimated', 'Handover Pending Confirmation']) && Auth::user()->can('transfer', $record))
+                    ->fillForm(fn (IllegalAsset $record): array => [
+                        'from_woreda_id' => $record->woreda_id,
+                        'to_sub_city_id' => $record->sub_city_id,
+                    ])
                     ->form([
-                        Forms\Components\Select::make('from_department_id')
-                            ->label('From Dept')
-                            ->options(Department::pluck('name_en', 'id')->toArray())
+                        Forms\Components\Select::make('from_woreda_id')
+                            ->label('From Woreda')
+                            ->options(\App\Models\Woreda::pluck('name_am', 'id')->toArray())
+                            ->disabled()
+                            ->dehydrated()
                             ->required(),
-                        Forms\Components\Select::make('to_department_id')
-                            ->label('To Dept')
-                            ->options(Department::pluck('name_en', 'id')->toArray())
+                        Forms\Components\Select::make('to_sub_city_id')
+                            ->label('To SubCity')
+                            ->options(\App\Models\SubCity::pluck('name_am', 'id')->toArray())
+                            ->disabled()
+                            ->dehydrated()
                             ->required(),
                         Forms\Components\TextInput::make('from_storage_facility')->label('From Facility'),
                         Forms\Components\TextInput::make('to_storage_facility')->label('To Facility'),
                         Forms\Components\Select::make('transferred_by_officer_id')
                             ->options(Officer::pluck('badge_number', 'id')->toArray())
                             ->label('Transferred By')->required(),
-                        Forms\Components\DatePicker::make('transfer_date')->default(now())->required(),
+                        Forms\Components\DatePicker::make('transfer_date')->default(now())->disabled()->dehydrated()->required(),
                         Forms\Components\Textarea::make('notes'),
+                        Forms\Components\FileUpload::make('attachments')
+                            ->label('Attachments')
+                            ->multiple()
+                            ->directory('transfer-attachments')
+                            ->maxFiles(10)
+                            ->acceptedFileTypes(['image/*', 'application/pdf']),
                     ])
                     ->action(function (array $data, IllegalAsset $record): void {
+                        $data['confirmation_status'] = 'Pending';
                         AssetTransfer::create(array_merge($data, ['illegal_asset_id' => $record->id]));
+                        $record->update(['status' => 'Transfer Pending Confirmation']);
+                        
+                        AssetActivity::create([
+                            'illegal_asset_id' => $record->id,
+                            'user_id' => Auth::id(),
+                            'action' => 'Transfer Pending',
+                            'description' => "Asset transfer initiated from Woreda ID: {$data['from_woreda_id']} to SubCity ID: {$data['to_sub_city_id']}",
+                        ]);
+                    }),
+
+                // Asset Transfer Confirmation Action
+                Action::make('confirm_transfer')
+                    ->label('Confirm Transfer')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->visible(fn ($record) => $record->status === 'Transfer Pending Confirmation')
+                    ->action(function (IllegalAsset $record): void {
+                        $transfer = $record->transfers()->latest()->first();
+                        if ($transfer) {
+                            $transfer->update([
+                                'confirmation_status' => 'Confirmed',
+                                'confirmed_by_user_id' => Auth::id(),
+                                'confirmed_at' => now(),
+                            ]);
+                        }
                         $record->update(['status' => 'Transferred']);
                         
                         AssetActivity::create([
                             'illegal_asset_id' => $record->id,
                             'user_id' => Auth::id(),
-                            'action' => 'Transferred',
-                            'description' => "Asset transferred from department ID: {$data['from_department_id']} to {$data['to_department_id']}",
+                            'action' => 'Transfer Confirmed',
+                            'description' => "Asset transfer confirmed by SubCity",
                         ]);
                     }),
 
@@ -268,7 +349,7 @@ class IllegalAssetResource extends Resource
                     ->label('Sell')
                     ->icon('heroicon-o-banknotes')
                     ->color('success')
-                    ->visible(fn ($record) => in_array($record->status, ['Registered', 'Handed Over', 'Estimated', 'Transferred']) && Auth::user()->can('sell', $record))
+                    ->visible(fn ($record) => in_array($record->status, ['Registered', 'Handed Over', 'Estimated', 'Transferred', 'Transfer Pending Confirmation']) && Auth::user()->can('sell', $record))
                     ->form([
                         Forms\Components\TextInput::make('buyer_name')->required(),
                         Forms\Components\TextInput::make('buyer_contact'),
@@ -276,8 +357,14 @@ class IllegalAssetResource extends Resource
                         Forms\Components\Select::make('sold_by_officer_id')
                             ->options(Officer::pluck('badge_number', 'id')->toArray())
                             ->label('Sold By')->required(),
-                        Forms\Components\DatePicker::make('sale_date')->default(now())->required(),
+                        Forms\Components\DatePicker::make('sale_date')->default(now())->disabled()->dehydrated()->required(),
                         Forms\Components\Textarea::make('notes'),
+                        Forms\Components\FileUpload::make('attachments')
+                            ->label('Attachments')
+                            ->multiple()
+                            ->directory('sale-attachments')
+                            ->maxFiles(10)
+                            ->acceptedFileTypes(['image/*', 'application/pdf']),
                     ])
                     ->action(function (array $data, IllegalAsset $record): void {
                         AssetSale::create(array_merge($data, ['illegal_asset_id' => $record->id]));
@@ -308,8 +395,14 @@ class IllegalAssetResource extends Resource
                         Forms\Components\Select::make('disposed_by_officer_id')
                             ->options(Officer::pluck('badge_number', 'id')->toArray())
                             ->label('Disposed By')->required(),
-                        Forms\Components\DatePicker::make('disposal_date')->default(now())->required(),
+                        Forms\Components\DatePicker::make('disposal_date')->default(now())->disabled()->dehydrated()->required(),
                         Forms\Components\Textarea::make('notes'),
+                        Forms\Components\FileUpload::make('attachments')
+                            ->label('Attachments')
+                            ->multiple()
+                            ->directory('disposal-attachments')
+                            ->maxFiles(10)
+                            ->acceptedFileTypes(['image/*', 'application/pdf']),
                     ])
                     ->action(function (array $data, IllegalAsset $record): void {
                         AssetDisposal::create(array_merge($data, ['illegal_asset_id' => $record->id]));
@@ -333,12 +426,12 @@ class IllegalAssetResource extends Resource
     public static function getRelations(): array
     {
         return [
-            HandoversRelationManager::class,
-            EstimationsRelationManager::class,
-            TransfersRelationManager::class,
-            SalesRelationManager::class,
-            DisposalsRelationManager::class,
-            ActivitiesRelationManager::class,
+            // HandoversRelationManager::class,
+            // EstimationsRelationManager::class,
+            // TransfersRelationManager::class,
+            // SalesRelationManager::class,
+            // DisposalsRelationManager::class,
+            // ActivitiesRelationManager::class,
         ];
     }
 
