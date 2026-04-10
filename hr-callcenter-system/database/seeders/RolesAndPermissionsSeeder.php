@@ -35,6 +35,22 @@ class RolesAndPermissionsSeeder extends Seeder
             'view_reports',
             'manage_inventory',
 
+            // Penalty & Action – granular
+            'create_violation_records',       // officer: record violations on the street
+            'view_violation_records',         // view violation records
+            'edit_violation_records',         // edit/update violation records
+            'issue_penalty_receipts',         // officer: issue penalty receipts to violators
+            'issue_warning_letters',          // officer: issue 3-day and 24-hour warnings
+            'seize_assets',                   // officer: confiscate assets from violators
+            'verify_violations',              // supervisor: verify/approve violation records
+            'manage_violators',               // register and manage violator records
+            'manage_penalty_schedules',       // admin: configure tariff levels and violation types
+            'manage_confiscated_assets',      // manage full asset lifecycle (handover, estimate, transfer, sell, dispose)
+            'track_payments',                 // track penalty payment status, escalate to court
+            'escalate_to_court',              // file court cases for non-payment
+            'escalate_to_task_force',         // escalate warning letters to task force for demolition
+            'view_sub_city_violations',       // sub-city officer: view violations in their sub-city
+
             // Shift Management
             'view_shifts',
             'manage_shifts',
@@ -70,6 +86,15 @@ class RolesAndPermissionsSeeder extends Seeder
             'verify_attendance',
             'approve_shift_swap',
             'view_shift_reports',
+            // Penalty & Action – supervisors verify, escalate, and manage assets.
+            'view_violation_records',
+            'edit_violation_records',
+            'verify_violations',
+            'manage_violators',
+            'manage_confiscated_assets',
+            'track_payments',
+            'escalate_to_court',
+            'escalate_to_task_force',
         ]);
 
         $roleOfficer = Role::findOrCreate('officer');
@@ -80,6 +105,13 @@ class RolesAndPermissionsSeeder extends Seeder
             'view_shifts',
             'manage_attendance',
             'submit_shift_report',
+            // Penalty & Action – officers detect violations and take action on the street.
+            'create_violation_records',
+            'view_violation_records',
+            'issue_penalty_receipts',
+            'issue_warning_letters',
+            'seize_assets',
+            'manage_violators',
         ]);
 
         $callRecordOfficer = Role::findOrCreate('call_record_officer');
@@ -95,7 +127,32 @@ class RolesAndPermissionsSeeder extends Seeder
         $woredaOfficer->givePermissionTo(['manage_woreda_call_tips']);
 
         $penaltyActionOfficer = Role::findOrCreate('penalty_action_officer');
-        $penaltyActionOfficer->givePermissionTo(['manage_penalty_action']);
+        $penaltyActionOfficer->givePermissionTo([
+            'manage_penalty_action',
+            'create_violation_records',
+            'view_violation_records',
+            'edit_violation_records',
+            'issue_penalty_receipts',
+            'issue_warning_letters',
+            'seize_assets',
+            'manage_violators',
+            'manage_confiscated_assets',
+            'track_payments',
+            'escalate_to_court',
+            'escalate_to_task_force',
+        ]);
+
+        $subCityOfficer = Role::findOrCreate('sub_city_officer');
+        // sub_city_officer already exists — add penalty permissions scoped to sub-city
+        $subCityOfficer->givePermissionTo(array_merge(
+            $subCityOfficer->permissions->pluck('name')->toArray(),
+            [
+                'view_violation_records',
+                'view_sub_city_violations',
+                'manage_confiscated_assets',
+                'track_payments',
+            ]
+        ));
 
         // Create Super Admin User
         $admin = User::updateOrCreate(

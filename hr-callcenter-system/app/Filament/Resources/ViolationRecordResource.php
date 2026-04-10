@@ -300,11 +300,89 @@ class ViolationRecordResource extends Resource
     {
         $user = auth()->user();
 
+        return (bool) $user && (
+            $user->hasRole('admin')
+            || $user->can('manage_penalty_action')
+            || $user->can('view_violation_records')
+            || $user->can('create_violation_records')
+            || $user->can('view_sub_city_violations')
+        );
+    }
+
+    public static function canCreate(): bool
+    {
+        $user = auth()->user();
+
+        return (bool) $user && (
+            $user->hasRole('admin')
+            || $user->can('manage_penalty_action')
+            || $user->can('create_violation_records')
+        );
+    }
+
+    public static function canEdit($record): bool
+    {
+        $user = auth()->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        if ($user->hasRole('admin') || $user->can('manage_penalty_action') || $user->can('edit_violation_records')) {
+            return true;
+        }
+
+        // Officers can only edit their own records
+        if ($user->can('create_violation_records') && $record->reported_by === $user->id) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public static function canDelete($record): bool
+    {
+        $user = auth()->user();
+
         return (bool) $user && ($user->hasRole('admin') || $user->can('manage_penalty_action'));
     }
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['violator', 'violationType', 'subCity', 'reportedByUser']);
+        $user = auth()->user();
+        $query = parent::getEloquentQuery()->with(['violator', 'violationType', 'subCity', 'reportedByUser']);
+
+        if (! $user) {
+            return $query;
+        }
+
+        // Admin and penalty_action_officer see everything
+        if ($user->hasRole('admin') || $user->can('manage_penalty_action')) {
+            return $query;
+        }
+
+        // Sub-city officers see violations in their sub-city
+        if ($user->can('view_sub_city_violations') && $user->sub_city) {
+            return $query->where('sub_city_id', $user->sub_city);
+        }
+
+        // Supervisors see violations in their woreda/sub-city
+        if ($user->hasRole('supervisor')) {
+            if ($user->woreda) {
+                return $query->where('woreda_id', $user->woreda);
+            }
+            if ($user->sub_city) {
+                return $query->where('sub_city_id', $user->sub_city);
+            }
+
+            return $query;
+        }
+
+        // Officers see only violations they reported
+        if ($user->hasRole('officer')) {
+            return $query->where('reported_by', $user->id);
+        }
+
+        return $query;
     }
 }

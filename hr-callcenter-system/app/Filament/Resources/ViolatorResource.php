@@ -189,11 +189,53 @@ class ViolatorResource extends Resource
     {
         $user = auth()->user();
 
+        return (bool) $user && (
+            $user->hasRole('admin')
+            || $user->can('manage_penalty_action')
+            || $user->can('manage_violators')
+            || $user->can('view_violation_records')
+        );
+    }
+
+    public static function canCreate(): bool
+    {
+        $user = auth()->user();
+
+        return (bool) $user && (
+            $user->hasRole('admin')
+            || $user->can('manage_penalty_action')
+            || $user->can('manage_violators')
+        );
+    }
+
+    public static function canEdit($record): bool
+    {
+        $user = auth()->user();
+
+        return (bool) $user && (
+            $user->hasRole('admin')
+            || $user->can('manage_penalty_action')
+            || $user->can('manage_violators')
+        );
+    }
+
+    public static function canDelete($record): bool
+    {
+        $user = auth()->user();
+
         return (bool) $user && ($user->hasRole('admin') || $user->can('manage_penalty_action'));
     }
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['subCity', 'woreda']);
+        $user = auth()->user();
+        $query = parent::getEloquentQuery()->with(['subCity', 'woreda']);
+
+        // Sub-city officers only see violators in their sub-city
+        if ($user && $user->hasRole('sub_city_officer') && $user->sub_city) {
+            $query->where('sub_city_id', $user->sub_city);
+        }
+
+        return $query;
     }
 }

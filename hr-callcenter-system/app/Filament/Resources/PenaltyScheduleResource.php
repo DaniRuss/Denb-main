@@ -118,6 +118,37 @@ class PenaltyScheduleResource extends Resource
     {
         $user = auth()->user();
 
-        return (bool) $user && ($user->hasRole('admin') || $user->can('manage_penalty_action'));
+        return (bool) $user && (
+            $user->hasRole('admin')
+            || $user->can('manage_penalty_action')
+            || $user->can('manage_penalty_schedules')
+        );
+    }
+
+    public static function canCreate(): bool
+    {
+        $user = auth()->user();
+
+        return (bool) $user && (
+            $user->hasRole('admin')
+            || $user->can('manage_penalty_schedules')
+        );
+    }
+
+    public static function canEdit($record): bool
+    {
+        $user = auth()->user();
+
+        return (bool) $user && (
+            $user->hasRole('admin')
+            || $user->can('manage_penalty_schedules')
+        );
+    }
+
+    public static function canDelete($record): bool
+    {
+        $user = auth()->user();
+
+        return (bool) $user && $user->hasRole('admin');
     }
 }
