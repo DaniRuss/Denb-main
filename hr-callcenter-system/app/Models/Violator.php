@@ -29,7 +29,7 @@ class Violator extends Model
 
     public function subCity(): BelongsTo
     {
-        return $this->belongsTo(SubCity::class);
+        return $thiWarningLetter (ማስጠንቀቂያ) model & migrations->belongsTo(SubCity::class);
     }
 
     public function woreda(): BelongsTo
