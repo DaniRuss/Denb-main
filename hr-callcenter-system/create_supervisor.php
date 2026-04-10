@@ -18,7 +18,7 @@ try {
         [
             'name' => 'Test Supervisor',
             'username' => 'supervisor_user',
-            'password' => Hash::make($password),
+            'password' => Hash::make($password),Loading
         ]
     );
 
