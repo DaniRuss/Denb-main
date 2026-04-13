@@ -9,13 +9,15 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 
 class PenaltyReceiptRelationManager extends RelationManager
 {
-    protected static string $relationship = 'penaltyReceipt';
+    protected static string $relationship = 'penaltyReceipts';
 
     protected static ?string $recordTitleAttribute = 'receipt_number';
 
@@ -34,8 +36,8 @@ class PenaltyReceiptRelationManager extends RelationManager
                 ->closeOnDateSelection()
                 ->default(now())
                 ->required()
-                ->reactive()
-                ->afterStateUpdated(function (Forms\Set $set, $state) {
+                ->live()
+                ->afterStateUpdated(function (Set $set, $state) {
                     if ($state) {
                         $set('payment_deadline', \Carbon\Carbon::parse($state)->addDays(3)->toDateString());
                     }
@@ -66,21 +68,21 @@ class PenaltyReceiptRelationManager extends RelationManager
                 ])
                 ->default('pending')
                 ->required()
-                ->reactive(),
+                ->live(),
             Forms\Components\DatePicker::make('paid_date')
                 ->label(app()->getLocale() === 'am' ? 'የተከፈለበት ቀን' : 'Paid Date')
                 ->ethiopic()
                 ->firstDayOfWeek(1)
                 ->closeOnDateSelection()
-                ->visible(fn (Forms\Get $get) => in_array($get('payment_status'), ['paid', 'court_paid'])),
+                ->visible(fn (Get $get) => in_array($get('payment_status'), ['paid', 'court_paid'])),
             Forms\Components\TextInput::make('paid_amount')
                 ->label(app()->getLocale() === 'am' ? 'የተከፈለ መጠን' : 'Paid Amount')
                 ->numeric()
                 ->prefix('ETB')
-                ->visible(fn (Forms\Get $get) => in_array($get('payment_status'), ['paid', 'court_paid'])),
+                ->visible(fn (Get $get) => in_array($get('payment_status'), ['paid', 'court_paid'])),
             Forms\Components\Toggle::make('receipt_refused')
                 ->label(app()->getLocale() === 'am' ? 'ደረሰኙን አልቀበልም ብሏል' : 'Violator Refused Receipt')
-                ->reactive(),
+                ->live(),
             Forms\Components\Select::make('issued_by')
                 ->label(app()->getLocale() === 'am' ? 'ያወጣው ኦፊሰር' : 'Issued By')
                 ->options(User::pluck('name', 'id'))
@@ -91,17 +93,17 @@ class PenaltyReceiptRelationManager extends RelationManager
                 ->label(app()->getLocale() === 'am' ? 'ምስክር ኦፊሰር 1' : 'Witness Officer 1')
                 ->options(User::pluck('name', 'id'))
                 ->searchable()
-                ->visible(fn (Forms\Get $get) => $get('receipt_refused')),
+                ->visible(fn (Get $get) => $get('receipt_refused')),
             Forms\Components\Select::make('witness_officer_2')
                 ->label(app()->getLocale() === 'am' ? 'ምስክር ኦፊሰር 2' : 'Witness Officer 2')
                 ->options(User::pluck('name', 'id'))
                 ->searchable()
-                ->visible(fn (Forms\Get $get) => $get('receipt_refused')),
+                ->visible(fn (Get $get) => $get('receipt_refused')),
             Forms\Components\Select::make('witness_officer_3')
                 ->label(app()->getLocale() === 'am' ? 'ምስክር ኦፊሰር 3' : 'Witness Officer 3')
                 ->options(User::pluck('name', 'id'))
                 ->searchable()
-                ->visible(fn (Forms\Get $get) => $get('receipt_refused')),
+                ->visible(fn (Get $get) => $get('receipt_refused')),
             Forms\Components\Textarea::make('notes')
                 ->label(app()->getLocale() === 'am' ? 'ማስታወሻ' : 'Notes')
                 ->maxLength(5000)
@@ -145,12 +147,23 @@ class PenaltyReceiptRelationManager extends RelationManager
                     ->falseColor('success'),
             ])
             ->headerActions([
-                CreateAction::make()->label(app()->getLocale() === 'am' ? 'ደረሰኝ ስጥ' : 'Issue Receipt'),
+                CreateAction::make()
+                    ->label(app()->getLocale() === 'am' ? 'ደረሰኝ ስጥ' : 'Issue Receipt')
+                    ->visible(fn () => auth()->user()?->hasRole('admin')
+                        || auth()->user()?->hasRole('officer')
+                        || auth()->user()?->can('issue_penalty_receipts')
+                        || auth()->user()?->can('manage_penalty_action')),
             ])
             ->actions([
                 ViewAction::make(),
-                EditAction::make(),
-                DeleteAction::make(),
+                EditAction::make()
+                    ->visible(fn () => auth()->user()?->hasRole('admin')
+                        || auth()->user()?->hasRole('supervisor')
+                        || auth()->user()?->can('manage_penalty_action')
+                        || auth()->user()?->can('track_payments')),
+                DeleteAction::make()
+                    ->visible(fn () => auth()->user()?->hasRole('admin')
+                        || auth()->user()?->can('manage_penalty_action')),
             ]);
     }
 }

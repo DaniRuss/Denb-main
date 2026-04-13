@@ -12,6 +12,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Filament\Actions;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -54,7 +55,7 @@ class IncidentReportResource extends Resource
                             'other' => 'Other',
                         ])
                         ->required()
-                        ->reactive(),
+                        ->live(),
                     Forms\Components\TextInput::make('location')
                         ->label('Location')
                         ->maxLength(255),
@@ -138,9 +139,9 @@ class IncidentReportResource extends Resource
                     ]),
             ])
             ->actions([
-                // Tables\Actions\ViewAction::make(),
-                // Tables\Actions\EditAction::make(),
-                // Tables\Actions\DeleteAction::make(),
+                Actions\ViewAction::make(),
+                Actions\EditAction::make(),
+                Actions\DeleteAction::make(),
             ]);
     }
 
@@ -166,11 +167,87 @@ class IncidentReportResource extends Resource
     {
         $user = auth()->user();
 
+        return (bool) $user && (
+            $user->hasRole('admin')
+            || $user->hasRole('supervisor')
+            || $user->hasRole('officer')
+            || $user->can('manage_penalty_action')
+        );
+    }
+
+    public static function canCreate(): bool
+    {
+        $user = auth()->user();
+
+        // Officers report incidents, supervisors and admin can also create
+        return (bool) $user && (
+            $user->hasRole('admin')
+            || $user->hasRole('supervisor')
+            || $user->hasRole('officer')
+            || $user->can('manage_penalty_action')
+        );
+    }
+
+    public static function canEdit($record): bool
+    {
+        $user = auth()->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        // Admin and penalty officers can edit any
+        if ($user->hasRole('admin') || $user->can('manage_penalty_action')) {
+            return true;
+        }
+
+        // Supervisors can edit (they assign penalties and verify)
+        if ($user->hasRole('supervisor')) {
+            return true;
+        }
+
+        // Officers can only edit their own reports
+        if ($user->hasRole('officer') && $record->reported_by === $user->id) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public static function canDelete($record): bool
+    {
+        $user = auth()->user();
+
         return (bool) $user && ($user->hasRole('admin') || $user->can('manage_penalty_action'));
     }
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['employee', 'reportedBy']);
+        $user = auth()->user();
+        $query = parent::getEloquentQuery()->with(['employee', 'reportedBy']);
+
+        if (! $user) {
+            return $query;
+        }
+
+        if ($user->hasRole('admin') || $user->can('manage_penalty_action')) {
+            return $query;
+        }
+
+        if ($user->hasRole('supervisor')) {
+            return $query->whereHas('employee', function (Builder $q) use ($user) {
+                if ($user->woreda) {
+                    $q->where('woreda_id', $user->woreda);
+                } elseif ($user->sub_city) {
+                    $q->where('sub_city_id', $user->sub_city);
+                }
+            });
+        }
+
+        if ($user->hasRole('officer')) {
+            return $query->where('reported_by', $user->id);
+        }
+
+        return $query;
     }
 }

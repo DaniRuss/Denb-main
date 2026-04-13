@@ -38,14 +38,13 @@ class FollowUpActionsRelationManager extends RelationManager
                 ])
                 ->default('pending')
                 ->required()
-                ->reactive(),
+                ->live(),
             Forms\Components\DatePicker::make('due_date')
                 ->ethiopic()
                 ->firstDayOfWeek(1)
                 ->closeOnDateSelection(),
             Forms\Components\DateTimePicker::make('completed_at')
-                ->ethiopic()
-                ->firstDayOfWeek(1)
+                ->label(app()->getLocale() === 'am' ? 'የተጠናቀቀበት ጊዜ' : 'Completed At')
                 ->seconds(false)
                 ->visible(fn ($get) => $get('status') === 'done'),
             Forms\Components\Select::make('assigned_to')

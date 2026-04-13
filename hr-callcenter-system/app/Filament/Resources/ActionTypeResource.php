@@ -6,6 +6,7 @@ use App\Models\ActionType;
 use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
+use Filament\Actions;
 use Filament\Tables;
 use Filament\Tables\Table;
 
@@ -53,9 +54,8 @@ class ActionTypeResource extends Resource
             ])
             ->defaultSort('name')
             ->actions([
-                // Tables\Actions\ViewAction::make(),
-                // Tables\Actions\EditAction::make(),
-                // Tables\Actions\DeleteAction::make(),
+                Actions\EditAction::make(),
+                Actions\DeleteAction::make(),
             ]);
     }
 
@@ -71,6 +71,32 @@ class ActionTypeResource extends Resource
     public static function canViewAny(): bool
     {
         $user = auth()->user();
+
+        return (bool) $user && (
+            $user->hasRole('admin')
+            || $user->hasRole('supervisor')
+            || $user->can('manage_penalty_action')
+        );
+    }
+
+    public static function canCreate(): bool
+    {
+        $user = auth()->user();
+
         return (bool) $user && ($user->hasRole('admin') || $user->can('manage_penalty_action'));
+    }
+
+    public static function canEdit($record): bool
+    {
+        $user = auth()->user();
+
+        return (bool) $user && ($user->hasRole('admin') || $user->can('manage_penalty_action'));
+    }
+
+    public static function canDelete($record): bool
+    {
+        $user = auth()->user();
+
+        return (bool) $user && $user->hasRole('admin');
     }
 }

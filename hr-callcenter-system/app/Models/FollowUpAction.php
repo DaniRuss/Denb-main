@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class FollowUpAction extends Model
@@ -26,24 +27,23 @@ class FollowUpAction extends Model
         'completed_at' => 'datetime',
     ];
 
-    public function incidentReport()
+    public function incidentReport(): BelongsTo
     {
         return $this->belongsTo(IncidentReport::class);
     }
 
-    public function actionType()
+    public function actionType(): BelongsTo
     {
         return $this->belongsTo(ActionType::class);
     }
 
-    public function assignedBy()
+    public function assignedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_by');
     }
 
-    public function assignedTo()
+    public function assignedTo(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');
     }
 }
-

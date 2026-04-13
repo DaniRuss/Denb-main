@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class IncidentReport extends Model
@@ -24,24 +26,23 @@ class IncidentReport extends Model
         'incident_date' => 'date',
     ];
 
-    public function employee()
+    public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
     }
 
-    public function reportedBy()
+    public function reportedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reported_by');
     }
 
-    public function penaltyAssignments()
+    public function penaltyAssignments(): HasMany
     {
         return $this->hasMany(PenaltyAssignment::class);
     }
 
-    public function followUpActions()
+    public function followUpActions(): HasMany
     {
         return $this->hasMany(FollowUpAction::class);
     }
 }
-

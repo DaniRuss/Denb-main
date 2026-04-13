@@ -13,10 +13,15 @@ use App\Models\ViolationRecord;
 use App\Models\ViolationType;
 use App\Models\Woreda;
 use Filament\Forms;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
+use Filament\Actions;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -86,8 +91,8 @@ class ViolationRecordResource extends Resource
                         ))
                         ->searchable()
                         ->required()
-                        ->reactive()
-                        ->afterStateUpdated(function (Forms\Set $set, $state) {
+                        ->live()
+                        ->afterStateUpdated(function (Set $set, $state) {
                             if ($state) {
                                 $vt = ViolationType::find($state);
                                 if ($vt) {
@@ -107,11 +112,11 @@ class ViolationRecordResource extends Resource
                         ->label(app()->getLocale() === 'am' ? 'ክፍለ ከተማ' : 'Sub City')
                         ->options(SubCity::pluck('name_am', 'id'))
                         ->searchable()
-                        ->reactive()
-                        ->afterStateUpdated(fn (Forms\Set $set) => $set('woreda_id', null)),
+                        ->live()
+                        ->afterStateUpdated(fn (Set $set) => $set('woreda_id', null)),
                     Forms\Components\Select::make('woreda_id')
                         ->label(app()->getLocale() === 'am' ? 'ወረዳ' : 'Woreda')
-                        ->options(fn (Forms\Get $get) => $get('sub_city_id')
+                        ->options(fn (Get $get) => $get('sub_city_id')
                             ? Woreda::where('sub_city_id', $get('sub_city_id'))->pluck('name_am', 'id')
                             : []
                         )
@@ -187,6 +192,111 @@ class ViolationRecordResource extends Resource
                         ->columnSpanFull(),
                 ])
                 ->columns(2),
+        ]);
+    }
+
+    public static function infolist(Schema $schema): Schema
+    {
+        $am = app()->getLocale() === 'am';
+
+        return $schema->schema([
+            Section::make($am ? 'የእርምጃ ሂደት' : 'Escalation Progress')
+                ->schema([
+                    View::make('filament.resources.violation-record.escalation-progress'),
+                ]),
+
+            Section::make($am ? 'ደንብ ተላላፊ እና የጥፋት አይነት' : 'Violator & Violation Type')
+                ->schema([
+                    Grid::make(2)->schema([
+                        TextEntry::make('violator.full_name_am')
+                            ->label($am ? 'ደንብ ተላላፊ' : 'Violator'),
+                        TextEntry::make('violationType.name_am')
+                            ->label($am ? 'የጥፋት አይነት' : 'Violation Type'),
+                    ]),
+                ]),
+
+            Section::make($am ? 'የተፈፀመበት ቦታ እና ጊዜ' : 'Location & Time')
+                ->schema([
+                    Grid::make(3)->schema([
+                        TextEntry::make('subCity.name_am')
+                            ->label($am ? 'ክፍለ ከተማ' : 'Sub City'),
+                        TextEntry::make('woreda.name_am')
+                            ->label($am ? 'ወረዳ' : 'Woreda'),
+                        TextEntry::make('block')
+                            ->label($am ? 'ብሎክ' : 'Block')
+                            ->placeholder('-'),
+                        TextEntry::make('specific_location')
+                            ->label($am ? 'ልዩ ቦታ' : 'Specific Location')
+                            ->placeholder('-'),
+                        TextEntry::make('violation_date')
+                            ->label($am ? 'ቀን' : 'Date')
+                            ->date(),
+                        TextEntry::make('violation_time')
+                            ->label($am ? 'ሰዓት' : 'Time')
+                            ->placeholder('-'),
+                    ]),
+                ]),
+
+            Section::make($am ? 'ቅጣት እና ህጋዊ ማጣቀሻ' : 'Penalty & Legal Reference')
+                ->schema([
+                    Grid::make(3)->schema([
+                        TextEntry::make('fine_amount')
+                            ->label($am ? 'የቅጣት መጠን' : 'Fine Amount')
+                            ->money('ETB'),
+                        TextEntry::make('repeat_offense_count')
+                            ->label($am ? 'ድግግሞሽ' : 'Repeat Offense'),
+                        TextEntry::make('regulation_number')
+                            ->label($am ? 'ደንብ ቁጥር' : 'Regulation')
+                            ->placeholder('-'),
+                        TextEntry::make('article')
+                            ->label($am ? 'አንቀጽ' : 'Article')
+                            ->placeholder('-'),
+                        TextEntry::make('sub_article')
+                            ->label($am ? 'ንዑስ አንቀጽ' : 'Sub Article')
+                            ->placeholder('-'),
+                    ]),
+                ]),
+
+            Section::make($am ? 'ሁኔታ እና ኦፊሰር' : 'Status & Officers')
+                ->schema([
+                    Grid::make(2)->schema([
+                        TextEntry::make('status')
+                            ->label($am ? 'ሁኔታ' : 'Status')
+                            ->badge()
+                            ->formatStateUsing(fn (string $state): string => match ($state) {
+                                'open' => $am ? 'ጅምር' : 'Open',
+                                'warning_issued' => $am ? 'ማስጠንቀቂያ' : 'Warning Issued',
+                                'penalty_issued' => $am ? 'ቅጣት ተሰጥቷል' : 'Penalty Issued',
+                                'payment_pending' => $am ? 'ክፍያ በመጠበቅ' : 'Payment Pending',
+                                'paid' => $am ? 'ተከፍሏል' : 'Paid',
+                                'court_filed' => $am ? 'ክስ ቀርቧል' : 'Court Filed',
+                                'closed' => $am ? 'ያለቀ' : 'Closed',
+                                default => $state,
+                            })
+                            ->color(fn (string $state): string => match ($state) {
+                                'open' => 'secondary',
+                                'warning_issued' => 'warning',
+                                'penalty_issued' => 'info',
+                                'payment_pending' => 'warning',
+                                'paid' => 'success',
+                                'court_filed' => 'danger',
+                                'closed' => 'success',
+                                default => 'secondary',
+                            }),
+                        TextEntry::make('action_taken')
+                            ->label($am ? 'የተወሰደ እርምጃ' : 'Action Taken')
+                            ->placeholder('-'),
+                        TextEntry::make('reportedByUser.name')
+                            ->label($am ? 'ያሳወቀው ኦፊሰር' : 'Reported By'),
+                        TextEntry::make('verifiedByUser.name')
+                            ->label($am ? 'ያረጋገጠው' : 'Verified By')
+                            ->placeholder($am ? 'ገና አልተረጋገጠም' : 'Not verified yet'),
+                        TextEntry::make('investigation_notes')
+                            ->label($am ? 'ምርመራ' : 'Investigation Notes')
+                            ->placeholder('-')
+                            ->columnSpanFull(),
+                    ]),
+                ]),
         ]);
     }
 
@@ -269,18 +379,18 @@ class ViolationRecordResource extends Resource
                     ->options(SubCity::pluck('name_am', 'id')),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                Actions\ViewAction::make(),
+                Actions\EditAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make(),
+                Actions\DeleteBulkAction::make(),
             ]);
     }
 
     public static function getRelations(): array
     {
         return [
-            PenaltyReceiptRelationManager::class,
+            PenaltyReceiptRelationManager::class, // relationship: penaltyReceipts
             WarningLettersRelationManager::class,
             ConfiscatedAssetsRelationManager::class,
         ];
@@ -356,31 +466,21 @@ class ViolationRecordResource extends Resource
             return $query;
         }
 
-        // Admin and penalty_action_officer see everything
         if ($user->hasRole('admin') || $user->can('manage_penalty_action')) {
             return $query;
         }
 
-        // Sub-city officers see violations in their sub-city
-        if ($user->can('view_sub_city_violations') && $user->sub_city) {
-            return $query->where('sub_city_id', $user->sub_city);
-        }
-
-        // Supervisors see violations in their woreda/sub-city
         if ($user->hasRole('supervisor')) {
-            if ($user->woreda) {
-                return $query->where('woreda_id', $user->woreda);
-            }
-            if ($user->sub_city) {
-                return $query->where('sub_city_id', $user->sub_city);
-            }
-
-            return $query;
+            return $query
+                ->when($user->sub_city, fn (Builder $q) => $q->where('sub_city_id', $user->sub_city))
+                ->when($user->woreda, fn (Builder $q) => $q->where('woreda_id', $user->woreda));
         }
 
-        // Officers see only violations they reported
         if ($user->hasRole('officer')) {
-            return $query->where('reported_by', $user->id);
+            return $query
+                ->where('reported_by', $user->id)
+                ->when($user->sub_city, fn (Builder $q) => $q->where('sub_city_id', $user->sub_city))
+                ->when($user->woreda, fn (Builder $q) => $q->where('woreda_id', $user->woreda));
         }
 
         return $query;

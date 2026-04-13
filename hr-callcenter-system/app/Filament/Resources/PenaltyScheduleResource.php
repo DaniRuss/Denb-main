@@ -9,6 +9,7 @@ use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Filament\Actions;
 use Filament\Tables;
 use Filament\Tables\Table;
 
@@ -92,8 +93,8 @@ class PenaltyScheduleResource extends Resource
             ])
             ->defaultSort('level')
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                Actions\ViewAction::make(),
+                Actions\EditAction::make(),
             ]);
     }
 

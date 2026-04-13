@@ -10,6 +10,8 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -68,7 +70,7 @@ class ConfiscatedAssetsRelationManager extends RelationManager
                 ])
                 ->default('seized')
                 ->required()
-                ->reactive(),
+                ->live(),
 
             // Handover fields
             Forms\Components\DatePicker::make('handover_date')
@@ -76,19 +78,33 @@ class ConfiscatedAssetsRelationManager extends RelationManager
                 ->ethiopic()
                 ->firstDayOfWeek(1)
                 ->closeOnDateSelection()
-                ->visible(fn (Forms\Get $get) => in_array($get('status'), ['handed_over', 'estimated', 'transferred', 'sold', 'disposed'])),
+                ->visible(fn (Get $get) => in_array($get('status'), ['handed_over', 'estimated', 'transferred', 'sold', 'disposed'])),
             Forms\Components\Select::make('received_by')
                 ->label(app()->getLocale() === 'am' ? 'ተረካቢ' : 'Received By')
                 ->options(User::pluck('name', 'id'))
                 ->searchable()
-                ->visible(fn (Forms\Get $get) => in_array($get('status'), ['handed_over', 'estimated', 'transferred', 'sold', 'disposed'])),
+                ->visible(fn (Get $get) => in_array($get('status'), ['handed_over', 'estimated', 'transferred', 'sold', 'disposed'])),
+
+            Forms\Components\DatePicker::make('transfer_deadline')
+                ->label(app()->getLocale() === 'am' ? 'የማስተላለፊያ ገደብ (3 ቀን)' : 'Transfer Deadline (3 days)')
+                ->ethiopic()
+                ->firstDayOfWeek(1)
+                ->closeOnDateSelection()
+                ->visible(fn (Get $get) => in_array($get('status'), ['handed_over', 'estimated', 'transferred', 'sold', 'disposed'])),
 
             // Estimation fields
             Forms\Components\TextInput::make('estimated_value')
                 ->label(app()->getLocale() === 'am' ? 'የዋጋ ግምት (ብር)' : 'Estimated Value (Birr)')
                 ->numeric()
                 ->prefix('ETB')
-                ->visible(fn (Forms\Get $get) => in_array($get('status'), ['estimated', 'transferred', 'sold', 'disposed'])),
+                ->visible(fn (Get $get) => in_array($get('status'), ['estimated', 'transferred', 'sold', 'disposed'])),
+            Forms\Components\DatePicker::make('estimation_date')
+                ->label(app()->getLocale() === 'am' ? 'ግምት የተሰጠበት ቀን' : 'Estimation Date')
+                ->ethiopic()
+                ->firstDayOfWeek(1)
+                ->closeOnDateSelection()
+                ->default(now())
+                ->visible(fn (Get $get) => in_array($get('status'), ['estimated', 'transferred', 'sold', 'disposed'])),
 
             // Transfer fields
             Forms\Components\DatePicker::make('transferred_date')
@@ -96,21 +112,28 @@ class ConfiscatedAssetsRelationManager extends RelationManager
                 ->ethiopic()
                 ->firstDayOfWeek(1)
                 ->closeOnDateSelection()
-                ->visible(fn (Forms\Get $get) => in_array($get('status'), ['transferred', 'sold'])),
+                ->visible(fn (Get $get) => in_array($get('status'), ['transferred', 'sold'])),
             Forms\Components\Select::make('transferred_to_sub_city_id')
                 ->label(app()->getLocale() === 'am' ? 'የተዛወረበት ክ/ከተማ' : 'Transferred to Sub City')
                 ->options(SubCity::pluck('name_am', 'id'))
                 ->searchable()
-                ->visible(fn (Forms\Get $get) => in_array($get('status'), ['transferred', 'sold'])),
+                ->visible(fn (Get $get) => in_array($get('status'), ['transferred', 'sold'])),
 
             // Sale fields
+            Forms\Components\DatePicker::make('sold_date')
+                ->label(app()->getLocale() === 'am' ? 'የተሸጠበት ቀን' : 'Sold Date')
+                ->ethiopic()
+                ->firstDayOfWeek(1)
+                ->closeOnDateSelection()
+                ->default(now())
+                ->visible(fn (Get $get) => $get('status') === 'sold'),
             Forms\Components\TextInput::make('sold_amount')
                 ->label(app()->getLocale() === 'am' ? 'የሽያጭ ገንዘብ (ብር)' : 'Sold Amount (Birr)')
                 ->numeric()
                 ->prefix('ETB')
-                ->visible(fn (Forms\Get $get) => $get('status') === 'sold')
-                ->reactive()
-                ->afterStateUpdated(function (Forms\Set $set, $state) {
+                ->visible(fn (Get $get) => $get('status') === 'sold')
+                ->live()
+                ->afterStateUpdated(function (Set $set, $state) {
                     if ($state) {
                         $set('authority_share', round((float) $state * 0.60, 2));
                         $set('city_finance_share', round((float) $state * 0.40, 2));
@@ -122,19 +145,26 @@ class ConfiscatedAssetsRelationManager extends RelationManager
                 ->prefix('ETB')
                 ->disabled()
                 ->dehydrated()
-                ->visible(fn (Forms\Get $get) => $get('status') === 'sold'),
+                ->visible(fn (Get $get) => $get('status') === 'sold'),
             Forms\Components\TextInput::make('city_finance_share')
                 ->label(app()->getLocale() === 'am' ? 'የከተማ ፋይናንስ (40%)' : 'City Finance (40%)')
                 ->numeric()
                 ->prefix('ETB')
                 ->disabled()
                 ->dehydrated()
-                ->visible(fn (Forms\Get $get) => $get('status') === 'sold'),
+                ->visible(fn (Get $get) => $get('status') === 'sold'),
 
             // Disposal fields
+            Forms\Components\DatePicker::make('disposed_date')
+                ->label(app()->getLocale() === 'am' ? 'የተወገደበት ቀን' : 'Disposed Date')
+                ->ethiopic()
+                ->firstDayOfWeek(1)
+                ->closeOnDateSelection()
+                ->default(now())
+                ->visible(fn (Get $get) => $get('status') === 'disposed'),
             Forms\Components\TextInput::make('disposal_reason')
                 ->label(app()->getLocale() === 'am' ? 'የማስወገጃ ምክንያት' : 'Disposal Reason')
-                ->visible(fn (Forms\Get $get) => $get('status') === 'disposed'),
+                ->visible(fn (Get $get) => $get('status') === 'disposed'),
 
             Forms\Components\Textarea::make('notes')
                 ->label(app()->getLocale() === 'am' ? 'ማስታወሻ' : 'Notes')
@@ -192,12 +222,23 @@ class ConfiscatedAssetsRelationManager extends RelationManager
             ])
             ->defaultSort('seized_date', 'desc')
             ->headerActions([
-                CreateAction::make()->label(app()->getLocale() === 'am' ? 'ንብረት ውረስ' : 'Seize Asset'),
+                CreateAction::make()
+                    ->label(app()->getLocale() === 'am' ? 'ንብረት ውረስ' : 'Seize Asset')
+                    ->visible(fn () => auth()->user()?->hasRole('admin')
+                        || auth()->user()?->hasRole('officer')
+                        || auth()->user()?->can('seize_assets')
+                        || auth()->user()?->can('manage_penalty_action')),
             ])
             ->actions([
                 ViewAction::make(),
-                EditAction::make(),
-                DeleteAction::make(),
+                EditAction::make()
+                    ->visible(fn () => auth()->user()?->hasRole('admin')
+                        || auth()->user()?->hasRole('supervisor')
+                        || auth()->user()?->can('manage_confiscated_assets')
+                        || auth()->user()?->can('manage_penalty_action')),
+                DeleteAction::make()
+                    ->visible(fn () => auth()->user()?->hasRole('admin')
+                        || auth()->user()?->can('manage_penalty_action')),
             ]);
     }
 }

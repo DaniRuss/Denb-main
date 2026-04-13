@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ActionType extends Model
 {
@@ -18,5 +19,9 @@ class ActionType extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
-}
 
+    public function followUpActions(): HasMany
+    {
+        return $this->hasMany(FollowUpAction::class);
+    }
+}

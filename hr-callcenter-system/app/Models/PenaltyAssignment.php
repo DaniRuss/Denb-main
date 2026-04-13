@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PenaltyAssignment extends Model
@@ -27,24 +28,23 @@ class PenaltyAssignment extends Model
         'due_date' => 'date',
     ];
 
-    public function incidentReport()
+    public function incidentReport(): BelongsTo
     {
         return $this->belongsTo(IncidentReport::class);
     }
 
-    public function penaltyType()
+    public function penaltyType(): BelongsTo
     {
         return $this->belongsTo(PenaltyType::class);
     }
 
-    public function assignedBy()
+    public function assignedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_by');
     }
 
-    public function assignedTo()
+    public function assignedTo(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to');
     }
 }
-

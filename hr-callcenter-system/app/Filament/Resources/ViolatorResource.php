@@ -11,6 +11,9 @@ use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Filament\Actions;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -56,7 +59,7 @@ class ViolatorResource extends Resource
                         ])
                         ->default('individual')
                         ->required()
-                        ->reactive(),
+                        ->live(),
                     Forms\Components\TextInput::make('full_name_am')
                         ->label(app()->getLocale() === 'am' ? 'ሙሉ ስም (አማርኛ)' : 'Full Name (Amharic)')
                         ->required()
@@ -80,11 +83,11 @@ class ViolatorResource extends Resource
                         ->label(app()->getLocale() === 'am' ? 'ክፍለ ከተማ' : 'Sub City')
                         ->options(SubCity::pluck('name_am', 'id'))
                         ->searchable()
-                        ->reactive()
-                        ->afterStateUpdated(fn (Forms\Set $set) => $set('woreda_id', null)),
+                        ->live()
+                        ->afterStateUpdated(fn (Set $set) => $set('woreda_id', null)),
                     Forms\Components\Select::make('woreda_id')
                         ->label(app()->getLocale() === 'am' ? 'ወረዳ' : 'Woreda')
-                        ->options(fn (Forms\Get $get) => $get('sub_city_id')
+                        ->options(fn (Get $get) => $get('sub_city_id')
                             ? Woreda::where('sub_city_id', $get('sub_city_id'))->pluck('name_am', 'id')
                             : []
                         )
@@ -160,11 +163,11 @@ class ViolatorResource extends Resource
                     ->options(SubCity::pluck('name_am', 'id')),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                Actions\ViewAction::make(),
+                Actions\EditAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\DeleteBulkAction::make(),
+                Actions\DeleteBulkAction::make(),
             ]);
     }
 
@@ -231,9 +234,25 @@ class ViolatorResource extends Resource
         $user = auth()->user();
         $query = parent::getEloquentQuery()->with(['subCity', 'woreda']);
 
-        // Sub-city officers only see violators in their sub-city
-        if ($user && $user->hasRole('sub_city_officer') && $user->sub_city) {
-            $query->where('sub_city_id', $user->sub_city);
+        if (! $user) {
+            return $query;
+        }
+
+        if ($user->hasRole('admin') || $user->can('manage_penalty_action')) {
+            return $query;
+        }
+
+        if ($user->hasRole('supervisor')) {
+            return $query
+                ->when($user->sub_city, fn (Builder $q) => $q->where('sub_city_id', $user->sub_city))
+                ->when($user->woreda, fn (Builder $q) => $q->where('woreda_id', $user->woreda));
+        }
+
+        if ($user->hasRole('officer')) {
+            return $query
+                ->whereHas('violationRecords', fn (Builder $q) => $q->where('reported_by', $user->id))
+                ->when($user->sub_city, fn (Builder $q) => $q->where('sub_city_id', $user->sub_city))
+                ->when($user->woreda, fn (Builder $q) => $q->where('woreda_id', $user->woreda));
         }
 
         return $query;

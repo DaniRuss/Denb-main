@@ -71,7 +71,7 @@ class ViolationRecord extends Model
         return $this->belongsTo(User::class, 'verified_by');
     }
 
-    public function penaltyReceipt(): HasMany
+    public function penaltyReceipts(): HasMany
     {
         return $this->hasMany(PenaltyReceipt::class);
     }
@@ -101,7 +101,7 @@ class ViolationRecord extends Model
     public function scopeOverdue($query)
     {
         return $query->where('status', 'payment_pending')
-            ->whereHas('penaltyReceipt', fn ($q) => $q->where('payment_deadline', '<', now()));
+            ->whereHas('penaltyReceipts', fn ($q) => $q->where('payment_deadline', '<', now()));
     }
 
     public function scopeInBlock($query, string $block)

@@ -9,6 +9,8 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms;
 use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -34,8 +36,8 @@ class WarningLettersRelationManager extends RelationManager
                     'twenty_four_hour' => app()->getLocale() === 'am' ? 'የ24 ሰዓት ማስጠንቀቂያ' : '24-Hour Warning',
                 ])
                 ->required()
-                ->reactive()
-                ->afterStateUpdated(function (Forms\Set $set, Forms\Get $get, $state) {
+                ->live()
+                ->afterStateUpdated(function (Set $set, Get $get, $state) {
                     $issuedDate = $get('issued_date');
                     if ($issuedDate && $state) {
                         $deadline = match ($state) {
@@ -55,8 +57,8 @@ class WarningLettersRelationManager extends RelationManager
                 ->closeOnDateSelection()
                 ->default(now())
                 ->required()
-                ->reactive()
-                ->afterStateUpdated(function (Forms\Set $set, Forms\Get $get, $state) {
+                ->live()
+                ->afterStateUpdated(function (Set $set, Get $get, $state) {
                     $type = $get('warning_type');
                     if ($state && $type) {
                         $deadline = match ($type) {
@@ -93,6 +95,36 @@ class WarningLettersRelationManager extends RelationManager
             Forms\Components\Toggle::make('violator_accepted')
                 ->label(app()->getLocale() === 'am' ? 'ተቀብሏል' : 'Violator Accepted')
                 ->default(true),
+            Forms\Components\Toggle::make('complied')
+                ->label(app()->getLocale() === 'am' ? 'ተፈጻሚ ሆኗል' : 'Complied')
+                ->live()
+                ->afterStateUpdated(function (Set $set, $state) {
+                    if ($state) {
+                        $set('complied_at', now()->toDateTimeString());
+                    } else {
+                        $set('complied_at', null);
+                    }
+                }),
+            Forms\Components\DateTimePicker::make('complied_at')
+                ->label(app()->getLocale() === 'am' ? 'የተፈጸመበት ጊዜ' : 'Complied At')
+                ->seconds(false)
+                ->visible(fn (Get $get) => $get('complied')),
+            Forms\Components\Toggle::make('escalated_to_task_force')
+                ->label(app()->getLocale() === 'am' ? 'ወደ ግብረ ኃይል ተላልፏል' : 'Escalated to Task Force')
+                ->live()
+                ->afterStateUpdated(function (Set $set, $state) {
+                    if ($state) {
+                        $set('escalation_date', now()->toDateString());
+                    } else {
+                        $set('escalation_date', null);
+                    }
+                }),
+            Forms\Components\DatePicker::make('escalation_date')
+                ->label(app()->getLocale() === 'am' ? 'የተላለፈበት ቀን' : 'Escalation Date')
+                ->ethiopic()
+                ->firstDayOfWeek(1)
+                ->closeOnDateSelection()
+                ->visible(fn (Get $get) => $get('escalated_to_task_force')),
             Forms\Components\Select::make('issued_by')
                 ->label(app()->getLocale() === 'am' ? 'ኦፊሰር 1' : 'Issued By')
                 ->options(User::pluck('name', 'id'))
@@ -146,12 +178,23 @@ class WarningLettersRelationManager extends RelationManager
             ])
             ->defaultSort('issued_date', 'desc')
             ->headerActions([
-                CreateAction::make()->label(app()->getLocale() === 'am' ? 'ማስጠንቀቂያ ስጥ' : 'Issue Warning'),
+                CreateAction::make()
+                    ->label(app()->getLocale() === 'am' ? 'ማስጠንቀቂያ ስጥ' : 'Issue Warning')
+                    ->visible(fn () => auth()->user()?->hasRole('admin')
+                        || auth()->user()?->hasRole('officer')
+                        || auth()->user()?->can('issue_warning_letters')
+                        || auth()->user()?->can('manage_penalty_action')),
             ])
             ->actions([
                 ViewAction::make(),
-                EditAction::make(),
-                DeleteAction::make(),
+                EditAction::make()
+                    ->visible(fn () => auth()->user()?->hasRole('admin')
+                        || auth()->user()?->hasRole('supervisor')
+                        || auth()->user()?->can('manage_penalty_action')
+                        || auth()->user()?->can('escalate_to_task_force')),
+                DeleteAction::make()
+                    ->visible(fn () => auth()->user()?->hasRole('admin')
+                        || auth()->user()?->can('manage_penalty_action')),
             ]);
     }
 }
