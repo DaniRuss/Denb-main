@@ -131,4 +131,20 @@ class CaseAssignmentResource extends Resource
             'edit' => Pages\EditCaseAssignment::route('/{record}/edit'),
         ];
     }
+
+    public static function canViewAny(): bool
+    {
+        $user = auth()->user();
+
+        return (bool) $user && (
+            $user->hasRole('admin')
+            || $user->hasRole('supervisor')
+            || $user->can('assign_cases')
+        );
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
 }

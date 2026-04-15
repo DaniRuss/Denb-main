@@ -230,4 +230,20 @@ class QuarterlyReportResource extends Resource
             'edit' => Pages\EditQuarterlyReport::route('/{record}/edit'),
         ];
     }
+
+    public static function canViewAny(): bool
+    {
+        $user = auth()->user();
+
+        return (bool) $user && (
+            $user->hasRole('admin')
+            || $user->hasRole('supervisor')
+            || $user->can('view_reports')
+        );
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
 }

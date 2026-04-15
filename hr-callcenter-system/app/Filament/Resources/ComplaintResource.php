@@ -474,6 +474,24 @@ class ComplaintResource extends Resource
         ];
     }
 
+    public static function canViewAny(): bool
+    {
+        $user = auth()->user();
+
+        return (bool) $user && (
+            $user->hasRole('admin')
+            || $user->hasRole('supervisor')
+            || $user->hasRole('officer')
+            || $user->can('view_complaints')
+            || $user->can('manage_complaints')
+        );
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
+
     public static function canCreate(): bool
     {
         return false;
@@ -486,12 +504,17 @@ class ComplaintResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        return static::getModel()::where('status', 'pending')->count() ?: null;
+        return cache()->remember('complaint_pending_count', 60, function () {
+            return static::getModel()::where('status', 'pending')->count();
+        }) ?: null;
     }
 
     public static function getNavigationBadgeColor(): ?string
     {
-        $count = static::getModel()::where('status', 'pending')->count();
+        $count = cache()->remember('complaint_pending_count', 60, function () {
+            return static::getModel()::where('status', 'pending')->count();
+        });
+
         return $count > 10 ? 'danger' : 'warning';
     }
 }

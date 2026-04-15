@@ -90,19 +90,23 @@ class PenaltyModuleSeeder extends Seeder
         // Penalty Schedules & Violation Types
         $vtIds = [];
         foreach ([
-            ['name_am' => 'ቀላል ጥፋት', 'name_en' => 'Minor Offenses', 'level' => 1, 'description' => 'Minor violations', 'violations' => [
+            ['name_am' => 'ቀላል ጥፋት', 'name_en' => 'Minor Offenses', 'level' => 1, 'description' => 'Minor violations with small fines', 'violations' => [
                 ['code' => 'M-001', 'name_am' => 'ያልተፈቀደ ምልክት መለጠፍ', 'name_en' => 'Unauthorized signage', 'regulation_reference' => 'ደንብ 64/2009 አንቀጽ 12', 'fine_amount' => 500, 'min_fine' => 200, 'max_fine' => 1000],
                 ['code' => 'M-002', 'name_am' => 'ጥራት ያልጠበቀ ቆሻሻ ማስወገድ', 'name_en' => 'Improper waste disposal', 'regulation_reference' => 'ደንብ 64/2009 አንቀጽ 15', 'fine_amount' => 300, 'min_fine' => 100, 'max_fine' => 500],
                 ['code' => 'M-003', 'name_am' => 'የንግድ ቦታ ንፅህና አለመጠበቅ', 'name_en' => 'Cleanliness violation', 'regulation_reference' => 'ደንብ 64/2009 አንቀጽ 18', 'fine_amount' => 400, 'min_fine' => 200, 'max_fine' => 800],
+                ['code' => 'M-004', 'name_am' => 'የእግረኛ መንገድ መዝጋት', 'name_en' => 'Sidewalk obstruction', 'regulation_reference' => 'ደንብ 64/2009 አንቀጽ 20', 'fine_amount' => 600, 'min_fine' => 300, 'max_fine' => 1200],
             ]],
-            ['name_am' => 'መካከለኛ ጥፋት', 'name_en' => 'Moderate Offenses', 'level' => 2, 'description' => 'Moderate violations', 'violations' => [
+            ['name_am' => 'መካከለኛ ጥፋት', 'name_en' => 'Moderate Offenses', 'level' => 2, 'description' => 'Moderate violations requiring corrective action', 'violations' => [
                 ['code' => 'MD-001', 'name_am' => 'ያልተፈቀደ ግንባታ', 'name_en' => 'Unauthorized construction', 'regulation_reference' => 'ደንብ 150/2015 አንቀጽ 22', 'fine_amount' => 5000, 'min_fine' => 2000, 'max_fine' => 10000],
                 ['code' => 'MD-002', 'name_am' => 'የመንገድ ላይ ንግድ ያለ ፈቃድ', 'name_en' => 'Street vending without permit', 'regulation_reference' => 'ደንብ 64/2009 አንቀጽ 25', 'fine_amount' => 2000, 'min_fine' => 1000, 'max_fine' => 5000],
                 ['code' => 'MD-003', 'name_am' => 'ህገ-ወጥ ማስታወቂያ', 'name_en' => 'Illegal advertisement', 'regulation_reference' => 'ደንብ 64/2009 አንቀጽ 28', 'fine_amount' => 3000, 'min_fine' => 1500, 'max_fine' => 7000],
+                ['code' => 'MD-004', 'name_am' => 'ያለፈቃድ የመኪና ማጠቢያ', 'name_en' => 'Unlicensed car wash operation', 'regulation_reference' => 'ደንብ 64/2009 አንቀጽ 30', 'fine_amount' => 3500, 'min_fine' => 1500, 'max_fine' => 7000],
             ]],
-            ['name_am' => 'ከባድ ጥፋት', 'name_en' => 'Severe Offenses', 'level' => 3, 'description' => 'Severe violations', 'violations' => [
+            ['name_am' => 'ከባድ ጥፋት', 'name_en' => 'Severe Offenses', 'level' => 3, 'description' => 'Severe violations with heavy fines and possible asset seizure', 'violations' => [
                 ['code' => 'S-001', 'name_am' => 'ህገ-ወጥ ግንባታ ማስፋፋት', 'name_en' => 'Illegal construction expansion', 'regulation_reference' => 'ደንብ 150/2015 አንቀጽ 35', 'fine_amount' => 25000, 'min_fine' => 10000, 'max_fine' => 50000],
                 ['code' => 'S-002', 'name_am' => 'የአካባቢ ብክለት', 'name_en' => 'Environmental pollution', 'regulation_reference' => 'ደንብ 150/2015 አንቀጽ 40', 'fine_amount' => 15000, 'min_fine' => 5000, 'max_fine' => 30000],
+                ['code' => 'S-003', 'name_am' => 'ህገ-ወጥ የመሬት ወረራ', 'name_en' => 'Illegal land encroachment', 'regulation_reference' => 'ደንብ 150/2015 አንቀጽ 42', 'fine_amount' => 30000, 'min_fine' => 15000, 'max_fine' => 60000],
+                ['code' => 'S-004', 'name_am' => 'ያልተፈቀደ የንግድ ቤት ቅየራ', 'name_en' => 'Unauthorized business conversion', 'regulation_reference' => 'ደንብ 150/2015 አንቀጽ 45', 'fine_amount' => 20000, 'min_fine' => 10000, 'max_fine' => 40000],
             ]],
         ] as $sData) {
             $violations = $sData['violations'];

@@ -19,7 +19,7 @@ class PenaltyScheduleResource extends Resource
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-table-cells';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 1;
 
     public static function getNavigationGroup(): ?string
     {
@@ -94,7 +94,8 @@ class PenaltyScheduleResource extends Resource
             ->defaultSort('level')
             ->actions([
                 Actions\ViewAction::make(),
-                Actions\EditAction::make(),
+                Actions\EditAction::make()
+                    ->visible(fn () => auth()->user()?->hasRole('admin')),
             ]);
     }
 
@@ -117,39 +118,26 @@ class PenaltyScheduleResource extends Resource
 
     public static function canViewAny(): bool
     {
-        $user = auth()->user();
+        return auth()->check();
+    }
 
-        return (bool) $user && (
-            $user->hasRole('admin')
-            || $user->can('manage_penalty_action')
-            || $user->can('manage_penalty_schedules')
-        );
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
     }
 
     public static function canCreate(): bool
     {
-        $user = auth()->user();
-
-        return (bool) $user && (
-            $user->hasRole('admin')
-            || $user->can('manage_penalty_schedules')
-        );
+        return (bool) auth()->user()?->hasRole('admin');
     }
 
     public static function canEdit($record): bool
     {
-        $user = auth()->user();
-
-        return (bool) $user && (
-            $user->hasRole('admin')
-            || $user->can('manage_penalty_schedules')
-        );
+        return (bool) auth()->user()?->hasRole('admin');
     }
 
     public static function canDelete($record): bool
     {
-        $user = auth()->user();
-
-        return (bool) $user && $user->hasRole('admin');
+        return (bool) auth()->user()?->hasRole('admin');
     }
 }

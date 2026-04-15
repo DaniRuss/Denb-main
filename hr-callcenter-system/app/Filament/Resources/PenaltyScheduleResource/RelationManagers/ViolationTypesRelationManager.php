@@ -7,6 +7,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
 use Filament\Forms;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
@@ -61,6 +62,8 @@ class ViolationTypesRelationManager extends RelationManager
 
     public function table(Table $table): Table
     {
+        $isAdmin = auth()->user()?->hasRole('admin');
+
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('code')
@@ -76,6 +79,14 @@ class ViolationTypesRelationManager extends RelationManager
                     ->label(app()->getLocale() === 'am' ? 'ቅጣት (ብር)' : 'Fine (Birr)')
                     ->money('ETB')
                     ->sortable(),
+                Tables\Columns\TextColumn::make('min_fine')
+                    ->label(app()->getLocale() === 'am' ? 'ዝቅተኛ' : 'Min Fine')
+                    ->money('ETB')
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('max_fine')
+                    ->label(app()->getLocale() === 'am' ? 'ከፍተኛ' : 'Max Fine')
+                    ->money('ETB')
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('regulation_reference')
                     ->label(app()->getLocale() === 'am' ? 'ደንብ' : 'Regulation')
                     ->toggleable(),
@@ -85,15 +96,20 @@ class ViolationTypesRelationManager extends RelationManager
             ])
             ->defaultSort('code')
             ->headerActions([
-                CreateAction::make(),
+                CreateAction::make()
+                    ->visible($isAdmin),
             ])
             ->actions([
-                EditAction::make(),
-                DeleteAction::make(),
+                ViewAction::make(),
+                EditAction::make()
+                    ->visible($isAdmin),
+                DeleteAction::make()
+                    ->visible($isAdmin),
             ])
             ->bulkActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                    DeleteBulkAction::make()
+                        ->visible($isAdmin),
                 ]),
             ]);
     }

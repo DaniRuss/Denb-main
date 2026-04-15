@@ -204,4 +204,19 @@ class UniformDistributionResource extends Resource
             'edit' => Pages\EditUniformDistribution::route('/{record}/edit'),
         ];
     }
+
+    public static function canViewAny(): bool
+    {
+        $user = auth()->user();
+
+        return (bool) $user && (
+            $user->hasRole('admin')
+            || $user->can('manage_inventory')
+        );
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
 }

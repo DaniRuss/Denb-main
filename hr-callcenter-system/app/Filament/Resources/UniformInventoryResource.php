@@ -171,7 +171,10 @@ class UniformInventoryResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        $lowStock = UniformInventory::whereColumn('quantity_in_stock', '<=', 'min_stock_level')->count();
+        $lowStock = cache()->remember('uniform_low_stock_count', 60, function () {
+            return UniformInventory::whereColumn('quantity_in_stock', '<=', 'min_stock_level')->count();
+        });
+
         return $lowStock > 0 ? (string) $lowStock : null;
     }
 
@@ -187,5 +190,20 @@ class UniformInventoryResource extends Resource
             'create' => Pages\CreateUniformInventory::route('/create'),
             'edit' => Pages\EditUniformInventory::route('/{record}/edit'),
         ];
+    }
+
+    public static function canViewAny(): bool
+    {
+        $user = auth()->user();
+
+        return (bool) $user && (
+            $user->hasRole('admin')
+            || $user->can('manage_inventory')
+        );
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
     }
 }

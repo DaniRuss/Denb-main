@@ -175,6 +175,11 @@ class IncidentReportResource extends Resource
         );
     }
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
+
     public static function canCreate(): bool
     {
         $user = auth()->user();

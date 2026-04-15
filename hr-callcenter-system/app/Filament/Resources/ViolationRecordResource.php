@@ -56,138 +56,152 @@ class ViolationRecordResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
+        $isOfficer = auth()->user()?->hasRole('officer') && ! auth()->user()?->hasRole('admin');
+        $am = app()->getLocale() === 'am';
+
         return $schema->schema([
-            Section::make(app()->getLocale() === 'am' ? 'ደንብ ተላላፊ እና የጥፋት አይነት' : 'Violator & Violation Type')
+            Section::make($am ? 'ደንብ ተላላፊ እና የጥፋት አይነት' : 'Violator & Violation Type')
                 ->schema([
                     Forms\Components\Select::make('violator_id')
-                        ->label(app()->getLocale() === 'am' ? 'ደንብ ተላላፊ' : 'Violator')
+                        ->label($am ? 'ደንብ ተላላፊ' : 'Violator')
                         ->options(Violator::query()->orderBy('full_name_am')->get()->mapWithKeys(
                             fn ($v) => [$v->id => $v->full_name_am . ($v->phone ? " ({$v->phone})" : '')]
-                        ))
-                        ->searchable()
-                        ->required()
-                        ->createOptionForm([
-                            Forms\Components\Select::make('type')
-                                ->options([
-                                    'individual' => app()->getLocale() === 'am' ? 'ግለሰብ' : 'Individual',
-                                    'organization' => app()->getLocale() === 'am' ? 'ድርጅት' : 'Organization',
-                                ])
-                                ->default('individual')
-                                ->required(),
-                            Forms\Components\TextInput::make('full_name_am')
-                                ->label(app()->getLocale() === 'am' ? 'ሙሉ ስም' : 'Full Name (Amharic)')
-                                ->required(),
-                            Forms\Components\TextInput::make('phone')
-                                ->label(app()->getLocale() === 'am' ? 'ስልክ' : 'Phone')
-                                ->tel(),
-                        ])
-                        ->createOptionUsing(function (array $data): int {
-                            return Violator::create($data)->id;
-                        }),
-                    Forms\Components\Select::make('violation_type_id')
-                        ->label(app()->getLocale() === 'am' ? 'የጥፋት አይነት' : 'Violation Type')
-                        ->options(ViolationType::active()->get()->mapWithKeys(
-                            fn ($v) => [$v->id => $v->display_name . " - ETB {$v->fine_amount}"]
                         ))
                         ->searchable()
                         ->required()
                         ->live()
                         ->afterStateUpdated(function (Set $set, $state) {
                             if ($state) {
-                                $vt = ViolationType::find($state);
+                                $count = ViolationRecord::where('violator_id', $state)->count();
+                                $set('repeat_offense_count', $count);
+                            }
+                        })
+                        ->createOptionForm([
+                            Forms\Components\Select::make('type')
+                                ->options([
+                                    'individual' => $am ? 'ግለሰብ' : 'Individual',
+                                    'organization' => $am ? 'ድርጅት' : 'Organization',
+                                ])
+                                ->default('individual')
+                                ->required(),
+                            Forms\Components\TextInput::make('full_name_am')
+                                ->label($am ? 'ሙሉ ስም' : 'Full Name (Amharic)')
+                                ->required(),
+                            Forms\Components\TextInput::make('phone')
+                                ->label($am ? 'ስልክ' : 'Phone')
+                                ->tel(),
+                        ])
+                        ->createOptionUsing(function (array $data): int {
+                            return Violator::create($data)->id;
+                        }),
+                    Forms\Components\Select::make('violation_type_id')
+                        ->label($am ? 'የጥፋት አይነት' : 'Violation Type')
+                        ->options(ViolationType::active()->with('penaltySchedule')->get()->mapWithKeys(
+                            fn ($v) => [$v->id => $v->display_name . ' - ETB ' . number_format($v->fine_amount, 2)]
+                        ))
+                        ->searchable()
+                        ->required()
+                        ->live()
+                        ->afterStateUpdated(function (Set $set, $state) {
+                            if ($state) {
+                                $vt = ViolationType::with('penaltySchedule')->find($state);
                                 if ($vt) {
                                     $set('fine_amount', $vt->fine_amount);
-                                    if ($vt->penaltySchedule) {
-                                        $set('regulation_number', $vt->regulation_reference);
-                                    }
+                                    $set('regulation_number', $vt->regulation_reference);
                                 }
                             }
                         }),
                 ])
                 ->columns(2),
 
-            Section::make(app()->getLocale() === 'am' ? 'የተፈፀመበት ቦታ እና ጊዜ' : 'Location & Time')
+            Section::make($am ? 'የተፈፀመበት ቦታ እና ጊዜ' : 'Location & Time')
                 ->schema([
                     Forms\Components\Select::make('sub_city_id')
-                        ->label(app()->getLocale() === 'am' ? 'ክፍለ ከተማ' : 'Sub City')
+                        ->label($am ? 'ክፍለ ከተማ' : 'Sub City')
                         ->options(SubCity::pluck('name_am', 'id'))
                         ->searchable()
                         ->live()
-                        ->afterStateUpdated(fn (Set $set) => $set('woreda_id', null)),
+                        ->afterStateUpdated(fn (Set $set) => $set('woreda_id', null))
+                        ->default(fn () => auth()->user()?->sub_city),
                     Forms\Components\Select::make('woreda_id')
-                        ->label(app()->getLocale() === 'am' ? 'ወረዳ' : 'Woreda')
+                        ->label($am ? 'ወረዳ' : 'Woreda')
                         ->options(fn (Get $get) => $get('sub_city_id')
                             ? Woreda::where('sub_city_id', $get('sub_city_id'))->pluck('name_am', 'id')
                             : []
                         )
-                        ->searchable(),
+                        ->searchable()
+                        ->default(fn () => auth()->user()?->woreda),
                     Forms\Components\TextInput::make('block')
-                        ->label(app()->getLocale() === 'am' ? 'ብሎክ' : 'Block'),
+                        ->label($am ? 'ብሎክ' : 'Block'),
                     Forms\Components\TextInput::make('specific_location')
-                        ->label(app()->getLocale() === 'am' ? 'ልዩ ቦታ' : 'Specific Location'),
+                        ->label($am ? 'ልዩ ቦታ' : 'Specific Location'),
                     Forms\Components\DatePicker::make('violation_date')
-                        ->label(app()->getLocale() === 'am' ? 'ቀን' : 'Date')
+                        ->label($am ? 'ቀን' : 'Date')
                         ->ethiopic()
                         ->firstDayOfWeek(1)
                         ->closeOnDateSelection()
                         ->default(now())
                         ->required(),
                     Forms\Components\TimePicker::make('violation_time')
-                        ->label(app()->getLocale() === 'am' ? 'ሰዓት' : 'Time')
+                        ->label($am ? 'ሰዓት' : 'Time')
                         ->seconds(false),
                 ])
                 ->columns(3),
 
-            Section::make(app()->getLocale() === 'am' ? 'ቅጣት እና ህጋዊ ማጣቀሻ' : 'Penalty & Legal Reference')
+            Section::make($am ? 'ቅጣት እና ህጋዊ ማጣቀሻ' : 'Penalty & Legal Reference')
                 ->schema([
                     Forms\Components\TextInput::make('fine_amount')
-                        ->label(app()->getLocale() === 'am' ? 'የቅጣት መጠን (ብር)' : 'Fine Amount (Birr)')
+                        ->label($am ? 'የቅጣት መጠን (ብር)' : 'Fine Amount (Birr)')
                         ->numeric()
                         ->prefix('ETB')
-                        ->required(),
+                        ->required()
+                        ->readOnly()
+                        ->hint($am ? 'ከጥፋት አይነት በራስ-ሰር ይሞላል' : 'Auto-filled from violation type'),
                     Forms\Components\TextInput::make('repeat_offense_count')
-                        ->label(app()->getLocale() === 'am' ? 'ድግግሞሽ' : 'Repeat Offense Count')
+                        ->label($am ? 'ድግግሞሽ' : 'Repeat Offense Count')
                         ->numeric()
                         ->default(0)
-                        ->minValue(0),
+                        ->minValue(0)
+                        ->readOnly($isOfficer),
                     Forms\Components\TextInput::make('regulation_number')
-                        ->label(app()->getLocale() === 'am' ? 'ደንብ ቁጥር' : 'Regulation Number'),
+                        ->label($am ? 'ደንብ ቁጥር' : 'Regulation Number')
+                        ->readOnly(),
                     Forms\Components\TextInput::make('article')
-                        ->label(app()->getLocale() === 'am' ? 'አንቀጽ' : 'Article'),
+                        ->label($am ? 'አንቀጽ' : 'Article')
+                        ->readOnly($isOfficer),
                     Forms\Components\TextInput::make('sub_article')
-                        ->label(app()->getLocale() === 'am' ? 'ንዑስ አንቀጽ' : 'Sub Article'),
+                        ->label($am ? 'ንዑስ አንቀጽ' : 'Sub Article')
+                        ->readOnly($isOfficer),
                 ])
                 ->columns(3),
 
-            Section::make(app()->getLocale() === 'am' ? 'እርምጃ እና ሁኔታ' : 'Action & Status')
+            Section::make($am ? 'እርምጃ እና ሁኔታ' : 'Action & Status')
                 ->schema([
                     Forms\Components\Select::make('status')
-                        ->label(app()->getLocale() === 'am' ? 'ሁኔታ' : 'Status')
+                        ->label($am ? 'ሁኔታ' : 'Status')
                         ->options([
-                            'open' => app()->getLocale() === 'am' ? 'ጅምር' : 'Open',
-                            'warning_issued' => app()->getLocale() === 'am' ? 'ማስጠንቀቂያ ተሰጥቷል' : 'Warning Issued',
-                            'penalty_issued' => app()->getLocale() === 'am' ? 'ቅጣት ተሰጥቷል' : 'Penalty Issued',
-                            'payment_pending' => app()->getLocale() === 'am' ? 'ክፍያ በመጠበቅ' : 'Payment Pending',
-                            'paid' => app()->getLocale() === 'am' ? 'ተከፍሏል' : 'Paid',
-                            'court_filed' => app()->getLocale() === 'am' ? 'ክስ ቀርቧል' : 'Court Filed',
-                            'closed' => app()->getLocale() === 'am' ? 'ያለቀ' : 'Closed',
+                            'open' => $am ? 'ጅምር' : 'Open',
+                            'warning_issued' => $am ? 'ማስጠንቀቂያ ተሰጥቷል' : 'Warning Issued',
+                            'penalty_issued' => $am ? 'ቅጣት ተሰጥቷል' : 'Penalty Issued',
+                            'payment_pending' => $am ? 'ክፍያ በመጠበቅ' : 'Payment Pending',
+                            'paid' => $am ? 'ተከፍሏል' : 'Paid',
+                            'court_filed' => $am ? 'ክስ ቀርቧል' : 'Court Filed',
+                            'closed' => $am ? 'ያለቀ' : 'Closed',
                         ])
                         ->default('open')
-                        ->required(),
+                        ->required()
+                        ->disabled($isOfficer),
                     Forms\Components\TextInput::make('action_taken')
-                        ->label(app()->getLocale() === 'am' ? 'የተወሰደ እርምጃ' : 'Action Taken'),
-                    Forms\Components\Select::make('reported_by')
-                        ->label(app()->getLocale() === 'am' ? 'ያሳወቀው ኦፊሰር' : 'Reported By')
+                        ->label($am ? 'የተወሰደ እርምጃ' : 'Action Taken'),
+                    Forms\Components\Hidden::make('reported_by')
+                        ->default(auth()->id()),
+                    Forms\Components\Select::make('verified_by')
+                        ->label($am ? 'ያረጋገጠው ሽፍት መሪ' : 'Verified By (Shift Leader)')
                         ->options(User::pluck('name', 'id'))
                         ->searchable()
-                        ->default(auth()->id())
-                        ->required(),
-                    Forms\Components\Select::make('verified_by')
-                        ->label(app()->getLocale() === 'am' ? 'ያረጋገጠው ሽፍት መሪ' : 'Verified By (Shift Leader)')
-                        ->options(User::pluck('name', 'id'))
-                        ->searchable(),
+                        ->visible(! $isOfficer),
                     Forms\Components\Textarea::make('investigation_notes')
-                        ->label(app()->getLocale() === 'am' ? 'ምርመራ' : 'Investigation Notes')
+                        ->label($am ? 'ምርመራ' : 'Investigation Notes')
                         ->maxLength(8000)
                         ->columnSpanFull(),
                 ])
@@ -417,6 +431,11 @@ class ViolationRecordResource extends Resource
             || $user->can('create_violation_records')
             || $user->can('view_sub_city_violations')
         );
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
     }
 
     public static function canCreate(): bool

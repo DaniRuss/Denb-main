@@ -145,4 +145,21 @@ class EscalationResource extends Resource
             'edit' => Pages\EditEscalation::route('/{record}/edit'),
         ];
     }
+
+    public static function canViewAny(): bool
+    {
+        $user = auth()->user();
+
+        return (bool) $user && (
+            $user->hasRole('admin')
+            || $user->hasRole('supervisor')
+            || $user->can('escalate_to_court')
+            || $user->can('escalate_to_task_force')
+        );
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
 }
