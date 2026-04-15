@@ -4,10 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class CaseAssignment extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'complaint_id',
@@ -24,17 +26,17 @@ class CaseAssignment extends Model
         'completed_at' => 'datetime',
     ];
 
-    public function complaint()
+    public function complaint(): BelongsTo
     {
         return $this->belongsTo(Complaint::class);
     }
 
-    public function officer()
+    public function officer(): BelongsTo
     {
         return $this->belongsTo(Officer::class);
     }
 
-    public function assignedBy()
+    public function assignedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_by');
     }
