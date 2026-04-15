@@ -93,12 +93,12 @@ class Complaint extends Model
 
     public function assignments()
     {
-        return $this->morphMany(CaseAssignment::class, 'caseable');
+        return $this->hasMany(CaseAssignment::class);
     }
 
     public function escalations()
     {
-        return $this->morphMany(Escalation::class, 'caseable');
+        return $this->hasMany(Escalation::class);
     }
 
     // Status History
