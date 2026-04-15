@@ -1,5 +1,5 @@
 <?php
-// database/migrations/2024_01_01_000007_create_case_assignments_table.php
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -9,17 +9,18 @@ return new class extends Migration {
     {
         Schema::create('case_assignments', function (Blueprint $table) {
             $table->id();
-            $table->morphs('caseable');
-            $table->foreignId('assigned_by')->constrained('users');
-            $table->foreignId('assigned_to')->constrained('users');
-            $table->foreignId('department_id')->constrained();
-            $table->enum('assignment_type', ['primary', 'supporting', 'reviewer']);
-            $table->text('assignment_notes')->nullable();
-            $table->timestamp('assigned_at');
-            $table->timestamp('deadline')->nullable();
-            $table->timestamp('completed_at')->nullable();
-            $table->enum('status', ['active', 'completed', 'reassigned'])->default('active');
+            $table->foreignId('complaint_id')->constrained('complaints')->cascadeOnDelete();
+            $table->foreignId('officer_id')->constrained('officers')->cascadeOnDelete();
+            $table->foreignId('assigned_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->string('status', 30)->default('assigned');
+            $table->text('notes')->nullable();
+            $table->date('due_date')->nullable();
+            $table->dateTime('completed_at')->nullable();
             $table->timestamps();
+            $table->softDeletes();
+
+            $table->index(['complaint_id', 'status']);
+            $table->index(['officer_id', 'status']);
         });
     }
 
