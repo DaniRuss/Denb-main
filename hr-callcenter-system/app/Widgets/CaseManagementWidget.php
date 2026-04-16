@@ -42,4 +42,37 @@ class CaseManagementWidget extends Widget
                 ->count();
         });
     }
+
+    public function getOpenViolationsCount()
+    {
+        return cache()->remember('widget_open_violations', 60, function () {
+            return \App\Models\ViolationRecord::whereIn('status', ['open', 'warning_issued', 'penalty_issued'])->count();
+        });
+    }
+
+    public function getPendingPaymentsCount()
+    {
+        return cache()->remember('widget_pending_payments', 60, function () {
+            return \App\Models\ViolationRecord::where('status', 'payment_pending')->count();
+        });
+    }
+
+    public function getOverduePaymentsCount()
+    {
+        return cache()->remember('widget_overdue_payments', 60, function () {
+            return \App\Models\PenaltyReceipt::where('payment_status', 'pending')
+                ->where('payment_deadline', '<', now()->toDateString())
+                ->count();
+        });
+    }
+
+    public function getOverdueTransfersCount()
+    {
+        return cache()->remember('widget_overdue_transfers', 60, function () {
+            return \App\Models\ConfiscatedAsset::whereNotNull('transfer_deadline')
+                ->whereNull('transferred_date')
+                ->where('transfer_deadline', '<', now()->toDateString())
+                ->count();
+        });
+    }
 }

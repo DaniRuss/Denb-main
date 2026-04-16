@@ -13,6 +13,8 @@ use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Actions;
+use Filament\Actions\Exports\Enums\ExportFormat;
+use App\Filament\Exports\IncidentReportExporter;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -22,6 +24,8 @@ class IncidentReportResource extends Resource
     protected static ?string $model = IncidentReport::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-document-text';
+
+    protected static ?int $navigationSort = 3;
 
     public static function getNavigationGroup(): ?string
     {
@@ -35,32 +39,34 @@ class IncidentReportResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
+        $am = app()->getLocale() === 'am';
+
         return $schema->schema([
-            Section::make('Incident Reporting')
+            Section::make($am ? 'የክስተት ሪፖርት' : 'Incident Reporting')
                 ->schema([
                     Forms\Components\Select::make('employee_id')
-                        ->label('Employee')
+                        ->label($am ? 'ሰራተኛ' : 'Employee')
                         ->options(Employee::query()->orderBy('first_name_am')->get()->mapWithKeys(fn ($e) => [$e->id => $e->employee_id.' - '.$e->full_name_am])->all())
                         ->searchable()
                         ->required(),
                     Forms\Components\Select::make('incident_type')
-                        ->label('Incident Type')
+                        ->label($am ? 'የክስተት አይነት' : 'Incident Type')
                         ->options([
-                            'misconduct' => 'Misconduct',
-                            'non_compliance' => 'Non-compliance',
-                            'violation' => 'Violation',
-                            'attendance' => 'Attendance',
-                            'harassment' => 'Harassment',
-                            'corruption' => 'Corruption',
-                            'other' => 'Other',
+                            'misconduct' => $am ? 'ጥፋት' : 'Misconduct',
+                            'non_compliance' => $am ? 'አለመከተል' : 'Non-compliance',
+                            'violation' => $am ? 'ጥሰት' : 'Violation',
+                            'attendance' => $am ? 'ቅጥ' : 'Attendance',
+                            'harassment' => $am ? 'ትንኮሳ' : 'Harassment',
+                            'corruption' => $am ? 'ሙስና' : 'Corruption',
+                            'other' => $am ? 'ሌላ' : 'Other',
                         ])
                         ->required()
                         ->live(),
                     Forms\Components\TextInput::make('location')
-                        ->label('Location')
+                        ->label($am ? 'ቦታ' : 'Location')
                         ->maxLength(255),
                     Forms\Components\DatePicker::make('incident_date')
-                        ->label('Date')
+                        ->label($am ? 'ቀን' : 'Date')
                         ->ethiopic()
                         ->firstDayOfWeek(1)
                         ->closeOnDateSelection()
@@ -68,23 +74,24 @@ class IncidentReportResource extends Resource
                         ->default(now())
                         ->required(),
                     Forms\Components\Textarea::make('description')
-                        ->label('Description')
+                        ->label($am ? 'ዝርዝር' : 'Description')
                         ->required()
                         ->maxLength(8000)
                         ->columnSpanFull(),
                     Grid::make(2)
                         ->schema([
                             Forms\Components\Select::make('status')
+                                ->label($am ? 'ሁኔታ' : 'Status')
                                 ->options([
-                                    'reported' => 'Reported',
-                                    'penalty_assigned' => 'Penalty Assigned',
-                                    'in_follow_up' => 'In Follow-up',
-                                    'closed' => 'Closed',
+                                    'reported' => $am ? 'ሪፖርት ተደርጓል' : 'Reported',
+                                    'penalty_assigned' => $am ? 'ቅጣት ተመድቧል' : 'Penalty Assigned',
+                                    'in_follow_up' => $am ? 'ክትትል ላይ' : 'In Follow-up',
+                                    'closed' => $am ? 'ተዘግቷል' : 'Closed',
                                 ])
                                 ->default('reported')
                                 ->required(),
                             Forms\Components\Select::make('reported_by')
-                                ->label('Reported By')
+                                ->label($am ? 'ያሳወቀው' : 'Reported By')
                                 ->options(\App\Models\User::pluck('name', 'id'))
                                 ->searchable()
                                 ->default(auth()->id()),
@@ -131,17 +138,39 @@ class IncidentReportResource extends Resource
             ->defaultSort('incident_date', 'desc')
             ->filters([
                 Tables\Filters\SelectFilter::make('status')
+                    ->label(app()->getLocale() === 'am' ? 'ሁኔታ' : 'Status')
                     ->options([
-                        'reported' => 'Reported',
-                        'penalty_assigned' => 'Penalty Assigned',
-                        'in_follow_up' => 'In Follow-up',
-                        'closed' => 'Closed',
+                        'reported' => app()->getLocale() === 'am' ? 'ሪፖርት ተደርጓል' : 'Reported',
+                        'penalty_assigned' => app()->getLocale() === 'am' ? 'ቅጣት ተመድቧል' : 'Penalty Assigned',
+                        'in_follow_up' => app()->getLocale() === 'am' ? 'ክትትል ላይ' : 'In Follow-up',
+                        'closed' => app()->getLocale() === 'am' ? 'ተዘግቷል' : 'Closed',
                     ]),
+                Tables\Filters\SelectFilter::make('incident_type')
+                    ->label(app()->getLocale() === 'am' ? 'የክስተት አይነት' : 'Incident Type')
+                    ->options([
+                        'misconduct' => app()->getLocale() === 'am' ? 'ጥፋት' : 'Misconduct',
+                        'non_compliance' => app()->getLocale() === 'am' ? 'አለመከተል' : 'Non-compliance',
+                        'violation' => app()->getLocale() === 'am' ? 'ጥሰት' : 'Violation',
+                        'attendance' => app()->getLocale() === 'am' ? 'ቅጥ' : 'Attendance',
+                        'harassment' => app()->getLocale() === 'am' ? 'ትንኮሳ' : 'Harassment',
+                        'corruption' => app()->getLocale() === 'am' ? 'ሙስና' : 'Corruption',
+                        'other' => app()->getLocale() === 'am' ? 'ሌላ' : 'Other',
+                    ]),
+            ])
+            ->headerActions([
+                Actions\ExportAction::make()
+                    ->exporter(IncidentReportExporter::class)
+                    ->formats([ExportFormat::Csv]),
             ])
             ->actions([
                 Actions\ViewAction::make(),
                 Actions\EditAction::make(),
                 Actions\DeleteAction::make(),
+            ])
+            ->bulkActions([
+                Actions\ExportBulkAction::make()
+                    ->exporter(IncidentReportExporter::class)
+                    ->formats([ExportFormat::Csv]),
             ]);
     }
 

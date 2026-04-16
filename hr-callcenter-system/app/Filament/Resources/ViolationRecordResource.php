@@ -20,6 +20,8 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
 use Filament\Actions;
+use Filament\Actions\Exports\Enums\ExportFormat;
+use App\Filament\Exports\ViolationRecordExporter;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Tables;
@@ -154,6 +156,7 @@ class ViolationRecordResource extends Resource
                         ->label($am ? 'የቅጣት መጠን (ብር)' : 'Fine Amount (Birr)')
                         ->numeric()
                         ->prefix('ETB')
+                        ->minValue(0)
                         ->required()
                         ->readOnly()
                         ->hint($am ? 'ከጥፋት አይነት በራስ-ሰር ይሞላል' : 'Auto-filled from violation type'),
@@ -391,6 +394,15 @@ class ViolationRecordResource extends Resource
                 Tables\Filters\SelectFilter::make('sub_city_id')
                     ->label(app()->getLocale() === 'am' ? 'ክፍለ ከተማ' : 'Sub City')
                     ->options(SubCity::pluck('name_am', 'id')),
+                Tables\Filters\SelectFilter::make('violation_type_id')
+                    ->label(app()->getLocale() === 'am' ? 'የጥፋት አይነት' : 'Violation Type')
+                    ->options(ViolationType::pluck('name_am', 'id'))
+                    ->searchable(),
+            ])
+            ->headerActions([
+                Actions\ExportAction::make()
+                    ->exporter(ViolationRecordExporter::class)
+                    ->formats([ExportFormat::Csv]),
             ])
             ->actions([
                 Actions\ViewAction::make(),
@@ -398,6 +410,9 @@ class ViolationRecordResource extends Resource
             ])
             ->bulkActions([
                 Actions\DeleteBulkAction::make(),
+                Actions\ExportBulkAction::make()
+                    ->exporter(ViolationRecordExporter::class)
+                    ->formats([ExportFormat::Csv]),
             ]);
     }
 

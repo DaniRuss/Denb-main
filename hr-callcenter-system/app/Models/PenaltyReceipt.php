@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,7 +10,15 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PenaltyReceipt extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, LogsActivity;
+
+    protected static function booted(): void
+    {
+        $observer = new \App\Observers\ViolationStatusObserver();
+
+        static::created(fn (self $receipt) => $observer->createdReceipt($receipt));
+        static::updated(fn (self $receipt) => $observer->updatedReceipt($receipt));
+    }
 
     protected $fillable = [
         'violation_record_id',

@@ -15,6 +15,7 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 
 class ConfiscatedAssetsRelationManager extends RelationManager
 {
@@ -60,14 +61,30 @@ class ConfiscatedAssetsRelationManager extends RelationManager
                 ->required(),
             Forms\Components\Select::make('status')
                 ->label(app()->getLocale() === 'am' ? 'ሁኔታ' : 'Status')
-                ->options([
-                    'seized' => app()->getLocale() === 'am' ? 'ተወርሷል' : 'Seized',
-                    'handed_over' => app()->getLocale() === 'am' ? 'ተረክቧል' : 'Handed Over',
-                    'estimated' => app()->getLocale() === 'am' ? 'ግምት ተሰጥቷል' : 'Estimated',
-                    'transferred' => app()->getLocale() === 'am' ? 'ተዛውሯል' : 'Transferred',
-                    'sold' => app()->getLocale() === 'am' ? 'ተሸጧል' : 'Sold',
-                    'disposed' => app()->getLocale() === 'am' ? 'ተወግዷል' : 'Disposed',
-                ])
+                ->options(function (Get $get, ?Model $record) {
+                    $am = app()->getLocale() === 'am';
+                    $all = [
+                        'seized' => $am ? 'ተወርሷል' : 'Seized',
+                        'handed_over' => $am ? 'ተረክቧል' : 'Handed Over',
+                        'estimated' => $am ? 'ግምት ተሰጥቷል' : 'Estimated',
+                        'transferred' => $am ? 'ተዛውሯል' : 'Transferred',
+                        'sold' => $am ? 'ተሸጧል' : 'Sold',
+                        'disposed' => $am ? 'ተወግዷል' : 'Disposed',
+                    ];
+
+                    if (! $record) {
+                        return $all;
+                    }
+
+                    $order = array_keys($all);
+                    $currentIndex = array_search($record->status, $order);
+
+                    if ($currentIndex === false) {
+                        return $all;
+                    }
+
+                    return array_slice($all, $currentIndex, null, true);
+                })
                 ->default('seized')
                 ->required()
                 ->live(),
@@ -97,6 +114,7 @@ class ConfiscatedAssetsRelationManager extends RelationManager
                 ->label(app()->getLocale() === 'am' ? 'የዋጋ ግምት (ብር)' : 'Estimated Value (Birr)')
                 ->numeric()
                 ->prefix('ETB')
+                ->minValue(0)
                 ->visible(fn (Get $get) => in_array($get('status'), ['estimated', 'transferred', 'sold', 'disposed'])),
             Forms\Components\DatePicker::make('estimation_date')
                 ->label(app()->getLocale() === 'am' ? 'ግምት የተሰጠበት ቀን' : 'Estimation Date')
@@ -131,6 +149,8 @@ class ConfiscatedAssetsRelationManager extends RelationManager
                 ->label(app()->getLocale() === 'am' ? 'የሽያጭ ገንዘብ (ብር)' : 'Sold Amount (Birr)')
                 ->numeric()
                 ->prefix('ETB')
+                ->minValue(0.01)
+                ->required(fn (Get $get) => $get('status') === 'sold')
                 ->visible(fn (Get $get) => $get('status') === 'sold')
                 ->live()
                 ->afterStateUpdated(function (Set $set, $state) {

@@ -81,16 +81,27 @@ class FollowUpActionsRelationManager extends RelationManager
             ])
             ->defaultSort('created_at', 'desc')
             ->headerActions([
-                CreateAction::make()->label('Add Follow-up Action'),
+                CreateAction::make()
+                    ->label(app()->getLocale() === 'am' ? 'ክትትል ጨምር' : 'Add Follow-up Action')
+                    ->visible(fn () => auth()->user()?->hasRole('admin')
+                        || auth()->user()?->hasRole('supervisor')
+                        || auth()->user()?->can('manage_penalty_action')),
             ])
             ->actions([
                 ViewAction::make(),
-                EditAction::make(),
-                DeleteAction::make(),
+                EditAction::make()
+                    ->visible(fn () => auth()->user()?->hasRole('admin')
+                        || auth()->user()?->hasRole('supervisor')
+                        || auth()->user()?->can('manage_penalty_action')),
+                DeleteAction::make()
+                    ->visible(fn () => auth()->user()?->hasRole('admin')
+                        || auth()->user()?->can('manage_penalty_action')),
             ])
             ->bulkActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                    DeleteBulkAction::make()
+                        ->visible(fn () => auth()->user()?->hasRole('admin')
+                            || auth()->user()?->can('manage_penalty_action')),
                 ]),
             ]);
     }

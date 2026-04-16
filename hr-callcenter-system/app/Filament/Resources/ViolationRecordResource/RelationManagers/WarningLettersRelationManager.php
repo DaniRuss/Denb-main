@@ -168,6 +168,9 @@ class WarningLettersRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('deadline')
                     ->label(app()->getLocale() === 'am' ? 'ገደብ' : 'Deadline')
                     ->dateTime(),
+                Tables\Columns\IconColumn::make('violator_accepted')
+                    ->label(app()->getLocale() === 'am' ? 'ተቀብሏል' : 'Accepted')
+                    ->boolean(),
                 Tables\Columns\IconColumn::make('complied')
                     ->label(app()->getLocale() === 'am' ? 'ተፈጻሚ' : 'Complied')
                     ->boolean(),
@@ -180,10 +183,25 @@ class WarningLettersRelationManager extends RelationManager
             ->headerActions([
                 CreateAction::make()
                     ->label(app()->getLocale() === 'am' ? 'ማስጠንቀቂያ ስጥ' : 'Issue Warning')
-                    ->visible(fn () => auth()->user()?->hasRole('admin')
-                        || auth()->user()?->hasRole('officer')
-                        || auth()->user()?->can('issue_warning_letters')
-                        || auth()->user()?->can('manage_penalty_action')),
+                    ->visible(function () {
+                        $user = auth()->user();
+                        $hasPermission = $user?->hasRole('admin')
+                            || $user?->hasRole('officer')
+                            || $user?->can('issue_warning_letters')
+                            || $user?->can('manage_penalty_action');
+
+                        if (! $hasPermission) {
+                            return false;
+                        }
+
+                        $hasActiveWarning = $this->ownerRecord
+                            ->warningLetters()
+                            ->where('complied', false)
+                            ->where('deadline', '>=', now())
+                            ->exists();
+
+                        return ! $hasActiveWarning;
+                    }),
             ])
             ->actions([
                 ViewAction::make(),

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +11,16 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ViolationRecord extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, LogsActivity;
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $record) {
+            if ($record->violator_id) {
+                $record->repeat_offense_count = self::where('violator_id', $record->violator_id)->count();
+            }
+        });
+    }
 
     protected $fillable = [
         'violator_id',
@@ -35,6 +45,7 @@ class ViolationRecord extends Model
 
     protected $casts = [
         'violation_date' => 'date',
+        'violation_time' => 'string',
         'fine_amount' => 'decimal:2',
         'repeat_offense_count' => 'integer',
     ];

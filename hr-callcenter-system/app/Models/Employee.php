@@ -109,6 +109,11 @@ class Employee extends Model
         return $this->hasMany(DailyShiftReport::class);
     }
 
+    public function incidentReports(): HasMany
+    {
+        return $this->hasMany(IncidentReport::class);
+    }
+
     public function getFullNameAmAttribute()
     {
         return $this->first_name_am . ' ' . $this->last_name_am;

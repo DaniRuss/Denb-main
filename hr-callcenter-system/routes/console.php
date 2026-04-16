@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('penalties:escalate')->dailyAt('06:00');
+Schedule::command('penalty:check-overdue')->dailyAt('07:00');

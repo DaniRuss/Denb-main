@@ -40,28 +40,34 @@ class PenaltyModuleSeeder extends Seeder
         $arW2 = Woreda::where('sub_city_id', 3)->orderBy('id')->skip(1)->first();
         $blW1 = Woreda::where('sub_city_id', 4)->orderBy('id')->first();
 
-        // Users
-        $admin          = User::find(1);   // Super Admin
-        $officerAKW1    = User::find(4);   // Officer Test → AK W01
-        $officerAKW2    = User::find(5);   // Officer Boka → AK W02
-        $supervisorAK   = User::find(10);  // Abera Supervisor → AK W01
-        $officerAradaW1 = User::find(11);  // Arada1 Officer → Arada W01
-        $officerAkaki   = User::find(12);  // Akaki Officer → Akaki W01
-        $supervisorAkaki = User::find(18); // superisorr20 → Akaki W01
-        $supervisorArada = User::find(19); // arada supervisor → Arada (all)
-        $officerAradaW2 = User::find(20);  // arada01 Officer → Arada W02
-        $officerBole    = User::find(21);  // Olyad Akaki → Bole W01
+        // Users — abort scenario seeding if required users don't exist
+        $admin          = User::find(1);
+        $officerAKW1    = User::find(4);
+        $officerAKW2    = User::find(5);
+        $supervisorAK   = User::find(10);
+        $officerAradaW1 = User::find(11);
+        $officerAkaki   = User::find(12);
+        $supervisorAkaki = User::find(18);
+        $supervisorArada = User::find(19);
+        $officerAradaW2 = User::find(20);
+        $officerBole    = User::find(21);
 
-        // Assign locations
-        $officerAKW1->update(['sub_city' => 1, 'woreda' => $akW1->id]);
-        $officerAKW2->update(['sub_city' => 1, 'woreda' => $akW2->id]);
-        $supervisorAK->update(['sub_city' => 1, 'woreda' => $akW1->id]);
-        $officerAradaW1->update(['sub_city' => 3, 'woreda' => $arW1->id]);
-        $officerAradaW2->update(['sub_city' => 3, 'woreda' => $arW2->id]);
-        $supervisorArada->update(['sub_city' => 3, 'woreda' => null]);
-        $officerAkaki->update(['sub_city' => 2, 'woreda' => $aqW1->id]);
-        $supervisorAkaki->update(['sub_city' => 2, 'woreda' => $aqW1->id]);
-        $officerBole->update(['sub_city' => 4, 'woreda' => $blW1->id]);
+        $requiredUsers = [$admin, $officerAKW1, $officerAKW2, $supervisorAK];
+        if (collect($requiredUsers)->contains(null)) {
+            $this->command?->warn('PenaltyModuleSeeder: skipping scenarios — required users (IDs 1,4,5,10) not found.');
+            return;
+        }
+
+        // Assign locations (skip if user doesn't exist)
+        $officerAKW1?->update(['sub_city' => 1, 'woreda' => $akW1?->id]);
+        $officerAKW2?->update(['sub_city' => 1, 'woreda' => $akW2?->id]);
+        $supervisorAK?->update(['sub_city' => 1, 'woreda' => $akW1?->id]);
+        $officerAradaW1?->update(['sub_city' => 3, 'woreda' => $arW1?->id]);
+        $officerAradaW2?->update(['sub_city' => 3, 'woreda' => $arW2?->id]);
+        $supervisorArada?->update(['sub_city' => 3, 'woreda' => null]);
+        $officerAkaki?->update(['sub_city' => 2, 'woreda' => $aqW1?->id]);
+        $supervisorAkaki?->update(['sub_city' => 2, 'woreda' => $aqW1?->id]);
+        $officerBole?->update(['sub_city' => 4, 'woreda' => $blW1?->id]);
 
         // Lookup tables (keep existing or create)
         $penaltyTypes = [];

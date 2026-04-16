@@ -49,6 +49,7 @@ class PenaltyReceiptRelationManager extends RelationManager
                 ->label(app()->getLocale() === 'am' ? 'የቅጣት መጠን (ብር)' : 'Fine Amount (Birr)')
                 ->numeric()
                 ->prefix('ETB')
+                ->minValue(0)
                 ->required()
                 ->default(fn (RelationManager $livewire) => $livewire->ownerRecord->fine_amount ?? 0),
             Forms\Components\DatePicker::make('payment_deadline')
@@ -79,7 +80,24 @@ class PenaltyReceiptRelationManager extends RelationManager
                 ->label(app()->getLocale() === 'am' ? 'የተከፈለ መጠን' : 'Paid Amount')
                 ->numeric()
                 ->prefix('ETB')
+                ->minValue(0)
                 ->visible(fn (Get $get) => in_array($get('payment_status'), ['paid', 'court_paid'])),
+            Forms\Components\Toggle::make('is_court_case')
+                ->label(app()->getLocale() === 'am' ? 'የፍርድ ቤት ጉዳይ' : 'Court Case')
+                ->live()
+                ->visible(fn (Get $get) => in_array($get('payment_status'), ['court_filed', 'court_paid'])),
+            Forms\Components\TextInput::make('court_fine_amount')
+                ->label(app()->getLocale() === 'am' ? 'የፍ/ቤት ቅጣት (2x)' : 'Court Fine (2x)')
+                ->numeric()
+                ->prefix('ETB')
+                ->hint(app()->getLocale() === 'am' ? 'የመጀመሪያው ቅጣት ሁለት እጥፍ' : 'Double the original fine')
+                ->visible(fn (Get $get) => $get('is_court_case')),
+            Forms\Components\DatePicker::make('court_filed_date')
+                ->label(app()->getLocale() === 'am' ? 'ክስ የቀረበበት ቀን' : 'Court Filed Date')
+                ->ethiopic()
+                ->firstDayOfWeek(1)
+                ->closeOnDateSelection()
+                ->visible(fn (Get $get) => $get('is_court_case')),
             Forms\Components\Toggle::make('receipt_refused')
                 ->label(app()->getLocale() === 'am' ? 'ደረሰኙን አልቀበልም ብሏል' : 'Violator Refused Receipt')
                 ->live(),
@@ -149,10 +167,24 @@ class PenaltyReceiptRelationManager extends RelationManager
             ->headerActions([
                 CreateAction::make()
                     ->label(app()->getLocale() === 'am' ? 'ደረሰኝ ስጥ' : 'Issue Receipt')
-                    ->visible(fn () => auth()->user()?->hasRole('admin')
-                        || auth()->user()?->hasRole('officer')
-                        || auth()->user()?->can('issue_penalty_receipts')
-                        || auth()->user()?->can('manage_penalty_action')),
+                    ->visible(function () {
+                        $user = auth()->user();
+                        $hasPermission = $user?->hasRole('admin')
+                            || $user?->hasRole('officer')
+                            || $user?->can('issue_penalty_receipts')
+                            || $user?->can('manage_penalty_action');
+
+                        if (! $hasPermission) {
+                            return false;
+                        }
+
+                        $hasActiveReceipt = $this->ownerRecord
+                            ->penaltyReceipts()
+                            ->whereIn('payment_status', ['pending', 'overdue'])
+                            ->exists();
+
+                        return ! $hasActiveReceipt;
+                    }),
             ])
             ->actions([
                 ViewAction::make(),
