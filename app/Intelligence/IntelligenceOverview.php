@@ -26,7 +26,7 @@ class IntelligenceOverview extends BaseWidget
         $base = AwarenessEngagement::where('status', 'approved');
 
         // Scope by role
-        if ($user->hasAnyRole(['admin', 'officer'])) {
+        if ($user->hasRole('admin')) {
             $subCityId = \App\Helpers\JurisdictionHelper::getSubCityId($user);
             $base->where('sub_city_id', $subCityId);
         } elseif ($user->hasRole('woreda_coordinator')) {
@@ -47,7 +47,7 @@ class IntelligenceOverview extends BaseWidget
 
         // Pending approvals
         $pendingCount = AwarenessEngagement::where('status', 'submitted')
-            ->when($user->hasAnyRole(['admin', 'officer']), fn($q) => $q->where('sub_city_id', \App\Helpers\JurisdictionHelper::getSubCityId($user)))
+            ->when($user->hasRole('admin'), fn($q) => $q->where('sub_city_id', \App\Helpers\JurisdictionHelper::getSubCityId($user)))
             ->when($user->hasRole('woreda_coordinator'), fn($q) => $q->where('woreda_id', \App\Helpers\JurisdictionHelper::getWoredaId($user)))
             ->when($user->hasRole('paramilitary'), fn($q) => $q->where('created_by', $user->id))
             ->count();
@@ -82,7 +82,7 @@ class IntelligenceOverview extends BaseWidget
                 ->color('primary')
                 ->description(__('Sub-cities with approved records'));
 
-        } elseif ($user->hasAnyRole(['admin', 'officer'])) {
+        } elseif ($user->hasRole('admin')) {
             // 1. Sub-city citizens reached
             $stats[] = Stat::make(__('Total Citizens Reached'), number_format($totalReach))
                 ->icon('heroicon-m-users')

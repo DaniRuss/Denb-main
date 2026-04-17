@@ -32,7 +32,7 @@ class StrategyReachTable extends BaseWidget
             ->groupBy('engagement_type');
 
         // Scope by role
-        if ($user->hasAnyRole(['admin', 'officer'])) {
+        if ($user->hasRole('admin')) {
             $sub->where('sub_city_id', \App\Helpers\JurisdictionHelper::getSubCityId($user));
         } elseif ($user->hasRole('woreda_coordinator')) {
             $sub->where('woreda_id', $user->woreda_id);

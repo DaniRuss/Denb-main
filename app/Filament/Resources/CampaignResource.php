@@ -48,7 +48,7 @@ class CampaignResource extends Resource
         }
 
         // Field roles
-        if ($user->hasAnyRole(['officer', 'paramilitary'])) {
+        if ($user->hasRole('paramilitary')) {
             $woredaId = \App\Helpers\JurisdictionHelper::getWoredaId($user);
             if ($woredaId) {
                 return $query->where('woreda_id', $woredaId);
@@ -83,7 +83,7 @@ class CampaignResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()->hasAnyRole(['admin', 'super_admin', 'woreda_coordinator', 'officer', 'paramilitary']);
+        return auth()->user()->hasAnyRole(['admin', 'super_admin', 'woreda_coordinator', 'paramilitary']);
     }
 
     public static function canCreate(): bool

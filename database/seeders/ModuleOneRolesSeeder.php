@@ -88,15 +88,6 @@ class ModuleOneRolesSeeder extends Seeder
             'create_engagements', 'view_engagements', 'edit_engagements', 'delete_engagements',
         ]);
 
-        // Officer — handles enforcement after tips are verified
-        $officer = Role::findOrCreate('officer');
-        $officer->syncPermissions([
-            'view_campaigns',
-            'view_engagements',
-            'view_complaints', 'manage_complaints',
-            'view_reports',
-        ]);
-
         // Keep legacy roles compatible
         Role::findOrCreate('supervisor')->syncPermissions([
             'view_complaints', 'manage_complaints', 'assign_cases', 'view_reports'
@@ -132,15 +123,6 @@ class ModuleOneRolesSeeder extends Seeder
                 'role'     => 'paramilitary',
                 'sub_city_id' => 4,
                 'woreda_id'   => 36,
-            ],
-            [
-                'name'     => 'Enforcement Officer',
-                'email'    => 'officer@aalea.gov.et',
-                'password' => 'Officer@1234',
-                'role'     => 'officer',
-                'sub_city_id' => 4,
-                'woreda_id'   => 36,
-            ],
         ];
 
         foreach ($users as $userData) {
@@ -167,7 +149,6 @@ class ModuleOneRolesSeeder extends Seeder
         $this->command->info('║  admin                 │ admin@aalea.gov.et        │ Admin@1234 ║');
         $this->command->info('║  woreda_coordinator    │ coordinator@aalea.gov.et  │ Coord@1234 ║');
         $this->command->info('║  paramilitary (field)  │ field@aalea.gov.et        │ Field@1234 ║');
-        $this->command->info('║  officer               │ officer@aalea.gov.et      │ Officer@1234 ║');
         $this->command->info('╚══════════════════════════════════════════════════════════════╝');
         $this->command->info('  Login at: /admin');
         $this->command->info('');

@@ -29,7 +29,7 @@ class AwarenessLogAnalytic extends Page
     public static function canAccess(): bool
     {
         $user = auth()->user();
-        return $user && $user->hasAnyRole(['super_admin', 'admin', 'woreda_coordinator', 'paramilitary', 'officer']);
+        return $user && $user->hasAnyRole(['super_admin', 'admin', 'woreda_coordinator', 'paramilitary']);
     }
 
     protected function getHeaderWidgets(): array

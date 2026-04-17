@@ -56,7 +56,7 @@ class AwarenessEngagementResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return auth()->user()->hasAnyRole(['admin', 'super_admin', 'woreda_coordinator', 'paramilitary', 'officer']);
+        return auth()->user()->hasAnyRole(['admin', 'super_admin', 'woreda_coordinator', 'paramilitary']);
     }
 
     public static function canCreate(): bool
@@ -316,13 +316,6 @@ class AwarenessEngagementResource extends Resource
                 // Field roles (Paramilitary / Field) see their own logs always
                 if ($user->hasAnyRole(['paramilitary', 'field'])) {
                     return $query->where('created_by', $user->id);
-                }
-
-                if ($user->hasRole('officer')) {
-                    // Officers see their own jurisdiction's submitted/approved/rejected records
-                    $subCityId = \App\Helpers\JurisdictionHelper::getSubCityId($user);
-                    return $query->where('sub_city_id', $subCityId)
-                                 ->whereIn('status', ['submitted', 'approved', 'rejected']);
                 }
 
                 if ($user->hasRole('woreda_coordinator')) {

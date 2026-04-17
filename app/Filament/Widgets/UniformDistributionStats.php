@@ -33,6 +33,7 @@ class UniformDistributionStats extends BaseWidget
         if ($tableQuery) {
             $totalQty = (clone $tableQuery)->sum('quantity');
             $itemBreakdown = (clone $tableQuery)
+                ->reorder()
                 ->selectRaw('item_type, SUM(quantity) as total')
                 ->groupBy('item_type')
                 ->pluck('total', 'item_type')
@@ -40,6 +41,7 @@ class UniformDistributionStats extends BaseWidget
         } else {
             $totalQty = $query->sum('quantity');
             $itemBreakdown = $query
+                ->reorder()
                 ->selectRaw('item_type, SUM(quantity) as total')
                 ->groupBy('item_type')
                 ->pluck('total', 'item_type')

@@ -20,7 +20,7 @@ class AdministrativePerformanceTable extends BaseWidget
     {
         $user = auth()->user();
         if ($user->hasRole('super_admin'))        return 'Administrative Performance by Sub-City';
-        if ($user->hasAnyRole(['admin', 'officer'])) return 'Administrative Performance by Woreda';
+        if ($user->hasRole('admin')) return 'Administrative Performance by Woreda';
         if ($user->hasRole('woreda_coordinator'))  return 'Block & Officer Performance (My Woreda)';
         if ($user->hasRole('paramilitary'))         return 'My Latest Engagements';
         return 'Administrative Performance';
@@ -87,9 +87,9 @@ class AdministrativePerformanceTable extends BaseWidget
         }
 
         // ============================================================
-        // ADMIN / OFFICER: Woreda-level breakdown (within their sub-city)
+        // ADMIN: Woreda-level breakdown (within their sub-city)
         // ============================================================
-        if ($user->hasAnyRole(['admin', 'officer'])) {
+        if ($user->hasRole('admin')) {
             $subCityId = \App\Helpers\JurisdictionHelper::getSubCityId($user);
             $baseQuery = Woreda::where('sub_city_id', $subCityId);
 
