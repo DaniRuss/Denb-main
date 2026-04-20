@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\ViolationRecordResource\RelationManagers;
 
 use App\Models\User;
+use App\Models\WarningLetter;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -21,9 +22,41 @@ class WarningLettersRelationManager extends RelationManager
 
     protected static ?string $recordTitleAttribute = 'reference_number';
 
+    private function violatorWarningCount(): int
+    {
+        $violatorId = $this->ownerRecord->violator_id;
+        if (! $violatorId) {
+            return 0;
+        }
+        return WarningLetter::whereHas(
+            'violationRecord',
+            fn ($q) => $q->where('violator_id', $violatorId)
+        )->count();
+    }
+
     public function form(Schema $schema): Schema
     {
+        $am = app()->getLocale() === 'am';
+        $existingCount = $this->violatorWarningCount();
+        $nextCount     = $existingCount + 1;
+
+        $countNote = match (true) {
+            $nextCount >= 3 => ($am
+                ? "⚠ {$nextCount}ኛ ማስጠንቀቂያ — ቅጣት ቀጥለኛ ሆኖ ራስ-ሰር ይፈጠራል!"
+                : "⚠ Warning #{$nextCount} — a penalty receipt will be auto-created after save!"),
+            $nextCount === 2 => ($am
+                ? "🔶 {$nextCount}ኛ ማስጠንቀቂያ — ቀጣዩ ማስጠንቀቂያ ቅጣቱን ያስጀምራል"
+                : "🔶 Warning #{$nextCount} — the next one will trigger an automatic penalty"),
+            default => ($am
+                ? "1ኛ ማስጠንቀቂያ — {$existingCount}/3 ማስጠንቀቂያ ደርሷል"
+                : "Warning #1 — {$existingCount} of 3 warnings used"),
+        };
+
         return $schema->schema([
+            Forms\Components\Placeholder::make('warning_threshold_info')
+                ->label($am ? 'የማስጠንቀቂያ ቆጠራ' : 'Warning Count')
+                ->content($countNote)
+                ->columnSpanFull(),
             Forms\Components\TextInput::make('reference_number')
                 ->label(app()->getLocale() === 'am' ? 'ቁጥር' : 'Reference Number')
                 ->required()
@@ -179,10 +212,33 @@ class WarningLettersRelationManager extends RelationManager
                     ->boolean()
                     ->trueColor('danger'),
             ])
+            ->description(function () {
+                $am    = app()->getLocale() === 'am';
+                $count = $this->violatorWarningCount();
+                if ($count >= 3) {
+                    return $am
+                        ? "ደንብ ተላላፊው {$count} ማስጠንቀቂያ ደርሷቸዋል — ቅጣቱ ሊፈጠር ይችላል"
+                        : "Violator has {$count} total warnings — penalty auto-creation threshold reached";
+                }
+                return $am
+                    ? "ደንብ ተላላፊው {$count} / 3 ማስጠንቀቂያ ደርሷቸዋል"
+                    : "Violator has {$count} / 3 total warnings";
+            })
             ->defaultSort('issued_date', 'desc')
             ->headerActions([
                 CreateAction::make()
-                    ->label(app()->getLocale() === 'am' ? 'ማስጠንቀቂያ ስጥ' : 'Issue Warning')
+                    ->label(function () {
+                        $am    = app()->getLocale() === 'am';
+                        $count = $this->violatorWarningCount();
+                        $next  = $count + 1;
+                        return $am
+                            ? "ማስጠንቀቂያ ስጥ ({$count}/3)"
+                            : "Issue Warning ({$count}/3)" . ($next >= 3 ? ' — Penalty will auto-create' : '');
+                    })
+                    ->color(function () {
+                        $count = $this->violatorWarningCount();
+                        return $count >= 2 ? 'danger' : 'primary';
+                    })
                     ->visible(function () {
                         $user = auth()->user();
                         $hasPermission = $user?->hasRole('admin')
@@ -194,6 +250,7 @@ class WarningLettersRelationManager extends RelationManager
                             return false;
                         }
 
+                        // Block if there is already an active (non-expired, uncomplied) warning.
                         $hasActiveWarning = $this->ownerRecord
                             ->warningLetters()
                             ->where('complied', false)

@@ -72,8 +72,9 @@ class ConfiscatedAssetsRelationManager extends RelationManager
                         'disposed' => $am ? 'ተወግዷል' : 'Disposed',
                     ];
 
+                    // New assets always start at 'seized'.
                     if (! $record) {
-                        return $all;
+                        return ['seized' => $all['seized']];
                     }
 
                     $order = array_keys($all);

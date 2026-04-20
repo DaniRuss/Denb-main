@@ -16,6 +16,32 @@ class PenaltyReceipt extends Model
     {
         $observer = new \App\Observers\ViolationStatusObserver();
 
+        static::saving(function (self $receipt) {
+            if ($receipt->payment_status === 'court_filed') {
+                $receipt->is_court_case = true;
+                if (! $receipt->court_fine_amount) {
+                    $receipt->court_fine_amount = (float) $receipt->fine_amount * 2;
+                }
+                if (! $receipt->court_filed_date) {
+                    $receipt->court_filed_date = now()->toDateString();
+                }
+            }
+
+            if (in_array($receipt->payment_status, ['paid', 'court_paid'], true)) {
+                $amount = (float) ($receipt->is_court_case || $receipt->payment_status === 'court_paid'
+                    ? ($receipt->court_fine_amount ?? $receipt->fine_amount)
+                    : $receipt->fine_amount);
+
+                if (! $receipt->paid_amount || (float) $receipt->paid_amount <= 0) {
+                    $receipt->paid_amount = $amount;
+                }
+
+                $paid = (float) $receipt->paid_amount;
+                $receipt->authority_share    = round($paid * 0.60, 2);
+                $receipt->city_finance_share = round($paid * 0.40, 2);
+            }
+        });
+
         static::created(fn (self $receipt) => $observer->createdReceipt($receipt));
         static::updated(fn (self $receipt) => $observer->updatedReceipt($receipt));
     }
@@ -27,6 +53,8 @@ class PenaltyReceipt extends Model
         'issued_time',
         'fine_amount',
         'paid_amount',
+        'authority_share',
+        'city_finance_share',
         'payment_deadline',
         'paid_date',
         'payment_status',
@@ -48,6 +76,8 @@ class PenaltyReceipt extends Model
         'court_filed_date' => 'date',
         'fine_amount' => 'decimal:2',
         'paid_amount' => 'decimal:2',
+        'authority_share' => 'decimal:2',
+        'city_finance_share' => 'decimal:2',
         'court_fine_amount' => 'decimal:2',
         'is_court_case' => 'boolean',
         'receipt_refused' => 'boolean',
@@ -89,8 +119,7 @@ class PenaltyReceipt extends Model
 
     public function scopeOverdue($query)
     {
-        return $query->where('payment_status', 'pending')
-            ->where('payment_deadline', '<', now()->toDateString());
+        return $query->where('payment_status', 'overdue');
     }
 
     public function scopePaid($query)
@@ -107,16 +136,20 @@ class PenaltyReceipt extends Model
 
     public function isOverdue(): bool
     {
-        return $this->payment_status === 'pending'
-            && $this->payment_deadline->lt(now());
+        return $this->payment_status === 'overdue'
+            || ($this->payment_status === 'pending' && $this->payment_deadline?->lt(now()->startOfDay()));
     }
 
     public function markAsPaid(string $paidDate = null): void
     {
+        $amount = (float) ($this->is_court_case ? $this->court_fine_amount : $this->fine_amount);
+
         $this->update([
-            'payment_status' => 'paid',
-            'paid_date' => $paidDate ?? now()->toDateString(),
-            'paid_amount' => $this->is_court_case ? $this->court_fine_amount : $this->fine_amount,
+            'payment_status'      => $this->is_court_case ? 'court_paid' : 'paid',
+            'paid_date'           => $paidDate ?? now()->toDateString(),
+            'paid_amount'         => $amount,
+            'authority_share'     => round($amount * 0.60, 2),
+            'city_finance_share'  => round($amount * 0.40, 2),
         ]);
     }
 

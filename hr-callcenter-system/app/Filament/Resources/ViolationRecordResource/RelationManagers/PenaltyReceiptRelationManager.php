@@ -163,6 +163,14 @@ class PenaltyReceiptRelationManager extends RelationManager
                     ->falseIcon('heroicon-o-check-circle')
                     ->trueColor('danger')
                     ->falseColor('success'),
+                Tables\Columns\TextColumn::make('authority_share')
+                    ->label(app()->getLocale() === 'am' ? 'ባለስልጣን 60%' : 'Authority 60%')
+                    ->money('ETB')
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('city_finance_share')
+                    ->label(app()->getLocale() === 'am' ? 'ፋይናንስ 40%' : 'City 40%')
+                    ->money('ETB')
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->headerActions([
                 CreateAction::make()

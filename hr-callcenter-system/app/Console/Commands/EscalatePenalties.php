@@ -17,45 +17,28 @@ class EscalatePenalties extends Command
     public function handle(): int
     {
         $now = Carbon::now();
+        $today = $now->copy()->startOfDay();
 
-        // 1. Penalty Receipts: pending → overdue (payment deadline passed)
-        $overdueReceipts = PenaltyReceipt::where('payment_status', 'pending')
-            ->where('payment_deadline', '<', $now)
-            ->get();
-
-        foreach ($overdueReceipts as $receipt) {
-            $receipt->update(['payment_status' => 'overdue']);
-
-            if ($record = $receipt->violationRecord) {
-                $record->update([
-                    'status' => 'payment_pending',
-                    'action_taken' => ($record->action_taken ?? '') . "\nየ3 ቀን የክፍያ ገደብ አልፏል። ሁኔታ: ያልተከፈለ።",
-                ]);
-            }
-        }
-
-        $this->info("Overdue receipts: {$overdueReceipts->count()}");
-
-        // 2. Penalty Receipts: overdue → court_filed, fine doubled
-        // Doc: "በ3ቀን ጊዜ ውስጥ ገቢ ያላደረገ" → court immediately after 3-day deadline expires
+        // Spec ¶113: pay within 3 days OR court case with doubled fine.
+        // Only escalate receipts already marked 'overdue' by penalty:check-overdue (runs at 07:00).
+        // This gives violators a 1-day "overdue" SMS warning before court action.
         $courtEligible = PenaltyReceipt::where('payment_status', 'overdue')
             ->where('is_court_case', false)
-            ->where('payment_deadline', '<', $now)
+            ->where('payment_deadline', '<', $today)
             ->get();
 
         foreach ($courtEligible as $receipt) {
             $doubled = $receipt->fine_amount * 2;
 
             $receipt->update([
-                'payment_status' => 'court_filed',
-                'is_court_case' => true,
-                'court_filed_date' => $now,
-                'court_fine_amount' => $doubled,
+                'payment_status'     => 'court_filed',
+                'is_court_case'      => true,
+                'court_filed_date'   => $now,
+                'court_fine_amount'  => $doubled,
             ]);
 
             if ($record = $receipt->violationRecord) {
                 $record->update([
-                    'status' => 'court_filed',
                     'action_taken' => ($record->action_taken ?? '') . "\nበራስ-ሰር ወደ ፍ/ቤት ተላልፏል። ቅጣት እጥፍ ሆኗል ({$doubled} ብር)።",
                 ]);
             }
@@ -63,7 +46,6 @@ class EscalatePenalties extends Command
 
         $this->info("Court escalations: {$courtEligible->count()}");
 
-        // 3. Warning Letters: expired + not complied → escalate to task force
         $expiredWarnings = WarningLetter::where('complied', false)
             ->where(function ($q) {
                 $q->whereNull('escalated_to_task_force')
@@ -76,7 +58,7 @@ class EscalatePenalties extends Command
         foreach ($expiredWarnings as $warning) {
             $warning->update([
                 'escalated_to_task_force' => true,
-                'escalation_date' => $now,
+                'escalation_date'         => $now,
             ]);
 
             if ($record = $warning->violationRecord) {
@@ -90,7 +72,6 @@ class EscalatePenalties extends Command
 
         $this->info("Warning escalations to task force: {$escalatedCount}");
 
-        // 4. Confiscated Assets: flag overdue transfers (3+ days since handover)
         $overdueTransfers = ConfiscatedAsset::where('status', 'handed_over')
             ->where('is_perishable', false)
             ->whereNotNull('handover_date')
@@ -100,13 +81,12 @@ class EscalatePenalties extends Command
         foreach ($overdueTransfers as $asset) {
             if (! str_contains($asset->notes ?? '', 'የማስተላለፊያ ገደብ አልፏል')) {
                 $asset->update([
-                    'notes' => ($asset->notes ?? '') . "\n⚠ የ3 ቀን የማስተላለፊያ ገደብ አልፏል! ወደ ክ/ከተማ ���ምጃ ቤት ማስተላለፍ ያስፈልጋል።",
+                    'notes' => ($asset->notes ?? '') . "\n⚠ የ3 ቀን የማስተላለፊያ ገደብ አልፏል! ወደ ክ/ከተማ ግምጃ ቤት ማስተላለፍ ያስፈልጋል።",
                 ]);
             }
         }
 
         $this->info("Overdue asset transfers flagged: {$overdueTransfers->count()}");
-
         $this->info('Escalation complete.');
 
         return self::SUCCESS;

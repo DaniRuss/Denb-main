@@ -14,7 +14,10 @@ class WarningLetter extends Model
 
     protected static function booted(): void
     {
-        static::created(fn (self $letter) => (new \App\Observers\ViolationStatusObserver())->createdWarning($letter));
+        $observer = new \App\Observers\ViolationStatusObserver();
+
+        static::created(fn (self $letter) => $observer->createdWarning($letter));
+        static::updated(fn (self $letter) => $observer->updatedWarning($letter));
     }
 
     protected $fillable = [

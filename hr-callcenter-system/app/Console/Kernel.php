@@ -14,10 +14,7 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // Generate absences for yesterday's assignments each morning.
         $schedule->command(GenerateDailyAbsences::class)->dailyAt('06:00');
-
-        // Rotate officer shifts whose 30-day period ended.
         $schedule->command(RotateOfficerShifts::class)->dailyAt('01:00');
     }
 

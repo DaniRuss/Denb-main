@@ -15,10 +15,23 @@ class CheckOverdueItems extends Command
 {
     protected $signature = 'penalty:check-overdue';
 
-    protected $description = 'Check for overdue payments, expired warnings, and overdue asset transfers, then notify supervisors.';
+    protected $description = 'Mark overdue receipts (triggers violator SMS), then notify supervisors of overdue payments, expired warnings, and overdue asset transfers.';
 
     public function handle(): int
     {
+        // Mark pending receipts past their deadline as 'overdue'.
+        // The PenaltyReceipt 'updated' hook fires updatedReceipt on the observer,
+        // which sends the payment_overdue SMS to the violator.
+        $marked = PenaltyReceipt::where('payment_status', 'pending')
+            ->where('payment_deadline', '<', now()->toDateString())
+            ->get();
+
+        foreach ($marked as $r) {
+            $r->update(['payment_status' => 'overdue']);
+        }
+
+        $this->info("Marked as overdue: {$marked->count()}");
+
         $supervisors = User::role(['admin', 'supervisor'])->get();
 
         if ($supervisors->isEmpty()) {
@@ -28,8 +41,8 @@ class CheckOverdueItems extends Command
 
         $count = 0;
 
-        $overdueReceipts = PenaltyReceipt::where('payment_status', 'pending')
-            ->where('payment_deadline', '<', now()->toDateString())
+        // Query 'overdue' (includes what we just marked + previously overdue).
+        $overdueReceipts = PenaltyReceipt::where('payment_status', 'overdue')
             ->with('violationRecord')
             ->get();
 

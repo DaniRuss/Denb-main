@@ -8,5 +8,5 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('penalties:escalate')->dailyAt('06:00');
-Schedule::command('penalty:check-overdue')->dailyAt('07:00');
+Schedule::command('penalties:escalate')->dailyAt('02:00')->withoutOverlapping();
+Schedule::command('penalty:check-overdue')->dailyAt('07:00')->withoutOverlapping();

@@ -13,6 +13,8 @@ use App\Models\ViolationRecord;
 use App\Models\ViolationType;
 use App\Models\Woreda;
 use Filament\Forms;
+use App\Models\WarningLetter;
+use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
@@ -62,6 +64,60 @@ class ViolationRecordResource extends Resource
         $am = app()->getLocale() === 'am';
 
         return $schema->schema([
+            Section::make($am ? 'የእርምጃ ዓይነት' : 'Action Type')
+                ->description($am
+                    ? 'ማስጠንቀቂያ ወይስ ቀጥተኛ ቅጣት? ስርዓቱ ለእያንዳንዱ ደንብ ተላላፊ እስከ 3 ማስጠንቀቂያዎች ይከታተላል — 3ኛው ሲደርስ ቅጣት በራስ-ሰር ይሰጣል።'
+                    : 'Warning path or direct penalty? The system tracks up to 3 warnings per violator — on the 3rd warning, a penalty is auto-issued.')
+                ->schema([
+                    Forms\Components\Toggle::make('immediate_penalty')
+                        ->label($am ? 'ቀጥተኛ ቅጣት (ማስጠንቀቂያ ሳያስፈልግ)' : 'Direct Penalty — No Warning Required')
+                        ->helperText($am
+                            ? 'ምልክት ካደረጉ ደንቡን የተላለፈው አካል ወዲያዉኑ ቅጣቱን ይቀበላል። ለ«ወዳያዉኑ እርምጃ» የሚሆኑ ጥፋቶች ብቻ (ደንብ ¶91)።'
+                            : 'Check for violations requiring immediate action per spec ¶91. A penalty receipt is auto-created on save — no 3-warning count needed.')
+                        ->inline(false)
+                        ->default(false)
+                        ->live()
+                        ->columnSpanFull()
+                        ->hiddenOn('edit'),
+                    Forms\Components\Placeholder::make('warning_status')
+                        ->label($am ? 'የዚህ ደንብ ተላላፊ ማስጠንቀቂያ ቁጥር' : 'Warnings for this violator')
+                        ->content(function (Get $get) use ($am) {
+                            if ($get('immediate_penalty')) {
+                                return $am
+                                    ? 'ቀጥተኛ ቅጣት ተመርጧል — ማስጠንቀቂያ አይቆጠርም።'
+                                    : 'Direct penalty selected — warning count does not apply.';
+                            }
+
+                            $violatorId = $get('violator_id');
+                            if (! $violatorId) {
+                                return $am
+                                    ? 'ቀድመህ ደንብ ተላላፊ ምረጥ።'
+                                    : 'Select a violator below to see their warning count.';
+                            }
+
+                            $count = WarningLetter::whereHas(
+                                'violationRecord',
+                                fn ($q) => $q->where('violator_id', $violatorId)
+                            )->count();
+
+                            $capped = min($count, 3);
+                            $remaining = max(0, 3 - $capped);
+
+                            if ($capped >= 3) {
+                                return $am
+                                    ? "3/3 ማስጠንቀቂያዎች ደርሰዋል — ቀጣዩ እርምጃ ቅጣት ነው (በራስ-ሰር ይፈጠራል)።"
+                                    : "3/3 warnings reached — the next step is a penalty (auto-created).";
+                            }
+
+                            return $am
+                                ? "{$capped}/3 ማስጠንቀቂያዎች — ቀጣዩ ማስጠንቀቂያ {$remaining} ይቀራል።"
+                                : "{$capped}/3 warnings — {$remaining} remaining before auto-penalty.";
+                        })
+                        ->columnSpanFull()
+                        ->hiddenOn('edit'),
+                ])
+                ->columns(1),
+
             Section::make($am ? 'ደንብ ተላላፊ እና የጥፋት አይነት' : 'Violator & Violation Type')
                 ->schema([
                     Forms\Components\Select::make('violator_id')
@@ -153,13 +209,16 @@ class ViolationRecordResource extends Resource
             Section::make($am ? 'ቅጣት እና ህጋዊ ማጣቀሻ' : 'Penalty & Legal Reference')
                 ->schema([
                     Forms\Components\TextInput::make('fine_amount')
-                        ->label($am ? 'የቅጣት መጠን (ብር)' : 'Fine Amount (Birr)')
+                        ->label($am ? 'የሚያስከትለው ቅጣት (ብር)' : 'Potential Penalty (Birr)')
                         ->numeric()
                         ->prefix('ETB')
                         ->minValue(0)
                         ->required()
                         ->readOnly()
-                        ->hint($am ? 'ከጥፋት አይነት በራስ-ሰር ይሞላል' : 'Auto-filled from violation type'),
+                        ->hint($am ? 'ከጥፋት አይነት በራስ-ሰር ይሞላል' : 'Auto-filled from violation type')
+                        ->helperText($am
+                            ? 'ይህ ገንዘብ ቅጣት ደረሰኝ ሲሰጥ ብቻ ነው የሚጠየቀው (3 ማስጠንቀቂያዎች ከቀረቡ በኋላ ወይም «ቀጥተኛ ቅጣት» ምልክት ከተደረገ)። ማስጠንቀቂያ ብቻ ክፍያ አያስከትልም።'
+                            : 'Only charged when a penalty receipt is issued (after 3 warnings, or if Direct Penalty is checked). Warnings alone carry no fee.'),
                     Forms\Components\TextInput::make('repeat_offense_count')
                         ->label($am ? 'ድግግሞሽ' : 'Repeat Offense Count')
                         ->numeric()
@@ -258,8 +317,11 @@ class ViolationRecordResource extends Resource
                 ->schema([
                     Grid::make(3)->schema([
                         TextEntry::make('fine_amount')
-                            ->label($am ? 'የቅጣት መጠን' : 'Fine Amount')
-                            ->money('ETB'),
+                            ->label($am ? 'የቅጣት መጠን' : 'Penalty Amount')
+                            ->state(fn (ViolationRecord $record) => $record->penaltyReceipts()->exists()
+                                ? number_format((float) $record->fine_amount, 2) . ' ETB'
+                                : ($am ? 'ገና ቅጣት የለም — ማስጠንቀቂያ ብቻ' : 'No penalty yet — warnings only'))
+                            ->color(fn (ViolationRecord $record) => $record->penaltyReceipts()->exists() ? 'danger' : 'gray'),
                         TextEntry::make('repeat_offense_count')
                             ->label($am ? 'ድግግሞሽ' : 'Repeat Offense'),
                         TextEntry::make('regulation_number')
@@ -277,6 +339,40 @@ class ViolationRecordResource extends Resource
             Section::make($am ? 'ሁኔታ እና ኦፊሰር' : 'Status & Officers')
                 ->schema([
                     Grid::make(2)->schema([
+                        IconEntry::make('immediate_penalty')
+                            ->label($am ? 'ቀጥተኛ ቅጣት' : 'Direct Penalty')
+                            ->boolean()
+                            ->trueIcon('heroicon-o-bolt')
+                            ->falseIcon('heroicon-o-arrow-path')
+                            ->trueColor('danger')
+                            ->falseColor('secondary'),
+                        TextEntry::make('violator_warning_count')
+                            ->label($am ? 'ጠቅ. ማስጠንቀቂያ (ደንብ ተላላፊ)' : 'Total Warnings (Violator)')
+                            ->getStateUsing(function ($record): string {
+                                if (! $record->violator_id) {
+                                    return '0 / 3';
+                                }
+                                $count = WarningLetter::whereHas(
+                                    'violationRecord',
+                                    fn ($q) => $q->where('violator_id', $record->violator_id)
+                                )->count();
+                                $am = app()->getLocale() === 'am';
+                                $suffix = $count >= 3
+                                    ? ($am ? ' — ⚠ ቅጣት ያስፈልጋል' : ' — ⚠ Penalty threshold reached')
+                                    : '';
+                                return "{$count} / 3{$suffix}";
+                            })
+                            ->badge()
+                            ->color(function ($record): string {
+                                if (! $record->violator_id) {
+                                    return 'secondary';
+                                }
+                                $count = WarningLetter::whereHas(
+                                    'violationRecord',
+                                    fn ($q) => $q->where('violator_id', $record->violator_id)
+                                )->count();
+                                return $count >= 3 ? 'danger' : ($count >= 2 ? 'warning' : 'success');
+                            }),
                         TextEntry::make('status')
                             ->label($am ? 'ሁኔታ' : 'Status')
                             ->badge()
