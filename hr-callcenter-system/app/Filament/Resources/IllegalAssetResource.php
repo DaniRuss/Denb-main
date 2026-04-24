@@ -10,7 +10,6 @@ use App\Filament\Resources\IllegalAssetResource\RelationManagers\SalesRelationMa
 use App\Filament\Resources\IllegalAssetResource\RelationManagers\DisposalsRelationManager;
 use App\Filament\Resources\IllegalAssetResource\RelationManagers\ActivitiesRelationManager;
 use App\Models\IllegalAsset;
-use App\Models\Department;
 use App\Models\Officer;
 use App\Models\AssetHandover;
 use App\Models\AssetEstimation;
@@ -41,53 +40,146 @@ class IllegalAssetResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
+        $user = Auth::user();
+
+        // Resolve the officer's sub_city and woreda IDs from the user's string fields
+        $defaultSubCityId = null;
+        $defaultWoredaId = null;
+        $locationAutoFilled = false;
+
+        if ($user && $user->sub_city) {
+            $subCity = \App\Models\SubCity::where('name_en', $user->sub_city)->first();
+            if ($subCity) {
+                $defaultSubCityId = $subCity->id;
+                $locationAutoFilled = true;
+
+                if ($user->woreda) {
+                    $woredaName = 'Woreda ' . str_pad($user->woreda, 2, '0', STR_PAD_LEFT);
+                    $woreda = \App\Models\Woreda::where('sub_city_id', $subCity->id)
+                        ->where('name_en', $woredaName)
+                        ->first();
+                    if ($woreda) {
+                        $defaultWoredaId = $woreda->id;
+                    }
+                }
+            }
+        }
+
+        // Find the officer record linked to the logged-in user
+        $officerId = null;
+        if ($user) {
+            $officer = Officer::where('user_id', $user->id)->first();
+            $officerId = $officer?->id;
+        }
+
         return $schema
             ->schema([
-                \Filament\Schemas\Components\Section::make('Asset Registration Details')
+                // Section 1: Owner Information
+                \Filament\Schemas\Components\Section::make('Owner Information')
                     ->schema([
-                        Forms\Components\TextInput::make('asset_type')
-                            ->required()
-                            ->maxLength(255),
-                        Forms\Components\Textarea::make('description')
-                            ->required()
-                            ->maxLength(65535),
                         Forms\Components\TextInput::make('owner_name')
-                            ->label('Owner Name')
+                            ->label('Owner Name (የባለቤት ስም)')
                             ->required()
                             ->maxLength(255),
                         Forms\Components\TextInput::make('owner_phone')
-                            ->label('Owner Phone')
+                            ->label('Owner Phone (ስልክ ቁጥር)')
                             ->tel()
                             ->maxLength(20),
-                        \Filament\Schemas\Components\Section::make('Location Found')
+                    ])->columns(2),
+
+                // Section 2: Location (auto-filled from officer's assignment)
+                \Filament\Schemas\Components\Section::make('Location Found (የተገኘበት ቦታ)')
+                    ->schema([
+                        Forms\Components\Select::make('sub_city_id')
+                            ->label('Sub City (ክፍለ ከተማ)')
+                            ->options(\App\Models\SubCity::all()->pluck('name_am', 'id'))
+                            ->default($defaultSubCityId)
+                            ->disabled($locationAutoFilled)
+                            ->dehydrated()
+                            ->required()
+                            ->hidden(fn(string $operation): bool => $operation === 'create' && $locationAutoFilled)
+                            ->live(),
+                        Forms\Components\Select::make('woreda_id')
+                            ->label('Woreda (ወረዳ)')
+                            ->options(function (callable $get) {
+                                $subCityId = $get('sub_city_id');
+                                if ($subCityId) {
+                                    return \App\Models\Woreda::where('sub_city_id', $subCityId)
+                                        ->pluck('name_am', 'id');
+                                }
+                                return [];
+                            })
+                            ->default($defaultWoredaId)
+                            ->disabled($locationAutoFilled && $defaultWoredaId)
+                            ->dehydrated()
+                            ->required()
+                            ->hidden(fn(string $operation): bool => $operation === 'create' && $locationAutoFilled),
+                        Forms\Components\TextInput::make('kebele')
+                            ->label('Kebele (ቀበሌ)')
+                            ->maxLength(255),
+                        Forms\Components\TextInput::make('house_number')
+                            ->label('House Number (የቤት ቁጥር)')
+                            ->maxLength(255),
+                    ])->columns(2),
+
+                // Section 3: Confiscated Items
+                \Filament\Schemas\Components\Section::make('Confiscated Items (የተያዙ ዕቃዎች)')
+                    ->schema([
+                        Forms\Components\Repeater::make('items')
                             ->schema([
-                                Forms\Components\Select::make('sub_city_id')
-                                    ->label('Sub City (ክፍለ ከተማ)')
-                                    ->options(\App\Models\SubCity::all()->pluck('name_am', 'id'))
+                                Forms\Components\TextInput::make('asset_type')
+                                    ->label('Item Type (ዓይነት)')
                                     ->required()
-                                    ->live(),
-                                Forms\Components\Select::make('woreda_id')
-                                    ->label('Woreda (ወረዳ)')
-                                    ->options(function (callable $get) {
-                                        $subCityId = $get('sub_city_id');
-                                        if ($subCityId) {
-                                            return \App\Models\Woreda::where('sub_city_id', $subCityId)
-                                                ->pluck('name_am', 'id');
-                                        }
-                                        return [];
-                                    })
+                                    ->maxLength(255),
+                                Forms\Components\TextInput::make('quantity')
+                                    ->label('Quantity (ብዛት)')
+                                    ->numeric()
+                                    ->default(1)
+                                    ->minValue(1)
                                     ->required(),
-                                Forms\Components\TextInput::make('kebele')
-                                    ->label('Kebele (ቀበሌ)')
-                                    ->maxLength(255),
-                                Forms\Components\TextInput::make('house_number')
-                                    ->label('House Number (የቤት ቁጥር)')
-                                    ->maxLength(255),
-                            ])->columns(2),
+                                Forms\Components\Textarea::make('description')
+                                    ->label('Description (ገለጻ)')
+                                    ->required()
+                                    ->maxLength(65535),
+                            ])
+                            ->columns(2)
+                            ->defaultItems(1)
+                            ->minItems(1)
+                            ->addActionLabel('Add Another Item')
+                            ->columnSpanFull()
+                            ->visible(fn (string $operation): bool => $operation === 'create'),
+
+                        // For edit mode, show single item fields directly
+                        Forms\Components\TextInput::make('asset_type')
+                            ->label('Item Type (ዓይነት)')
+                            ->required()
+                            ->maxLength(255)
+                            ->visible(fn (string $operation): bool => $operation === 'edit'),
+                        Forms\Components\TextInput::make('quantity')
+                            ->label('Quantity (ብዛት)')
+                            ->numeric()
+                            ->default(1)
+                            ->minValue(1)
+                            ->required()
+                            ->visible(fn (string $operation): bool => $operation === 'edit'),
+                        Forms\Components\Textarea::make('description')
+                            ->label('Description (ገለጻ)')
+                            ->required()
+                            ->maxLength(65535)
+                            ->visible(fn (string $operation): bool => $operation === 'edit'),
+                    ]),
+
+                // Hidden / Auto-set fields
+                \Filament\Schemas\Components\Section::make('Registration Details')
+                    ->schema([
                         Forms\Components\DatePicker::make('date_confiscated')
+                            ->default(now())
+                            ->disabled()
+                            ->dehydrated()
                             ->required(),
                         Forms\Components\Select::make('officer_id')
                             ->relationship('officer', 'badge_number')
+                            ->default($officerId)
                             ->searchable()
                             ->preload()
                             ->required(),
@@ -101,7 +193,13 @@ class IllegalAssetResource extends Resource
                                 'Disposed' => 'Disposed',
                             ])
                             ->required()
-                            ->default('Registered'),
+                            ->default('Registered')
+                            ->visible(fn (string $operation): bool => $operation === 'edit'),
+                    ])->columns(2)
+                    ->visible(fn (string $operation): bool => $operation === 'edit'),
+
+                \Filament\Schemas\Components\Section::make('Attachments (አባሪዎች)')
+                    ->schema([
                         Forms\Components\FileUpload::make('attachments')
                             ->label('Attachments')
                             ->multiple()
@@ -109,7 +207,7 @@ class IllegalAssetResource extends Resource
                             ->maxFiles(10)
                             ->acceptedFileTypes(['image/*', 'application/pdf'])
                             ->columnSpanFull(),
-                    ])->columns(2),
+                    ]),
             ]);
     }
 
@@ -117,46 +215,57 @@ class IllegalAssetResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('asset_type')
+                Tables\Columns\TextColumn::make('owner_name')
+                    ->label('Owner Name (የባለቤት ስም)')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('date_confiscated')
+                    ->label('Date (ቀን)')
                     ->date()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('owner_name')
-                    ->label('Owner Name')
-                    ->searchable()
-                    ->sortable()
-                    ->toggleable(),
                 Tables\Columns\TextColumn::make('subCity.name_am')
-                    ->label('Sub City')
+                    ->label('Sub City (ክፍለ ከተማ)')
                     ->searchable()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('woreda.name_am')
-                    ->label('Woreda')
-                    ->searchable()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                Tables\Columns\TextColumn::make('officer.badge_number')
-                    ->label('Officer Badge')
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('department.name_en')
-                    ->label('Department')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('status')
-                    ->formatStateUsing(fn (string $state): string => str_replace('Handover Pending Confirmation', 'Transfer Pending Confirmation', $state))
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
-                        'Registered' => 'gray',
-                        'Handover Pending Confirmation' => 'info',
-                        'Handed Over' => 'info',
-                        'Estimated' => 'warning',
-                        'Transfer Pending Confirmation' => 'warning',
-                        'Transferred' => 'primary',
-                        'Sold' => 'success',
-                        'Disposed' => 'danger',
+                        IllegalAsset::STATUS_REGISTERED => 'gray',
+                        IllegalAsset::STATUS_HANDOVER_PENDING => 'warning',
+                        IllegalAsset::STATUS_HANDED_OVER => 'info',
+                        IllegalAsset::STATUS_HANDOVER_REJECTED => 'danger',
+                        IllegalAsset::STATUS_TRANSFER_PENDING => 'warning',
+                        IllegalAsset::STATUS_TRANSFERRED => 'success',
+                        IllegalAsset::STATUS_TRANSFER_REJECTED => 'danger',
                         default => 'gray',
+                    })
+                    ->icon(fn (string $state): string => match ($state) {
+                        IllegalAsset::STATUS_REGISTERED => 'heroicon-m-pencil-square',
+                        IllegalAsset::STATUS_HANDOVER_PENDING => 'heroicon-m-arrow-path',
+                        IllegalAsset::STATUS_HANDED_OVER => 'heroicon-m-check-circle',
+                        IllegalAsset::STATUS_HANDOVER_REJECTED => 'heroicon-m-x-circle',
+                        IllegalAsset::STATUS_TRANSFER_PENDING => 'heroicon-m-truck',
+                        IllegalAsset::STATUS_TRANSFERRED => 'heroicon-m-flag',
+                        IllegalAsset::STATUS_TRANSFER_REJECTED => 'heroicon-m-x-circle',
+                        default => 'heroicon-m-question-mark-circle',
                     }),
+                Tables\Columns\TextColumn::make('next_step')
+                    ->label('Next Action (ቀጣይ ተግባር)')
+                    ->getStateUsing(function (IllegalAsset $record): string {
+                        $user = Auth::user();
+                        if (!$user) return 'N/A';
+
+                        return match (true) {
+                            $record->status === IllegalAsset::STATUS_REGISTERED && $user->hasRole('officer') => 'Request Handover',
+                            $record->status === IllegalAsset::STATUS_HANDOVER_PENDING && $user->hasRole('woreda_officer') => 'Review Handover',
+                            $record->status === IllegalAsset::STATUS_HANDED_OVER && $user->hasRole('woreda_officer') => 'Request Transfer',
+                            $record->status === IllegalAsset::STATUS_TRANSFER_PENDING && $user->hasRole('sub_city_officer') => 'Review Transfer',
+                            $record->status === IllegalAsset::STATUS_TRANSFERRED => 'Awaiting Exit (Sale/Disposal)',
+                            default => 'No pending action',
+                        };
+                    })
+                    ->badge()
+                    ->color('primary'),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('status')
@@ -170,96 +279,241 @@ class IllegalAssetResource extends Resource
                         'Sold' => 'Sold',
                         'Disposed' => 'Disposed',
                     ]),
-                Tables\Filters\SelectFilter::make('department_id')
-                    ->relationship('department', 'name_en')
-                    ->label('Department'),
             ])
             ->actions([
-                EditAction::make(),
                 
                 Action::make('print_history')
-                    ->label('Print History')
-                    ->icon('heroicon-o-printer')
+                    ->label('History')
+                    ->icon('heroicon-o-clock')
                     ->color('gray')
-                    ->url(fn(IllegalAsset $record) => route('admin.illegal-assets.print-history', $record->id))
-                    ->openUrlInNewTab(),
+                    ->modalHeading('Asset Lifecycle History')
+                    ->modalContent(fn (IllegalAsset $record) => view('admin.illegal-assets.history-modal', ['record' => $record]))
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Close')
+                    ->extraModalFooterActions([
+                        Action::make('print_report')
+                            ->label('Print Report')
+                            ->icon('heroicon-o-printer')
+                            ->color('primary')
+                            ->url(fn (IllegalAsset $record) => route('admin.illegal-assets.print-history', $record->id))
+                            ->openUrlInNewTab(),
+                    ]),
                 
-                // Asset Handover Modal Action
-                Action::make('handover')
-                    ->label('Transfer')
-                    ->icon('heroicon-o-hand-raised')
+                // 1. Request Handover (Officer -> Woreda)
+                Action::make('requestHandover')
+                    ->label('Request Handover')
+                    ->icon('heroicon-o-paper-airplane')
                     ->color('warning')
-                    ->visible(fn ($record) => in_array($record->status, ['Registered', 'Handed Over', 'Estimated']) && Auth::user()->can('handover', $record))
+                    ->visible(fn ($record) => $record->status === IllegalAsset::STATUS_REGISTERED && Auth::user()->hasRole(['officer', 'admin']))
                     ->form([
-                        Forms\Components\Select::make('department_id')
-                            ->label('To Department (Optional fallback)')
-                            ->options(Department::pluck('name_en', 'id')->toArray()),
                         Forms\Components\Select::make('to_woreda_id')
-                            ->label('To Woreda')
-                            ->options(\App\Models\Woreda::pluck('name_am', 'id')->toArray())
+                            ->label('Target Woreda')
+                            ->options(\App\Models\Woreda::pluck('name_am', 'id'))
+                            ->default(fn($record) => $record->woreda_id)
                             ->required(),
-                        Forms\Components\Select::make('handed_over_to_officer_id')
-                            ->label('To Officer')
-                            ->options(Officer::pluck('badge_number', 'id')->toArray())
-                            ->required(),
-                        Forms\Components\DatePicker::make('handover_date')
-                            ->default(now())->disabled()->dehydrated()->required(),
-                        Forms\Components\Textarea::make('notes'),
+                        Forms\Components\FileUpload::make('attachments')
+                            ->multiple()
+                            ->directory('handover-requests')
+                            ->required()
+                            ->label('Evidence/Documents'),
+                        Forms\Components\Textarea::make('notes')
+                            ->label('Additional Notes'),
                     ])
                     ->action(function (array $data, IllegalAsset $record): void {
-                        $data['confirmation_status'] = 'Pending';
-                        AssetHandover::create(array_merge($data, ['illegal_asset_id' => $record->id]));
-                        $record->update(['status' => 'Handover Pending Confirmation']);
+                        AssetHandover::create([
+                            'illegal_asset_id' => $record->id,
+                            'to_woreda_id' => $data['to_woreda_id'],
+                            'notes' => $data['notes'],
+                            'attachments' => $data['attachments'],
+                            'handover_date' => now(),
+                            'confirmation_status' => 'Pending',
+                        ]);
+                        $record->update(['status' => IllegalAsset::STATUS_HANDOVER_PENDING]);
                         
                         AssetActivity::create([
                             'illegal_asset_id' => $record->id,
                             'user_id' => Auth::id(),
-                            'action' => 'Handover Pending',
-                            'description' => "Asset handover initiated to Woreda ID: {$data['to_woreda_id']}",
+                            'action' => 'Handover Requested',
+                            'description' => "Officer requested handover to Woreda ID: {$data['to_woreda_id']}",
                         ]);
                     }),
 
-                // Asset Handover Confirmation Action
-                Action::make('confirm_handover')
-                    ->label('Confirm Transfer')
-                    ->icon('heroicon-o-check-circle')
+                // 2. Review Handover (Woreda Admin)
+                Action::make('reviewHandover')
+                    ->label('Review Handover')
+                    ->icon('heroicon-o-clipboard-document-check')
+                    ->color('info')
+                    ->visible(fn ($record) => $record->status === IllegalAsset::STATUS_HANDOVER_PENDING && Auth::user()->hasRole(['woreda_officer', 'admin']))
+                    ->form([
+                        Forms\Components\Radio::make('decision')
+                            ->options([
+                                'approve' => 'Approve',
+                                'reject' => 'Reject',
+                            ])
+                            ->required()
+                            ->live(),
+                        Forms\Components\Textarea::make('rejection_reason')
+                            ->label('Rejection Reason')
+                            ->required(fn($get) => $get('decision') === 'reject')
+                            ->visible(fn($get) => $get('decision') === 'reject'),
+                        Forms\Components\Select::make('handed_over_to_officer_id')
+                            ->label('Received By Officer')
+                            ->options(Officer::pluck('badge_number', 'id'))
+                            ->required(fn($get) => $get('decision') === 'approve')
+                            ->visible(fn($get) => $get('decision') === 'approve'),
+                        Forms\Components\FileUpload::make('approval_docs')
+                            ->label('Approval Documents')
+                            ->directory('handover-approvals')
+                            ->visible(fn($get) => $get('decision') === 'approve'),
+                    ])
+                    ->action(function (array $data, IllegalAsset $record): void {
+                        $handover = $record->handovers()->where('confirmation_status', 'Pending')->latest()->first();
+                        
+                        if ($data['decision'] === 'approve') {
+                            $handover?->update([
+                                'confirmation_status' => 'Approved',
+                                'confirmed_by_user_id' => Auth::id(),
+                                'confirmed_at' => now(),
+                                'handed_over_to_officer_id' => $data['handed_over_to_officer_id'],
+                            ]);
+                            $record->update(['status' => IllegalAsset::STATUS_HANDED_OVER]);
+                            
+                            AssetActivity::create([
+                                'illegal_asset_id' => $record->id,
+                                'user_id' => Auth::id(),
+                                'action' => 'Handover Approved',
+                                'description' => "Woreda Admin approved handover.",
+                            ]);
+                        } else {
+                            $handover?->update([
+                                'confirmation_status' => 'Rejected',
+                                'rejection_reason' => $data['rejection_reason'],
+                            ]);
+                            $record->update(['status' => IllegalAsset::STATUS_HANDOVER_REJECTED]);
+                            
+                            AssetActivity::create([
+                                'illegal_asset_id' => $record->id,
+                                'user_id' => Auth::id(),
+                                'action' => 'Handover Rejected',
+                                'description' => "Reason: " . $data['rejection_reason'],
+                            ]);
+                        }
+                    }),
+
+                // 3. Request Transfer (Woreda Admin -> Sub-City)
+                Action::make('requestTransfer')
+                    ->label('Request Transfer to Sub-City')
+                    ->icon('heroicon-o-truck')
+                    ->color('warning')
+                    ->visible(fn ($record) => $record->status === IllegalAsset::STATUS_HANDED_OVER && Auth::user()->hasRole(['woreda_officer', 'admin']))
+                    ->form([
+                        Forms\Components\Select::make('to_sub_city_id')
+                            ->label('Target Sub-City')
+                            ->options(\App\Models\SubCity::pluck('name_am', 'id'))
+                            ->default(fn($record) => $record->sub_city_id)
+                            ->required(),
+                        Forms\Components\FileUpload::make('attachments')
+                            ->multiple()
+                            ->directory('transfer-requests')
+                            ->required()
+                            ->label('Transfer Documents/Images'),
+                        Forms\Components\TextInput::make('from_storage_facility')->label('From Facility'),
+                        Forms\Components\TextInput::make('to_storage_facility')->label('To Facility'),
+                        Forms\Components\Textarea::make('notes')->label('Notes'),
+                    ])
+                    ->action(function (array $data, IllegalAsset $record): void {
+                        AssetTransfer::create([
+                            'illegal_asset_id' => $record->id,
+                            'from_woreda_id' => $record->woreda_id,
+                            'to_sub_city_id' => $data['to_sub_city_id'],
+                            'from_storage_facility' => $data['from_storage_facility'],
+                            'to_storage_facility' => $data['to_storage_facility'],
+                            'notes' => $data['notes'],
+                            'attachments' => $data['attachments'],
+                            'transfer_date' => now(),
+                            'confirmation_status' => 'Pending',
+                        ]);
+                        $record->update(['status' => IllegalAsset::STATUS_TRANSFER_PENDING]);
+                        
+                        AssetActivity::create([
+                            'illegal_asset_id' => $record->id,
+                            'user_id' => Auth::id(),
+                            'action' => 'Transfer Requested',
+                            'description' => "Woreda requested transfer to Sub-City ID: {$data['to_sub_city_id']}",
+                        ]);
+                    }),
+
+                // 4. Review Transfer (Sub-City Admin)
+                Action::make('reviewTransfer')
+                    ->label('Review Transfer')
+                    ->icon('heroicon-o-check-badge')
                     ->color('success')
-                    ->visible(fn ($record) => $record->status === 'Handover Pending Confirmation')
-                    ->action(function (IllegalAsset $record): void {
-                        $handover = AssetHandover::where('illegal_asset_id', $record->id)->latest()->first();
-                        if ($handover) {
-                            $handover->update([
-                                'confirmation_status' => 'Confirmed',
+                    ->visible(fn ($record) => $record->status === IllegalAsset::STATUS_TRANSFER_PENDING && Auth::user()->hasRole(['sub_city_officer', 'admin']))
+                    ->form([
+                        Forms\Components\Radio::make('decision')
+                            ->options([
+                                'approve' => 'Approve',
+                                'reject' => 'Reject',
+                            ])
+                            ->required()
+                            ->live(),
+                        Forms\Components\Textarea::make('rejection_reason')
+                            ->label('Rejection Reason')
+                            ->required(fn($get) => $get('decision') === 'reject')
+                            ->visible(fn($get) => $get('decision') === 'reject'),
+                        Forms\Components\FileUpload::make('receipt_proof')
+                            ->label('Receipt Proof')
+                            ->directory('transfer-receipts')
+                            ->visible(fn($get) => $get('decision') === 'approve'),
+                    ])
+                    ->action(function (array $data, IllegalAsset $record): void {
+                        $transfer = $record->transfers()->where('confirmation_status', 'Pending')->latest()->first();
+                        
+                        if ($data['decision'] === 'approve') {
+                            $transfer?->update([
+                                'confirmation_status' => 'Approved',
                                 'confirmed_by_user_id' => Auth::id(),
                                 'confirmed_at' => now(),
                             ]);
+                            $record->update(['status' => IllegalAsset::STATUS_TRANSFERRED]);
+                            
+                            AssetActivity::create([
+                                'illegal_asset_id' => $record->id,
+                                'user_id' => Auth::id(),
+                                'action' => 'Transfer Approved',
+                                'description' => "Sub-City Admin approved transfer.",
+                            ]);
+                        } else {
+                            $transfer?->update([
+                                'confirmation_status' => 'Rejected',
+                                'rejection_reason' => $data['rejection_reason'],
+                            ]);
+                            $record->update(['status' => IllegalAsset::STATUS_TRANSFER_REJECTED]);
+                            
+                            AssetActivity::create([
+                                'illegal_asset_id' => $record->id,
+                                'user_id' => Auth::id(),
+                                'action' => 'Transfer Rejected',
+                                'description' => "Reason: " . $data['rejection_reason'],
+                            ]);
                         }
-                        $record->update(['status' => 'Handed Over']);
-                        
-                        AssetActivity::create([
-                            'illegal_asset_id' => $record->id,
-                            'user_id' => Auth::id(),
-                            'action' => 'Handover Confirmed',
-                            'description' => "Asset handover confirmed by Woreda",
-                        ]);
                     }),
 
-                // Asset Estimation Modal Action
+                // 5. Asset Estimation
                 Action::make('estimate')
-                    ->label('Estimate')
+                    ->label('Estimate Value')
                     ->icon('heroicon-o-currency-dollar')
                     ->color('info')
-                    ->visible(fn ($record) => in_array($record->status, ['Registered', 'Handed Over', 'Handover Pending Confirmation']) && Auth::user()->can('estimate', $record))
+                    ->visible(fn ($record) => in_array($record->status, [IllegalAsset::STATUS_REGISTERED, IllegalAsset::STATUS_HANDED_OVER, IllegalAsset::STATUS_TRANSFERRED]) && Auth::user()->hasRole(['admin', 'officer', 'woreda_officer']))
                     ->form([
                         Forms\Components\TextInput::make('estimated_value')
                             ->numeric()->prefix('ETB')->required(),
                         Forms\Components\TextInput::make('evaluator_name')->required(),
-                        Forms\Components\DatePicker::make('evaluation_date')->default(now())->disabled()->dehydrated()->required(),
+                        Forms\Components\DatePicker::make('evaluation_date')->default(now())->required(),
                         Forms\Components\Textarea::make('notes'),
                     ])
                     ->action(function (array $data, IllegalAsset $record): void {
                         AssetEstimation::create(array_merge($data, ['illegal_asset_id' => $record->id]));
-                        $record->update(['status' => 'Estimated']);
                         
                         AssetActivity::create([
                             'illegal_asset_id' => $record->id,
@@ -269,87 +523,12 @@ class IllegalAssetResource extends Resource
                         ]);
                     }),
 
-                // Asset Transfer Modal Action
-                Action::make('transfer')
-                    ->label('Transfer')
-                    ->icon('heroicon-o-arrows-right-left')
-                    ->color('gray')
-                    ->visible(fn ($record) => in_array($record->status, ['Registered', 'Handed Over', 'Estimated', 'Handover Pending Confirmation']) && Auth::user()->can('transfer', $record))
-                    ->fillForm(fn (IllegalAsset $record): array => [
-                        'from_woreda_id' => $record->woreda_id,
-                        'to_sub_city_id' => $record->sub_city_id,
-                    ])
-                    ->form([
-                        Forms\Components\Select::make('from_woreda_id')
-                            ->label('From Woreda')
-                            ->options(\App\Models\Woreda::pluck('name_am', 'id')->toArray())
-                            ->disabled()
-                            ->dehydrated()
-                            ->required(),
-                        Forms\Components\Select::make('to_sub_city_id')
-                            ->label('To SubCity')
-                            ->options(\App\Models\SubCity::pluck('name_am', 'id')->toArray())
-                            ->disabled()
-                            ->dehydrated()
-                            ->required(),
-                        Forms\Components\TextInput::make('from_storage_facility')->label('From Facility'),
-                        Forms\Components\TextInput::make('to_storage_facility')->label('To Facility'),
-                        Forms\Components\Select::make('transferred_by_officer_id')
-                            ->options(Officer::pluck('badge_number', 'id')->toArray())
-                            ->label('Transferred By')->required(),
-                        Forms\Components\DatePicker::make('transfer_date')->default(now())->disabled()->dehydrated()->required(),
-                        Forms\Components\Textarea::make('notes'),
-                        Forms\Components\FileUpload::make('attachments')
-                            ->label('Attachments')
-                            ->multiple()
-                            ->directory('transfer-attachments')
-                            ->maxFiles(10)
-                            ->acceptedFileTypes(['image/*', 'application/pdf']),
-                    ])
-                    ->action(function (array $data, IllegalAsset $record): void {
-                        $data['confirmation_status'] = 'Pending';
-                        AssetTransfer::create(array_merge($data, ['illegal_asset_id' => $record->id]));
-                        $record->update(['status' => 'Transfer Pending Confirmation']);
-                        
-                        AssetActivity::create([
-                            'illegal_asset_id' => $record->id,
-                            'user_id' => Auth::id(),
-                            'action' => 'Transfer Pending',
-                            'description' => "Asset transfer initiated from Woreda ID: {$data['from_woreda_id']} to SubCity ID: {$data['to_sub_city_id']}",
-                        ]);
-                    }),
-
-                // Asset Transfer Confirmation Action
-                Action::make('confirm_transfer')
-                    ->label('Confirm Transfer')
-                    ->icon('heroicon-o-check-circle')
-                    ->color('success')
-                    ->visible(fn ($record) => $record->status === 'Transfer Pending Confirmation')
-                    ->action(function (IllegalAsset $record): void {
-                        $transfer = $record->transfers()->latest()->first();
-                        if ($transfer) {
-                            $transfer->update([
-                                'confirmation_status' => 'Confirmed',
-                                'confirmed_by_user_id' => Auth::id(),
-                                'confirmed_at' => now(),
-                            ]);
-                        }
-                        $record->update(['status' => 'Transferred']);
-                        
-                        AssetActivity::create([
-                            'illegal_asset_id' => $record->id,
-                            'user_id' => Auth::id(),
-                            'action' => 'Transfer Confirmed',
-                            'description' => "Asset transfer confirmed by SubCity",
-                        ]);
-                    }),
-
-                // Asset Sale Modal Action
+                // 6. Asset Sale
                 Action::make('sell')
-                    ->label('Sell')
+                    ->label('Process Sale')
                     ->icon('heroicon-o-banknotes')
                     ->color('success')
-                    ->visible(fn ($record) => in_array($record->status, ['Registered', 'Handed Over', 'Estimated', 'Transferred', 'Transfer Pending Confirmation']) && Auth::user()->can('sell', $record))
+                    ->visible(fn ($record) => $record->status === IllegalAsset::STATUS_TRANSFERRED && Auth::user()->hasRole(['admin', 'sub_city_officer']))
                     ->form([
                         Forms\Components\TextInput::make('buyer_name')->required(),
                         Forms\Components\TextInput::make('buyer_contact'),
@@ -357,14 +536,11 @@ class IllegalAssetResource extends Resource
                         Forms\Components\Select::make('sold_by_officer_id')
                             ->options(Officer::pluck('badge_number', 'id')->toArray())
                             ->label('Sold By')->required(),
-                        Forms\Components\DatePicker::make('sale_date')->default(now())->disabled()->dehydrated()->required(),
+                        Forms\Components\DatePicker::make('sale_date')->default(now())->required(),
                         Forms\Components\Textarea::make('notes'),
                         Forms\Components\FileUpload::make('attachments')
-                            ->label('Attachments')
                             ->multiple()
-                            ->directory('sale-attachments')
-                            ->maxFiles(10)
-                            ->acceptedFileTypes(['image/*', 'application/pdf']),
+                            ->directory('sale-attachments'),
                     ])
                     ->action(function (array $data, IllegalAsset $record): void {
                         AssetSale::create(array_merge($data, ['illegal_asset_id' => $record->id]));
@@ -378,12 +554,12 @@ class IllegalAssetResource extends Resource
                         ]);
                     }),
 
-                // Asset Disposal Modal Action
+                // 7. Asset Disposal
                 Action::make('dispose')
-                    ->label('Dispose')
+                    ->label('Dispose Asset')
                     ->icon('heroicon-o-trash')
                     ->color('danger')
-                    ->visible(fn ($record) => !in_array($record->status, ['Sold', 'Disposed']) && Auth::user()->can('dispose', $record))
+                    ->visible(fn ($record) => $record->status === IllegalAsset::STATUS_TRANSFERRED && Auth::user()->hasRole(['admin', 'sub_city_officer']))
                     ->form([
                         Forms\Components\Select::make('disposal_method')
                             ->options([
@@ -395,14 +571,11 @@ class IllegalAssetResource extends Resource
                         Forms\Components\Select::make('disposed_by_officer_id')
                             ->options(Officer::pluck('badge_number', 'id')->toArray())
                             ->label('Disposed By')->required(),
-                        Forms\Components\DatePicker::make('disposal_date')->default(now())->disabled()->dehydrated()->required(),
+                        Forms\Components\DatePicker::make('disposal_date')->default(now())->required(),
                         Forms\Components\Textarea::make('notes'),
                         Forms\Components\FileUpload::make('attachments')
-                            ->label('Attachments')
                             ->multiple()
-                            ->directory('disposal-attachments')
-                            ->maxFiles(10)
-                            ->acceptedFileTypes(['image/*', 'application/pdf']),
+                            ->directory('disposal-attachments'),
                     ])
                     ->action(function (array $data, IllegalAsset $record): void {
                         AssetDisposal::create(array_merge($data, ['illegal_asset_id' => $record->id]));

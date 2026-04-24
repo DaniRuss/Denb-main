@@ -14,8 +14,6 @@ class AssetTransfer extends Model
         'illegal_asset_id',
         'from_woreda_id',
         'to_sub_city_id',
-        'from_department_id',
-        'to_department_id',
         'from_storage_facility',
         'to_storage_facility',
         'transferred_by_officer_id',
@@ -24,11 +22,14 @@ class AssetTransfer extends Model
         'confirmation_status',
         'confirmed_by_user_id',
         'confirmed_at',
+        'rejection_reason',
+        'attachments',
     ];
 
     protected $casts = [
         'transfer_date' => 'date',
         'confirmed_at' => 'datetime',
+        'attachments' => 'json',
     ];
 
     public function illegalAsset(): BelongsTo
@@ -44,16 +45,6 @@ class AssetTransfer extends Model
     public function toSubCity(): BelongsTo
     {
         return $this->belongsTo(SubCity::class, 'to_sub_city_id');
-    }
-
-    public function fromDepartment(): BelongsTo
-    {
-        return $this->belongsTo(Department::class, 'from_department_id');
-    }
-
-    public function toDepartment(): BelongsTo
-    {
-        return $this->belongsTo(Department::class, 'to_department_id');
     }
 
     public function transferredByOfficer(): BelongsTo

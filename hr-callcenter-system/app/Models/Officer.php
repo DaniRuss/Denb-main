@@ -12,7 +12,6 @@ class Officer extends Model
     protected $fillable = [
         'badge_number',
         'user_id',
-        'department_id',
         'rank',
         'rank_am',
         'specialization',
@@ -29,11 +28,6 @@ class Officer extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
-    }
-
-    public function department()
-    {
-        return $this->belongsTo(Department::class);
     }
 
     public function assignments()

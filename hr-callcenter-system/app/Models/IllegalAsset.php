@@ -12,8 +12,17 @@ class IllegalAsset extends Model
 {
     use HasFactory;
 
+    public const STATUS_REGISTERED = 'Registered';
+    public const STATUS_HANDOVER_PENDING = 'Handover Pending';
+    public const STATUS_HANDED_OVER = 'Handed Over to Woreda';
+    public const STATUS_HANDOVER_REJECTED = 'Handover Rejected';
+    public const STATUS_TRANSFER_PENDING = 'Transfer Pending';
+    public const STATUS_TRANSFERRED = 'Transferred to Sub-City';
+    public const STATUS_TRANSFER_REJECTED = 'Transfer Rejected';
+
     protected $fillable = [
         'asset_type',
+        'quantity',
         'description',
         'owner_name',
         'owner_phone',
@@ -24,7 +33,6 @@ class IllegalAsset extends Model
         'location_found',
         'date_confiscated',
         'officer_id',
-        'department_id',
         'status',
     ];
 
@@ -35,11 +43,6 @@ class IllegalAsset extends Model
     public function officer(): BelongsTo
     {
         return $this->belongsTo(Officer::class);
-    }
-
-    public function department(): BelongsTo
-    {
-        return $this->belongsTo(Department::class);
     }
 
     public function subCity(): BelongsTo

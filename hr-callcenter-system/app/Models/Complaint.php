@@ -32,7 +32,6 @@ class Complaint extends Model
         'priority',
         'status',
         'assigned_to',
-        'assigned_department',
         'assigned_at',
         'investigation_notes',
         'resolution',
@@ -67,11 +66,6 @@ class Complaint extends Model
     public function assignedTo()
     {
         return $this->belongsTo(User::class, 'assigned_to');
-    }
-
-    public function assignedDepartment()
-    {
-        return $this->belongsTo(Department::class, 'assigned_department');
     }
 
     public function resolvedBy()

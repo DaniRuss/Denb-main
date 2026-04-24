@@ -68,7 +68,6 @@ class Tip extends Model
         'dispatched_at',
         'closed_at',
         'assigned_to',
-        'assigned_department',
         'eligible_for_reward',
         'reward_amount',
         'reward_claimed',
@@ -210,11 +209,6 @@ class Tip extends Model
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');
-    }
-
-    public function assignedDepartment()
-    {
-        return $this->belongsTo(Department::class, 'assigned_department');
     }
 
     public function updates()

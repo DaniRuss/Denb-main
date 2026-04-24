@@ -10,11 +10,23 @@ class AssetHandover extends Model
 {
     use HasFactory;
     
-    protected $guarded = [];
+    protected $fillable = [
+        'illegal_asset_id',
+        'to_woreda_id',
+        'handed_over_to_officer_id',
+        'handover_date',
+        'notes',
+        'confirmation_status',
+        'confirmed_by_user_id',
+        'confirmed_at',
+        'rejection_reason',
+        'attachments',
+    ];
 
     protected $casts = [
         'handover_date' => 'date',
         'confirmed_at' => 'datetime',
+        'attachments' => 'json',
     ];
 
     public function illegalAsset(): BelongsTo
@@ -25,11 +37,6 @@ class AssetHandover extends Model
     public function toWoreda(): BelongsTo
     {
         return $this->belongsTo(Woreda::class, 'to_woreda_id');
-    }
-
-    public function department(): BelongsTo
-    {
-        return $this->belongsTo(Department::class);
     }
 
     public function handedOverToOfficer(): BelongsTo
