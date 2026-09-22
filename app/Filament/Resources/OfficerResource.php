@@ -3,7 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Models\Officer;
-use App\Models\Department;
+
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Schemas\Schema;
@@ -65,11 +65,7 @@ class OfficerResource extends Resource
                         ->searchable()
                         ->nullable(),
 
-                    \Filament\Forms\Components\Select::make('department_id')
-                        ->label('Department')
-                        ->options(Department::pluck('name_en', 'id'))
-                        ->searchable()
-                        ->required(),
+
 
                     \Filament\Forms\Components\TextInput::make('rank')
                         ->label('Rank (English)')
@@ -139,9 +135,7 @@ class OfficerResource extends Resource
                     ->label('Rank')
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('department.name_en')
-                    ->label('Department')
-                    ->sortable(),
+
 
                 Tables\Columns\TextColumn::make('specialization')
                     ->label('Specialization')
@@ -165,9 +159,7 @@ class OfficerResource extends Resource
                     ->sortable(),
             ])
             ->filters([
-                SelectFilter::make('department_id')
-                    ->label('Department')
-                    ->options(Department::pluck('name_en', 'id')),
+
 
                 SelectFilter::make('status')
                     ->options([

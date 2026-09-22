@@ -1,9 +1,9 @@
 <?php return array (
-  'anourvalar/eloquent-serialize' => 
+  'agelgil/filament-ethiopic-calendar' => 
   array (
-    'aliases' => 
+    'providers' => 
     array (
-      'EloquentSerialize' => 'AnourValar\\EloquentSerialize\\Facades\\EloquentSerializeFacade',
+      0 => 'Agelgil\\FilamentEthiopic\\FilamentEthiopicServiceProvider',
     ),
   ),
   'blade-ui-kit/blade-heroicons' => 
