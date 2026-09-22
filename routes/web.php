@@ -1,40 +1,27 @@
 <?php
 // routes/web.php
 use Illuminate\Support\Facades\Route;
-use Illuminate\Http\Request;
 use App\Http\Controllers\Admin\CallTipWorkflowController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\ComplaintController;
 use App\Http\Controllers\Public\TipController;
 use App\Http\Controllers\Public\AnnouncementController;
 use App\Http\Controllers\Public\FaqController;
-
-/*
-|--------------------------------------------------------------------------
-| Locale / Language Switch
-|--------------------------------------------------------------------------
-*/
-
-// Primary locale switch route (Denb-main style — used in AppServiceProvider render hook)
-Route::get('/locale/{locale}', function (Request $request, string $locale) {
-    abort_unless(in_array($locale, config('app.supported_locales', ['en', 'am']), true), 404);
-    $request->session()->put('locale', $locale);
-    return redirect()->back();
-})->name('locale.switch');
-
-// Legacy language switch route (kept for backward-compat with existing blade links)
-Route::get('/language/{locale}', function ($locale) {
-    if (in_array($locale, ['en', 'am'])) {
-        session()->put('locale', $locale);
-    }
-    return redirect()->back();
-})->name('language.switch');
+use Illuminate\Http\Request;
 
 /*
 |--------------------------------------------------------------------------
 | Public Portal Routes
 |--------------------------------------------------------------------------
 */
+
+Route::get('/locale/{locale}', function (Request $request, string $locale) {
+    abort_unless(in_array($locale, config('app.supported_locales', ['en', 'am']), true), 404);
+
+    $request->session()->put('locale', $locale);
+
+    return redirect()->back();
+})->name('locale.switch');
 
 // Home
 Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -74,8 +61,12 @@ Route::post('/contact', [HomeController::class, 'sendContact'])->name('contact.s
 |--------------------------------------------------------------------------
 */
 // Filament handles these automatically at /admin
+// No need to define them here
 
-// Call-Tip Workflow (admin-only, from HR module)
+Route::middleware('auth')->prefix('admin/illegal-assets')->name('admin.illegal-assets.')->group(function () {
+    Route::get('/{id}/print-history', [\App\Http\Controllers\Admin\AssetHistoryController::class, 'print'])->name('print-history');
+});
+
 Route::middleware('auth')->prefix('admin/call-tips')->name('admin.call-tips.')->group(function () {
     Route::post('/', [CallTipWorkflowController::class, 'store'])->name('store');
     Route::patch('/{tip}/supervisor-review', [CallTipWorkflowController::class, 'supervisorReview'])->name('supervisor-review');

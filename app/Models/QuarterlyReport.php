@@ -21,7 +21,6 @@ class QuarterlyReport extends Model
         'total_tips',
         'verified_tips',
         'total_escalations',
-        'department_id',
         'prepared_by',
         'approved_by',
         'summary',
@@ -34,11 +33,6 @@ class QuarterlyReport extends Model
         'period_start' => 'date',
         'period_end' => 'date',
     ];
-
-    public function department()
-    {
-        return $this->belongsTo(Department::class);
-    }
 
     public function preparedBy()
     {

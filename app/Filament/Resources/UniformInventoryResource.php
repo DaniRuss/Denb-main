@@ -9,7 +9,8 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Notifications\Notification;
-use App\Filament\Resources\UniformInventories\Pages;
+use App\Filament\Resources\UniformInventoryResource\Pages;
+use Illuminate\Database\Eloquent\Builder;
 
 class UniformInventoryResource extends Resource
 {
@@ -21,7 +22,7 @@ class UniformInventoryResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->columns(1)->schema([
+        return $schema->schema([
             \Filament\Schemas\Components\Section::make('Item Details')
                 ->schema([
                     \Filament\Forms\Components\TextInput::make('item_name')
@@ -89,7 +90,7 @@ class UniformInventoryResource extends Resource
                     \Filament\Forms\Components\Textarea::make('notes')
                         ->label('Notes')
                         ->columnSpanFull(),
-                ])->columns(1),
+                ])->columns(2),
         ]);
     }
 
@@ -146,7 +147,16 @@ class UniformInventoryResource extends Resource
                     'belt_accessories' => 'Accessories',
                     'protective_equipment' => 'Protective Equipment',
                 ]),
+                SelectFilter::make('sub_city')
+                    ->label('Sub City')
+                    ->options(\App\Models\SubCity::all()->pluck('name_am', 'id')->toArray())
+                    ->query(fn (Builder $query) => $query), // Virtual filter
+                SelectFilter::make('woreda')
+                    ->label('Woreda')
+                    ->options(\App\Models\Woreda::all()->pluck('name_am', 'id')->toArray())
+                    ->query(fn (Builder $query) => $query), // Virtual filter
             ])
+            ->striped()
             ->defaultSort('quantity_in_stock')
             ->actions([
                 \Filament\Actions\EditAction::make(),
@@ -161,10 +171,7 @@ class UniformInventoryResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        $lowStock = cache()->remember('uniform_low_stock_count', 60, function () {
-            return UniformInventory::whereColumn('quantity_in_stock', '<=', 'min_stock_level')->count();
-        });
-
+        $lowStock = UniformInventory::whereColumn('quantity_in_stock', '<=', 'min_stock_level')->count();
         return $lowStock > 0 ? (string) $lowStock : null;
     }
 
@@ -180,20 +187,5 @@ class UniformInventoryResource extends Resource
             'create' => Pages\CreateUniformInventory::route('/create'),
             'edit' => Pages\EditUniformInventory::route('/{record}/edit'),
         ];
-    }
-
-    public static function canViewAny(): bool
-    {
-        $user = auth()->user();
-
-        return (bool) $user && (
-            $user->hasRole('admin')
-            || $user->can('manage_inventory')
-        );
-    }
-
-    public static function shouldRegisterNavigation(): bool
-    {
-        return static::canViewAny();
     }
 }

@@ -32,7 +32,6 @@ class Complaint extends Model
         'priority',
         'status',
         'assigned_to',
-        'assigned_department',
         'assigned_at',
         'investigation_notes',
         'resolution',
@@ -69,11 +68,6 @@ class Complaint extends Model
         return $this->belongsTo(User::class, 'assigned_to');
     }
 
-    public function assignedDepartment()
-    {
-        return $this->belongsTo(Department::class, 'assigned_department');
-    }
-
     public function resolvedBy()
     {
         return $this->belongsTo(User::class, 'resolved_by');
@@ -93,12 +87,12 @@ class Complaint extends Model
 
     public function assignments()
     {
-        return $this->hasMany(CaseAssignment::class);
+        return $this->morphMany(CaseAssignment::class, 'caseable');
     }
 
     public function escalations()
     {
-        return $this->hasMany(Escalation::class);
+        return $this->morphMany(Escalation::class, 'caseable');
     }
 
     // Status History
