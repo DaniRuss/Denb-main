@@ -62,11 +62,14 @@ class CallTipWorkflowController extends Controller
         abort_unless($request->user()?->can('review_director_call_tips') || $request->user()?->hasRole('admin'), 403);
 
         $data = $request->validate([
-            'decision' => ['required', 'string', 'in:approve,reject'],
+            'decision' => ['required', 'string', 'in:approve,reject,investigate'],
+            'dispatch_to' => ['nullable', 'string', 'in:sub_city,woreda'],
             'comment' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $tip = $this->workflowService->reviewByDirector($tip, $data['decision'], $data['comment'] ?? null);
+        $tip = $data['decision'] === 'investigate'
+            ? $this->workflowService->investigateByDirector($tip, $data['comment'] ?? null)
+            : $this->workflowService->reviewByDirector($tip, $data['decision'], $data['comment'] ?? null, $data['dispatch_to'] ?? null);
 
         return response()->json([
             'message' => 'Director review recorded.',
@@ -80,16 +83,46 @@ class CallTipWorkflowController extends Controller
 
         abort_unless(
             $user?->hasRole('admin') ||
-            ($user?->can('manage_sub_city_call_tips') && filled($user->sub_city) && $user->sub_city === $tip->sub_city),
+            ($user?->can('review_director_call_tips') && $tip->status === Tip::STATUS_UNDER_INVESTIGATION && $tip->dispatch_to === 'head_office') ||
+            ($user?->can('manage_sub_city_call_tips') && filled($user->sub_city) && $user->sub_city === $tip->sub_city) ||
+            ($user?->can('manage_woreda_call_tips') && filled($user->sub_city) && filled($user->woreda) && $user->sub_city === $tip->sub_city && $user->woreda === $tip->woreda),
             403
         );
 
         $data = $request->validate([
-            'investigation_status' => ['required', 'string', 'in:' . Tip::STATUS_UNDER_INVESTIGATION . ',' . Tip::STATUS_CLOSED],
+            'investigation_status' => [
+                'required',
+                'string',
+                'in:' . implode(',', [
+                    Tip::STATUS_UNDER_INVESTIGATION,
+                    Tip::STATUS_DISPATCHED,
+                    Tip::STATUS_CLOSED,
+                    Tip::STATUS_ESCALATED_TO_SUB_CITY,
+                    Tip::STATUS_ESCALATED_TO_HEAD_OFFICE,
+                ]),
+            ],
+            'dispatch_to' => ['nullable', 'string', 'in:woreda,head_office'],
             'sub_city_notes' => ['nullable', 'string', 'max:4000'],
+            'attachments' => ['nullable', 'array'],
+            'attachments.*' => ['file', 'max:10240', 'mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,txt'],
         ]);
 
-        $tip = $this->workflowService->updateInvestigation($tip, $data);
+        if (
+            $data['investigation_status'] === Tip::STATUS_DISPATCHED &&
+            $user?->can('manage_sub_city_call_tips') &&
+            filled($user->sub_city) &&
+            $user->sub_city === $tip->sub_city
+        ) {
+            $data['dispatch_to'] = 'woreda';
+        }
+
+        if ($request->hasFile('attachments')) {
+            $data['attachments'] = collect($request->file('attachments'))
+                ->map(fn ($file) => $file->store('case-updates/' . now()->format('Y/m/d'), 'public'))
+                ->all();
+        }
+
+        $tip = $this->workflowService->updateInvestigation($tip, $data, $user);
 
         return response()->json([
             'message' => 'Sub-city investigation status updated.',

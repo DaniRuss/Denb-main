@@ -11,7 +11,10 @@ use App\Filament\Resources\Employees\Schemas\EmployeeInfolist;
 use App\Filament\Resources\Employees\Tables\EmployeesTable;
 use App\Filament\Resources\Employees\RelationManagers\UniformDistributionRelationManager;
 use App\Models\Employee;
+use App\Models\SubCity;
+use App\Models\User;
 use BackedEnum;
+use Illuminate\Support\Facades\Auth;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -84,9 +87,125 @@ class EmployeeResource extends Resource
 
     public static function getRecordRouteBindingEloquentQuery(): Builder
     {
-        return parent::getRecordRouteBindingEloquentQuery()
+        return static::constrainToAssignedSubCity(parent::getRecordRouteBindingEloquentQuery())
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);
+    }
+
+    public static function canViewAny(): bool
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return (bool) $user && ($user->can('assign_shifts') || $user->can('manage_employees'));
+    }
+
+    public static function canCreate(): bool
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        if (! $user || (! $user->can('assign_shifts') && ! $user->can('manage_employees'))) {
+            return false;
+        }
+
+        return ! static::shouldLimitToAssignedSubCity($user) || static::assignedSubCityId($user) !== null;
+    }
+
+    public static function canEdit($record): bool
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        if (! $user || (! $user->can('assign_shifts') && ! $user->can('manage_employees'))) {
+            return false;
+        }
+
+        return ! static::shouldLimitToAssignedSubCity($user)
+            || (int) $record->sub_city_id === static::assignedSubCityId($user);
+    }
+
+    public static function canDelete($record): bool
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        if (! $user || (! $user->can('assign_shifts') && ! $user->can('manage_employees'))) {
+            return false;
+        }
+
+        return ! static::shouldLimitToAssignedSubCity($user)
+            || (int) $record->sub_city_id === static::assignedSubCityId($user);
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
+
+        return (bool) $user
+            && ! static::shouldLimitToAssignedSubCity($user)
+            && ($user->can('assign_shifts') || $user->can('manage_employees'));
+    }
+
+    public static function shouldLimitToAssignedSubCity(?User $user = null): bool
+    {
+        $user ??= Auth::user();
+
+        return (bool) $user
+            && $user->hasRole('sub_city_hr')
+            && ! $user->hasRole('admin');
+    }
+
+    public static function assignedSubCityId(?User $user = null): ?int
+    {
+        $user ??= Auth::user();
+
+        if (! $user || blank($user->sub_city)) {
+            return null;
+        }
+
+        $assignedSubCity = (string) $user->sub_city;
+
+        if (is_numeric($assignedSubCity)) {
+            return (int) $assignedSubCity;
+        }
+
+        $subCityId = SubCity::query()
+            ->where('name_en', $assignedSubCity)
+            ->orWhere('name_am', $assignedSubCity)
+            ->value('id');
+
+        if ($subCityId) {
+            return (int) $subCityId;
+        }
+
+        $aliases = [
+            'Akaky Kaliti' => 'Akaki Kaliti',
+        ];
+
+        $canonicalName = $aliases[$assignedSubCity] ?? null;
+
+        $subCityId = $canonicalName
+            ? SubCity::query()->where('name_en', $canonicalName)->value('id')
+            : null;
+
+        return $subCityId ? (int) $subCityId : null;
+    }
+
+    public static function constrainToAssignedSubCity(Builder $query, ?User $user = null): Builder
+    {
+        $user ??= Auth::user();
+
+        if (! static::shouldLimitToAssignedSubCity($user)) {
+            return $query;
+        }
+
+        $subCityId = static::assignedSubCityId($user);
+
+        return $subCityId
+            ? $query->where('sub_city_id', $subCityId)
+            : $query->whereRaw('1 = 0');
     }
 }

@@ -30,6 +30,7 @@ class Tip extends Model
     public const STATUS_UNDER_INVESTIGATION = 'under_investigation';
     public const STATUS_REJECTED = 'rejected';
     public const STATUS_ESCALATED_TO_SUB_CITY = 'escalated_to_sub_city';
+    public const STATUS_ESCALATED_TO_HEAD_OFFICE = 'escalated_to_head_office';
 
     protected $fillable = [
         'tip_number',
@@ -130,14 +131,18 @@ class Tip extends Model
     public static function getTipTypeOptions(): array
     {
         return [
-            'illegal_trade' => 'Illegal Trade',
-            'alcohol_sales' => 'Illegal Alcohol Sales',
-            'land_grabbing' => 'Land Grabbing',
-            'drug_activity' => 'Drug Activity',
-            'counterfeit_goods' => 'Counterfeit Goods',
-            'illegal_construction' => 'Illegal Construction',
-            'environmental_violation' => 'Environmental Violation',
-            'other' => 'Other',
+            'land_invasion' => 'መሬት ወረራ',
+            'illegal_construction' => 'ህገወጥ ግንባታ',
+            'illegal_land_holding_expansion' => 'ህገወጥ መሬት ይዞታ) ማስፋፋት',
+            'illegal_street_and_woreda_trade' => 'ህገ-ወጥ ጎዳና ንግድ እና የወረዳ ንግድ',
+            'illegal_waste_handling_and_disposal' => 'ህገ-ወጥ ደረቅና ፈሳሽ ቆሻሻ አይያዝ እና አወጋገድ',
+            'illegal_animal_and_meat_transport' => 'ህገ-ወጥ እንስሳ ዝውውር እና እርባታ እንዲሁም የስጋ ዝውውር',
+            'illegal_road_use' => 'ህገ-ወጥ መንገድ አጠቃቀም በተመለከተ',
+            'disturbance_activity' => 'አዋኪ ድርጊት',
+            'illegal_advertisement' => 'ህገ-ወጥ ማስታወቂያ',
+            'good_governance_and_malpractice' => 'መልካም አስተዳደር እና ብልሹ አሰራር',
+            'complaint' => 'ቅሬታ',
+            'other' => 'ሌላ',
         ];
     }
 
@@ -179,6 +184,7 @@ class Tip extends Model
             self::STATUS_UNDER_INVESTIGATION => 'Under Investigation',
             self::STATUS_REJECTED => 'Rejected',
             self::STATUS_ESCALATED_TO_SUB_CITY => 'Escalated to Sub-City',
+            self::STATUS_ESCALATED_TO_HEAD_OFFICE => 'Escalated to Head Office',
         ];
     }
 
@@ -199,6 +205,7 @@ class Tip extends Model
             self::STATUS_UNDER_INVESTIGATION => 'warning',
             self::STATUS_REJECTED => 'danger',
             self::STATUS_ESCALATED_TO_SUB_CITY => 'danger',
+            self::STATUS_ESCALATED_TO_HEAD_OFFICE => 'warning',
         ];
     }
 
@@ -264,18 +271,18 @@ class Tip extends Model
 
     public function getTipTypeNameAttribute(): string
     {
-        $types = [
+        $legacyTypes = [
             'illegal_trade' => 'Illegal Trade',
             'alcohol_sales' => 'Alcohol Sales',
             'land_grabbing' => 'Land Grabbing',
             'drug_activity' => 'Drug Activity',
             'counterfeit_goods' => 'Counterfeit Goods',
-            'illegal_construction' => 'Illegal Construction',
             'environmental_violation' => 'Environmental Violation',
-            'other' => 'Other',
         ];
 
-        return $types[$this->tip_type] ?? (string) $this->tip_type;
+        return self::getTipTypeOptions()[$this->tip_type]
+            ?? $legacyTypes[$this->tip_type]
+            ?? (string) $this->tip_type;
     }
 
     public function getUrgencyNameAttribute(): string

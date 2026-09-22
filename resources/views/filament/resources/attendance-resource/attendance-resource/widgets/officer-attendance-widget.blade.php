@@ -4,7 +4,69 @@
 
 @if($data['show'] ?? false)
     <x-filament-widgets::widget>
-        <x-filament::section>
+        <x-filament::section
+            x-data="{
+                locating: false,
+                locationError: null,
+                async formatLocation(position) {
+                    const coords = position.coords;
+                    const latitude = Number(coords.latitude).toFixed(6);
+                    const longitude = Number(coords.longitude).toFixed(6);
+                    const accuracy = coords.accuracy ? Math.round(coords.accuracy) : null;
+                    const coordinateText = accuracy
+                        ? `Lat: ${latitude}, Lng: ${longitude} (accuracy ${accuracy}m)`
+                        : `Lat: ${latitude}, Lng: ${longitude}`;
+                    const googleMapsUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
+
+                    try {
+                        const response = await fetch(
+                            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`,
+                            { headers: { Accept: 'application/json' } },
+                        );
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            const address = data?.display_name;
+
+                            if (address) {
+                                return `${address} | ${coordinateText} | Google Maps: ${googleMapsUrl}`;
+                            }
+                        }
+                    } catch (error) {
+                        // Fall back to coordinates when reverse geocoding is unavailable.
+                    }
+
+                    return `${coordinateText} | Google Maps: ${googleMapsUrl}`;
+                },
+                async captureLocation(property, method) {
+                    this.locationError = null;
+
+                    if (! navigator.geolocation) {
+                        this.locationError = 'Location is required, but it is not supported on this device or browser.';
+
+                        return;
+                    }
+
+                    this.locating = true;
+                    navigator.geolocation.getCurrentPosition(
+                        async (position) => {
+                            await $wire.set(property, await this.formatLocation(position));
+                            this.locating = false;
+                            await $wire.call(method);
+                        },
+                        async (error) => {
+                            this.locationError = `Location is required: ${error.message}`;
+                            this.locating = false;
+                        },
+                        {
+                            enableHighAccuracy: true,
+                            timeout: 15000,
+                            maximumAge: 0,
+                        },
+                    );
+                },
+            }"
+        >
             @php
                 $shiftStart = $data['shiftWindow']['start'] ?? null;
                 $shiftEnd = $data['shiftWindow']['end'] ?? null;
@@ -58,40 +120,42 @@
                     {{ __('Check in') }}
                 </x-filament::button>
             @elseif($data['canCheckIn'])
-                <form wire:submit.prevent="requestCheckIn" class="space-y-4">
-                    <x-filament::input.wrapper>
-                        <x-filament::input
-                            type="text"
-                            wire:model="checkInLocation"
-                            placeholder="Check-in location (optional)"
-                            class="w-full"
-                        />
-                    </x-filament::input.wrapper>
-                    <x-filament::button type="submit" color="success" icon="heroicon-o-check-circle">
-                        Check in
+                <div class="space-y-4">
+                    <template x-if="locationError">
+                        <p class="text-sm text-danger-600 dark:text-danger-400" x-text="locationError"></p>
+                    </template>
+                    <x-filament::button
+                        type="button"
+                        color="success"
+                        icon="heroicon-o-check-circle"
+                        x-bind:disabled="locating"
+                        x-on:click="captureLocation('checkInLocation', 'requestCheckIn')"
+                    >
+                        <span x-text="locating ? 'Getting location...' : 'Check in'"></span>
                     </x-filament::button>
-                </form>
+                </div>
             @elseif($data['canCheckOut'])
-                <form wire:submit.prevent="requestCheckOut" class="space-y-4">
+                <div class="space-y-4">
                     <p class="text-sm text-gray-600 dark:text-gray-400">
                         {{ __('Checked in at') }} {{ $data['attendance']->check_in ? \App\Support\EthiopianDate::toEcAmharicDateAndTime($data['attendance']->check_in) : '' }}
                         @if($data['attendance']->check_in_location)
                             · {{ $data['attendance']->check_in_location }}
                         @endif
                     </p>
-                    <x-filament::input.wrapper>
-                        <x-filament::input
-                            type="text"
-                            wire:model="checkOutLocation"
-                            placeholder="Check-out location (optional)"
-                            class="w-full"
-                        />
-                    </x-filament::input.wrapper>
+                    <template x-if="locationError">
+                        <p class="text-sm text-danger-600 dark:text-danger-400" x-text="locationError"></p>
+                    </template>
 
-                    <x-filament::button type="submit" color="primary" icon="heroicon-o-arrow-right-on-rectangle">
-                        Check out & go to report
+                    <x-filament::button
+                        type="button"
+                        color="primary"
+                        icon="heroicon-o-arrow-right-on-rectangle"
+                        x-bind:disabled="locating"
+                        x-on:click="captureLocation('checkOutLocation', 'requestCheckOut')"
+                    >
+                        <span x-text="locating ? 'Getting location...' : 'Check out & go to report'"></span>
                     </x-filament::button>
-                </form>
+                </div>
             @elseif($data['shiftEnded'])
                 <p class="text-gray-600 dark:text-gray-400">
                     {{ __('Your shift window has ended. Check-in and check-out are no longer available for this shift.') }}

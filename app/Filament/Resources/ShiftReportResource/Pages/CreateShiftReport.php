@@ -19,6 +19,7 @@ class CreateShiftReport extends CreateRecord
             $this->form->fill([
                 'employee_id' => (int) $employeeId,
                 'shift_assignment_id' => (int) $shiftAssignmentId,
+                'submitted_at' => now('Africa/Addis_Ababa'),
             ]);
         }
     }

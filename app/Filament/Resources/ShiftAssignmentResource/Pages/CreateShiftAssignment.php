@@ -3,12 +3,14 @@
 namespace App\Filament\Resources\ShiftAssignmentResource\Pages;
 
 use App\Filament\Resources\ShiftAssignmentResource;
+use App\Models\Employee;
 use App\Models\ShiftAssignment;
 use App\Support\EthiopianDate;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class CreateShiftAssignment extends CreateRecord
 {
@@ -43,6 +45,15 @@ class CreateShiftAssignment extends CreateRecord
     protected function handleRecordCreation(array $data): Model
     {
         $data['assigned_by'] = Auth::id();
+
+        $employee = Employee::query()->find($data['employee_id'] ?? null);
+        $assignedDate = $data['assigned_date'] ?? now('Africa/Addis_Ababa');
+
+        if ($employee?->isOnApprovedLeave($assignedDate)) {
+            throw ValidationException::withMessages([
+                'employee_id' => 'This employee is on approved leave for the selected assignment start date.',
+            ]);
+        }
 
         return ShiftAssignment::create($data);
     }

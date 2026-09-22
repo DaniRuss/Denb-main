@@ -17,6 +17,8 @@ class ShiftAssignment extends Model
         'employee_id',
         'shift_id',
         'block',
+        'description',
+        'specific_place',
         'assigned_date',
         'end_date',
         'assigned_by',
@@ -90,6 +92,10 @@ class ShiftAssignment extends Model
     public function shiftWindowForInstant(?Carbon $at = null): ?array
     {
         $at = Carbon::parse($at ?? now())->timezone('Africa/Addis_Ababa');
+        if ($this->employee?->isOnApprovedLeave($at)) {
+            return null;
+        }
+
         $shift = $this->shift;
         if (! $shift) {
             return null;

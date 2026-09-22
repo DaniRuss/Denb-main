@@ -37,6 +37,11 @@ class OfficerAttendanceWidget extends Widget
 
     public bool $checkoutModalNeedsHalfDay = false;
 
+    protected function hasCapturedLocation(?string $location): bool
+    {
+        return filled($location) && str_contains((string) $location, 'Google Maps: https://www.google.com/maps?q=');
+    }
+
     public function mount(): void
     {
         if (! $this->isOfficer()) {
@@ -280,8 +285,17 @@ class OfficerAttendanceWidget extends Widget
             return;
         }
 
+        if (! $this->hasCapturedLocation($this->checkInLocation)) {
+            Notification::make()
+                ->title('Current GPS location is required before check-in.')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
         $attendance->check_in = now('Africa/Addis_Ababa');
-        $attendance->check_in_location = $this->checkInLocation ?: null;
+        $attendance->check_in_location = $this->checkInLocation;
 
         if ($lateReason !== null && $lateReason !== '') {
             $line = 'Late check-in: '.$lateReason;
@@ -415,6 +429,15 @@ class OfficerAttendanceWidget extends Widget
             return;
         }
 
+        if (! $this->hasCapturedLocation($this->checkOutLocation)) {
+            Notification::make()
+                ->title('Current GPS location is required before check-out.')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
         $now = now('Africa/Addis_Ababa');
         $shiftWindow = $this->buildShiftWindow($assignment, $now);
 
@@ -441,7 +464,7 @@ class OfficerAttendanceWidget extends Widget
         }
 
         $attendance->check_out = $now;
-        $attendance->check_out_location = $this->checkOutLocation ?: null;
+        $attendance->check_out_location = $this->checkOutLocation;
         $attendance->save();
 
         $this->checkOutLocation = null;

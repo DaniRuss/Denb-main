@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Models\Attendance;
 use App\Models\Employee;
+use App\Models\LeaveRequest;
 use App\Models\Shift;
 use App\Models\ShiftAssignment;
 use App\Models\SubCity;
@@ -60,6 +61,19 @@ class ShiftAssignmentResource extends Resource
         }
 
         return false;
+    }
+
+    protected static function googleMapsUrlFromLocation(?string $location): ?string
+    {
+        if (! $location) {
+            return null;
+        }
+
+        if (preg_match('/Google Maps:\s*(https:\/\/www\.google\.com\/maps\?q=[^|\s]+)/', $location, $matches)) {
+            return $matches[1];
+        }
+
+        return null;
     }
 
     /**
@@ -229,13 +243,22 @@ class ShiftAssignmentResource extends Resource
                         'employees.id as employee_id',
                         'shift_assignments.shift_id',
                         'shift_assignments.block',
-                        'shift_assignments.block',
+                        'shift_assignments.description',
+                        'shift_assignments.specific_place',
                         'shift_assignments.assigned_date',
                         'shift_assignments.end_date',
                         'shift_assignments.assigned_by',
                         DB::raw("CASE WHEN shift_assignments.id IS NULL THEN 'unassigned' ELSE 'assigned' END as status"),
                     ])
                     ->where('employees.status', 'active')
+                    ->whereNotExists(function ($sub) use ($today) {
+                        $sub->select(DB::raw(1))
+                            ->from('leave_requests')
+                            ->whereColumn('leave_requests.employee_id', 'employees.id')
+                            ->where('leave_requests.status', LeaveRequest::STATUS_APPROVED)
+                            ->whereDate('leave_requests.start_date', '<=', $today)
+                            ->whereDate('leave_requests.end_date', '>=', $today);
+                    })
                     ->when($geo['exclude_employee_id'], fn ($q, $id) => $q->where('employees.id', '!=', $id))
                     ->when($geo['sub_city_id'], fn ($q, $v) => $q->where('employees.sub_city_id', $v))
                     ->when($geo['woreda_id'], fn ($q, $v) => $q->where('employees.woreda_id', $v)),
@@ -305,7 +328,7 @@ class ShiftAssignmentResource extends Resource
                             /** @var \App\Models\User|null $user */
                             $user = Auth::user();
                             $query = Employee::query()
-                                ->active()
+                                ->availableForWork()
                                 ->orderBy('first_name_am');
 
                             // Always hide officers who already have an active 30-day assignment (scheduled).
@@ -392,6 +415,16 @@ class ShiftAssignmentResource extends Resource
                         ->disabled(function (?ShiftAssignment $record): bool {
                             return (bool) ($record && static::isBlockBlocked($record));
                         }),
+                    Forms\Components\Textarea::make('description')
+                        ->label('Description (ተግባር)')
+                        ->rows(3)
+                        ->required()
+                        ->maxLength(5000)
+                        ->columnSpanFull(),
+                    Forms\Components\TextInput::make('specific_place')
+                        ->label('Specific place (ልዩ ቦታ)')
+                        ->required()
+                        ->maxLength(255),
                     // Ethiopic calendar UI only (agelgil/filament-ethiopic-calendar). ISO Gregorian is stored only for DB + end_date math.
                     Forms\Components\DatePicker::make('assigned_date')
                         ->label(__('Start date (Ethiopian calendar)'))
@@ -498,6 +531,17 @@ class ShiftAssignmentResource extends Resource
 
                         return (string) ($state ?? '---');
                     }),
+                Tables\Columns\TextColumn::make('specific_place')
+                    ->label('Specific place (ልዩ ቦታ)')
+                    ->searchable()
+                    ->sortable()
+                    ->placeholder('---'),
+                Tables\Columns\TextColumn::make('description')
+                    ->label('Description (ተግባር)')
+                    ->limit(40)
+                    ->wrap()
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->placeholder('---'),
                 Tables\Columns\TextColumn::make('assigned_date')
                     ->label(__('Start (Ethiopian)'))
                     ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmdAmharic($state) ?? '-')
@@ -558,6 +602,38 @@ class ShiftAssignmentResource extends Resource
                         };
                     })
                     ->placeholder('—'),
+                Tables\Columns\TextColumn::make('today_check_in')
+                    ->label(__('Today check-in (Ethiopian date & time)'))
+                    ->state(fn (ShiftAssignment $record) => $record->todayAttendance?->check_in)
+                    ->formatStateUsing(fn ($state) => $state ? (EthiopianDate::toEcAmharicDateAndTime($state) ?? '-') : '-')
+                    ->sortable(false)
+                    ->placeholder('-'),
+                Tables\Columns\TextColumn::make('today_check_in_location')
+                    ->label('Today check-in location')
+                    ->state(fn (ShiftAssignment $record): ?string => $record->todayAttendance?->check_in_location)
+                    ->copyable()
+                    ->url(fn (ShiftAssignment $record): ?string => static::googleMapsUrlFromLocation($record->todayAttendance?->check_in_location))
+                    ->openUrlInNewTab()
+                    ->limit(45)
+                    ->wrap()
+                    ->toggleable()
+                    ->placeholder('---'),
+                Tables\Columns\TextColumn::make('today_check_out')
+                    ->label(__('Today check-out (Ethiopian date & time)'))
+                    ->state(fn (ShiftAssignment $record) => $record->todayAttendance?->check_out)
+                    ->formatStateUsing(fn ($state) => $state ? (EthiopianDate::toEcAmharicDateAndTime($state) ?? '-') : '-')
+                    ->sortable(false)
+                    ->placeholder('-'),
+                Tables\Columns\TextColumn::make('today_check_out_location')
+                    ->label('Today check-out location')
+                    ->state(fn (ShiftAssignment $record): ?string => $record->todayAttendance?->check_out_location)
+                    ->copyable()
+                    ->url(fn (ShiftAssignment $record): ?string => static::googleMapsUrlFromLocation($record->todayAttendance?->check_out_location))
+                    ->openUrlInNewTab()
+                    ->limit(45)
+                    ->wrap()
+                    ->toggleable()
+                    ->placeholder('---'),
                 Tables\Columns\TextColumn::make('assignedBy.name')->label('Assigned by')->toggleable(isToggledHiddenByDefault: true)->placeholder('---'),
             ])
             ->defaultSort('employee_id')
@@ -720,6 +796,21 @@ class ShiftAssignmentResource extends Resource
                             ->disabled(function (?ShiftAssignment $record): bool {
                                 return (bool) ($record && static::isBlockBlocked($record));
                             }),
+                        Forms\Components\Textarea::make('description')
+                            ->label('Description (ተግባር)')
+                            ->rows(3)
+                            ->required()
+                            ->maxLength(5000),
+                        Forms\Components\TextInput::make('specific_place')
+                            ->label('Specific place (ልዩ ቦታ)')
+                            ->required()
+                            ->maxLength(255),
+                    ])
+                    ->fillForm(fn (ShiftAssignment $record): array => [
+                        'shift_id' => $record->shift_id,
+                        'block' => static::isBlockBlocked($record) ? 'Block' : $record->block,
+                        'description' => $record->description,
+                        'specific_place' => $record->specific_place,
                     ])
                     ->action(function (ShiftAssignment $record, array $data): void {
                         $assignment = ShiftAssignment::find($record->id);
@@ -735,6 +826,8 @@ class ShiftAssignmentResource extends Resource
                         $assignment->update([
                             'shift_id' => $data['shift_id'],
                             'block' => $data['block'],
+                            'description' => $data['description'] ?? null,
+                            'specific_place' => $data['specific_place'] ?? null,
                             'assigned_by' => Auth::id(),
                         ]);
 

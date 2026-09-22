@@ -22,6 +22,7 @@ class GenerateDailyAbsences extends Command
         $this->info('Generating absences for date: ' . $date->toDateString());
 
         $assignments = ShiftAssignment::query()
+            ->with('employee')
             ->where('status', 'scheduled')
             ->whereDate('assigned_date', '<=', $date->toDateString())
             ->whereDate('end_date', '>=', $date->toDateString())
@@ -30,6 +31,33 @@ class GenerateDailyAbsences extends Command
         $created = 0;
 
         foreach ($assignments as $assignment) {
+            if ($assignment->employee?->isOnApprovedLeave($date)) {
+                $attendance = Attendance::query()->firstOrCreate(
+                    [
+                        'employee_id' => $assignment->employee_id,
+                        'shift_assignment_id' => $assignment->id,
+                        'attendance_date' => $date->toDateString(),
+                    ],
+                    [
+                        'check_in' => null,
+                        'check_out' => null,
+                        'attendance_status' => Attendance::STATUS_ON_LEAVE,
+                        'auto_generated' => true,
+                        'remarks' => 'Approved leave',
+                    ]
+                );
+
+                if (! $attendance->check_in) {
+                    $attendance->attendance_status = Attendance::STATUS_ON_LEAVE;
+                    $attendance->auto_generated = true;
+                    $attendance->remarks = $attendance->remarks ?: 'Approved leave';
+                    $attendance->save();
+                }
+
+                $created++;
+                continue;
+            }
+
             $attendance = Attendance::query()->firstOrCreate(
                 [
                     'employee_id' => $assignment->employee_id,
@@ -59,4 +87,3 @@ class GenerateDailyAbsences extends Command
         return self::SUCCESS;
     }
 }
-

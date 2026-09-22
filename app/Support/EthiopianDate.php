@@ -2,9 +2,7 @@
 
 namespace App\Support;
 
-use Andegna\DateTimeFactory;
 use Carbon\Carbon;
-use DateTimeZone;
 use Throwable;
 
 class EthiopianDate
@@ -32,10 +30,22 @@ class EthiopianDate
         }
 
         try {
-            $carbon = $gregorian instanceof Carbon ? $gregorian : Carbon::parse($gregorian);
-            $ethiopic = DateTimeFactory::fromDateTime($carbon->toDateTime());
+            $carbon = ($gregorian instanceof Carbon ? $gregorian : Carbon::parse($gregorian))
+                ->copy()
+                ->timezone('Africa/Addis_Ababa')
+                ->startOfDay();
 
-            return sprintf('%04d-%02d-%02d', $ethiopic->getYear(), $ethiopic->getMonth(), $ethiopic->getDay());
+            $newYear = self::ethiopianNewYearForGregorianYear((int) $carbon->format('Y'));
+            if ($carbon->lt($newYear)) {
+                $newYear = self::ethiopianNewYearForGregorianYear((int) $carbon->format('Y') - 1);
+            }
+
+            $dayOfYear = (int) $newYear->diffInDays($carbon) + 1;
+            $month = intdiv($dayOfYear - 1, 30) + 1;
+            $day = (($dayOfYear - 1) % 30) + 1;
+            $year = (int) $newYear->format('Y') - 7;
+
+            return sprintf('%04d-%02d-%02d', $year, $month, $day);
         } catch (Throwable) {
             return null;
         }
@@ -64,10 +74,9 @@ class EthiopianDate
     {
         [$y, $m, $d] = array_map('intval', explode('-', trim($ecYmd)));
 
-        $tz = new DateTimeZone($timezone ?: 'Africa/Addis_Ababa');
-        $ethiopic = DateTimeFactory::of($y, $m, $d, 0, 0, 0, $tz);
-
-        return Carbon::instance($ethiopic->toGregorian())->startOfDay();
+        return self::ethiopianNewYearForGregorianYear($y + 7, $timezone ?: 'Africa/Addis_Ababa')
+            ->addDays((($m - 1) * 30) + ($d - 1))
+            ->startOfDay();
     }
 
     public static function splitEcYmd(?string $ecYmd): ?array
@@ -97,12 +106,21 @@ class EthiopianDate
         // Pagume: 5 days, or 6 days on leap years.
         // We detect leap year by attempting to construct day 6.
         try {
-            DateTimeFactory::of($year, 13, 6);
-
-            return 6;
+            return (($year + 1) % 4) === 0 ? 6 : 5;
         } catch (Throwable) {
             return 5;
         }
+    }
+
+    protected static function ethiopianNewYearForGregorianYear(
+        int $gregorianYear,
+        string $timezone = 'Africa/Addis_Ababa'
+    ): Carbon {
+        $septemberDay = Carbon::create($gregorianYear + 1, 1, 1, 0, 0, 0, $timezone)->isLeapYear()
+            ? 12
+            : 11;
+
+        return Carbon::create($gregorianYear, 9, $septemberDay, 0, 0, 0, $timezone)->startOfDay();
     }
 
     /**

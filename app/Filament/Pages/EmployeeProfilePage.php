@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\Employee;
+use Filament\Infolists\Components\ImageEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
@@ -51,6 +52,11 @@ class EmployeeProfilePage extends Page
         return Employee::where('user_id', $user->id)->exists();
     }
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canAccess();
+    }
+
     public function profileInfolist(Schema $schema): Schema
     {
         return $schema
@@ -62,6 +68,15 @@ class EmployeeProfilePage extends Page
                         Tab::make('Personal Information')
                             ->icon('heroicon-o-user')
                             ->schema([
+                                Section::make('Photo')
+                                    ->schema([
+                                        ImageEntry::make('photo')
+                                            ->label('Employee Photo')
+                                            ->disk('public')
+                                            ->circular()
+                                            ->height(120),
+                                    ]),
+
                                 Section::make('Name Details')
                                     ->schema([
                                         TextEntry::make('first_name_am')->label('First Name (አማርኛ)'),
@@ -91,6 +106,9 @@ class EmployeeProfilePage extends Page
                         Tab::make('Location')
                             ->icon('heroicon-o-map-pin')
                             ->schema([
+                                TextEntry::make('location_type')
+                                    ->label('Office Type')
+                                    ->formatStateUsing(fn (?string $state): string => $state === 'head_office' ? 'Head Office' : 'Sub City / Woreda Office'),
                                 TextEntry::make('subCity.name_am')->label('Sub City'),
                                 TextEntry::make('woreda.name_am')->label('Woreda'),
                                 TextEntry::make('kebele'),
@@ -100,8 +118,9 @@ class EmployeeProfilePage extends Page
                         Tab::make('Employment')
                             ->icon('heroicon-o-briefcase')
                             ->schema([
-                                TextEntry::make('employee_id')->label('Employee ID'),
+                                TextEntry::make('employee_id')->label('Paramilitary ID'),
                                 TextEntry::make('position'),
+                                TextEntry::make('job_level')->label('Level (የስራ መደቡ ደረጃ)'),
                                 TextEntry::make('rank')->badge(),
                                 TextEntry::make('employee_type')
                                     ->formatStateUsing(fn ($state) => match ($state) {

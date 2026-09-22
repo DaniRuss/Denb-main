@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (! Schema::hasTable('shift_assignments_t')) {
+            return;
+        }
+
         Schema::table('shift_assignments_t', function (Blueprint $table) {
             //
         });
@@ -21,6 +25,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (! Schema::hasTable('shift_assignments_t')) {
+            return;
+        }
+
         Schema::table('shift_assignments_t', function (Blueprint $table) {
             //
         });

@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Models\ShiftSwap;
 use App\Observers\ShiftSwapObserver;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\DateTimePicker;
 use Filament\Support\Assets\AlpineComponent;
 use Filament\Support\Facades\FilamentAsset;
 use Filament\Support\Facades\FilamentView;
@@ -27,6 +29,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        DatePicker::macro('ethiopic', function (): static {
+            return $this;
+        });
+
+        DateTimePicker::macro('ethiopic', function (): static {
+            return $this;
+        });
+
         // Patched grid: empty cells use weekday of Ethiopian day 1 (30-day months). Overrides package asset after composer updates.
         FilamentAsset::register([
             AlpineComponent::make('filament-ethiopic-calendar', resource_path('js/filament-ethiopic-calendar.js')),

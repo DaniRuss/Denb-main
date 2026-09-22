@@ -101,7 +101,7 @@ Route::get('/health', function () {
 if (app()->environment('local')) {
     Route::get('/test-email', function () {
         try {
-            Mail::raw('This is a test email from the HR system', function ($message) {
+            Mail::raw('This is a test email from the Integrated Code Authority Management System(ICAMS)', function ($message) {
                 $message->to('test@example.com')
                     ->subject('Test Email');
             });

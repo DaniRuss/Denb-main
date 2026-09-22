@@ -85,7 +85,7 @@ class ShiftReportResource extends Resource
                             $user = Auth::user();
 
                             $query = Employee::query()
-                                ->active()
+                                ->availableForWork()
                                 ->orderBy('first_name_am');
 
                             if ($user && $user->hasRole('officer')) {
@@ -140,6 +140,8 @@ class ShiftReportResource extends Resource
                         ->live(),
                     Forms\Components\Textarea::make('report_text')
                         ->label('Report')
+                        ->required()
+                        ->minLength(10)
                         ->maxLength(10000)
                         ->columnSpanFull(),
                     Forms\Components\TextInput::make('incident_count')
@@ -173,6 +175,16 @@ class ShiftReportResource extends Resource
                     ->formatStateUsing(fn ($state) => EthiopianDate::toEcYmdAmharic($state) ?? '-')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('shiftAssignment.shift.name')->label('Shift'),
+                Tables\Columns\TextColumn::make('shiftAssignment.specific_place')
+                    ->label('Specific place (ልዩ ቦታ)')
+                    ->placeholder('---')
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('shiftAssignment.description')
+                    ->label('Description (ተግባር)')
+                    ->limit(50)
+                    ->wrap()
+                    ->placeholder('---')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('incident_count')->sortable(),
                 Tables\Columns\TextColumn::make('penalty_count')->sortable(),
                 Tables\Columns\TextColumn::make('submitted_at')

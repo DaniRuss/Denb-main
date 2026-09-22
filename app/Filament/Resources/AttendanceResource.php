@@ -33,6 +33,19 @@ class AttendanceResource extends Resource
 
     protected static ?int $navigationSort = 4;
 
+    protected static function googleMapsUrlFromLocation(?string $location): ?string
+    {
+        if (! $location) {
+            return null;
+        }
+
+        if (preg_match('/Google Maps:\s*(https:\/\/www\.google\.com\/maps\?q=[^|\s]+)/', $location, $matches)) {
+            return $matches[1];
+        }
+
+        return null;
+    }
+
     public static function getEloquentQuery(): Builder
     {
         /** @var \App\Models\User|null $user */
@@ -98,7 +111,7 @@ class AttendanceResource extends Resource
                             $user = Auth::user();
 
                             $query = Employee::query()
-                                ->active()
+                                ->availableForWork()
                                 ->orderBy('first_name_am');
 
                             if ($user && $user->hasRole('officer')) {
@@ -195,10 +208,28 @@ class AttendanceResource extends Resource
                     ->label(__('Check in (Ethiopian date & time)'))
                     ->formatStateUsing(fn ($state) => $state ? (EthiopianDate::toEcAmharicDateAndTime($state) ?? '-') : '-')
                     ->sortable(),
+                Tables\Columns\TextColumn::make('check_in_location')
+                    ->label('Check-in location')
+                    ->searchable()
+                    ->copyable()
+                    ->url(fn (Attendance $record): ?string => static::googleMapsUrlFromLocation($record->check_in_location))
+                    ->openUrlInNewTab()
+                    ->limit(45)
+                    ->wrap()
+                    ->placeholder('---'),
                 Tables\Columns\TextColumn::make('check_out')
                     ->label(__('Check out (Ethiopian date & time)'))
                     ->formatStateUsing(fn ($state) => $state ? (EthiopianDate::toEcAmharicDateAndTime($state) ?? '-') : '-')
                     ->sortable(),
+                Tables\Columns\TextColumn::make('check_out_location')
+                    ->label('Check-out location')
+                    ->searchable()
+                    ->copyable()
+                    ->url(fn (Attendance $record): ?string => static::googleMapsUrlFromLocation($record->check_out_location))
+                    ->openUrlInNewTab()
+                    ->limit(45)
+                    ->wrap()
+                    ->placeholder('---'),
                 Tables\Columns\TextColumn::make('attendance_status')->badge()
                     ->color(fn (string $state): string => match ($state) {
                         'present' => 'success',
@@ -206,6 +237,7 @@ class AttendanceResource extends Resource
                         'late' => 'warning',
                         'pending' => 'gray',
                         'half_day' => 'info',
+                        'on_leave' => 'gray',
                         default => 'gray',
                     }),
                 Tables\Columns\TextColumn::make('remarks')
@@ -223,6 +255,7 @@ class AttendanceResource extends Resource
                         'absent' => 'Absent',
                         'late' => 'Late',
                         'half_day' => 'Half Day',
+                        'on_leave' => 'On Leave',
                     ]),
                 Tables\Filters\Filter::make('more_absent_than_present')
                     ->label('More absent than present')

@@ -98,6 +98,7 @@ class TipResource extends Resource
                 Tip::STATUS_DISPATCHED => 'bg-green-50/50 dark:bg-green-900/50',
                 Tip::STATUS_UNDER_INVESTIGATION, Tip::STATUS_INVESTIGATING => 'bg-yellow-50/50 dark:bg-yellow-900/50',
                 Tip::STATUS_CLOSED => 'bg-blue-50/50 dark:bg-blue-900/50',
+                Tip::STATUS_ESCALATED_TO_HEAD_OFFICE => 'bg-amber-50/50 dark:bg-amber-900/50',
                 Tip::STATUS_REJECTED, Tip::STATUS_FALSE_REPORT => 'bg-red-50/50 dark:bg-red-900/50',
                 default => null,
             })
@@ -176,7 +177,9 @@ class TipResource extends Resource
                         }
 
                         if ($user->can('review_director_call_tips')) {
-                            return $query->where('tip_source', Tip::SOURCE_CALL_CENTER)->where('status', Tip::STATUS_PENDING_DIRECTOR_REVIEW);
+                            return $query
+                                ->where('tip_source', Tip::SOURCE_CALL_CENTER)
+                                ->whereIn('status', static::directorQueueStatuses());
                         }
 
                         if ($user->can('manage_sub_city_call_tips') && filled($user->sub_city)) {
@@ -277,44 +280,84 @@ class TipResource extends Resource
                     })
                     ->visible(fn (Tip $record): bool => static::canRunDirectorAction($record)),
 
+                Action::make('director_investigate')
+                    ->label('Investigate')
+                    ->color('warning')
+                    ->icon('heroicon-o-magnifying-glass-circle')
+                    ->form([
+                        Forms\Components\Textarea::make('comment')
+                            ->label('Director Investigation Note')
+                            ->maxLength(2000),
+                    ])
+                    ->action(function (Tip $record, array $data): void {
+                        app(TipWorkflowService::class)->investigateByDirector($record, $data['comment'] ?? null);
+
+                        Notification::make()->title('Tip marked for head office investigation')->success()->send();
+                    })
+                    ->visible(fn (Tip $record): bool => static::canRunDirectorAction($record)),
+
                 Action::make('update_investigation')
                     ->label('Update Investigation')
                     ->color('warning')
                     ->icon('heroicon-o-clipboard-document-check')
                     ->form([
                         Forms\Components\Select::make('investigation_status')
-                            ->options(function () {
+                            ->options(function (Tip $record) {
                                 $user = auth()->user();
                                 $options = [
                                     Tip::STATUS_UNDER_INVESTIGATION => 'Under Investigation',
                                     Tip::STATUS_CLOSED => 'Closed',
                                 ];
 
+                                if (! $user) {
+                                    return $options;
+                                }
+
                                 if ($user->can('manage_woreda_call_tips')) {
                                     $options[Tip::STATUS_ESCALATED_TO_SUB_CITY] = 'Escalate to Sub-City';
+                                }
+
+                                if ($user->hasRole('admin') || $user->can('manage_sub_city_call_tips')) {
+                                    $options[Tip::STATUS_DISPATCHED] = 'Send to Woreda ' . ($record->woreda ?: '(not recorded)');
+                                    $options[Tip::STATUS_ESCALATED_TO_HEAD_OFFICE] = 'Escalate to Head Office';
                                 }
 
                                 return $options;
                             })
                             ->required(),
-                        Forms\Components\Select::make('woreda')
-                            ->label('Re-assign Woreda')
-                            ->options(Tip::getWoredaOptions())
-                            ->visible(fn () => auth()->user()->hasRole('admin') || auth()->user()->can('manage_sub_city_call_tips')),
                         Forms\Components\Textarea::make('sub_city_notes')
                             ->label('Notes')
                             ->maxLength(4000),
+                        Forms\Components\FileUpload::make('attachments')
+                            ->label('Response Attachment')
+                            ->multiple()
+                            ->disk('public')
+                            ->directory('case-updates')
+                            ->acceptedFileTypes([
+                                'image/jpeg',
+                                'image/png',
+                                'application/pdf',
+                                'application/msword',
+                                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                                'application/vnd.ms-excel',
+                                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                                'text/plain',
+                            ])
+                            ->maxSize(10240)
+                            ->downloadable()
+                            ->openable()
+                            ->columnSpanFull(),
                     ])
                     ->action(function (Tip $record, array $data): void {
-                        if (isset($data['woreda']) && $data['woreda'] !== $record->woreda) {
-                            $record->update(['woreda' => $data['woreda']]);
+                        if ($data['investigation_status'] === Tip::STATUS_DISPATCHED) {
+                            $data['dispatch_to'] = 'woreda';
                         }
                         
-                        app(TipWorkflowService::class)->updateInvestigation($record, $data);
+                        app(TipWorkflowService::class)->updateInvestigation($record, $data, auth()->user());
 
                         Notification::make()->title('Investigation status updated')->success()->send();
                     })
-                    ->visible(fn (Tip $record): bool => static::canRunSubCityAction($record)),
+                    ->visible(fn (Tip $record): bool => static::canRunInvestigationAction($record)),
 
                 Action::make('assign')
                     ->label('Assign')
@@ -411,6 +454,42 @@ class TipResource extends Resource
                     \Filament\Infolists\Components\TextEntry::make('sub_city_notes')->label('Sub City Notes')->placeholder('No notes'),
                 ])
                 ->visible(fn (?Tip $record): bool => $record?->tip_source === Tip::SOURCE_CALL_CENTER),
+            \Filament\Schemas\Components\Section::make('Investigation Responses')
+                ->schema([
+                    \Filament\Infolists\Components\TextEntry::make('investigation_responses')
+                        ->label('Responses')
+                        ->state(function (Tip $record): string {
+                            $updates = $record->updates()
+                                ->with('user')
+                                ->where('update_type', 'investigation_note')
+                                ->latest()
+                                ->get();
+
+                            if ($updates->isEmpty()) {
+                                return 'No investigation responses yet.';
+                            }
+
+                            return $updates->map(function ($update): string {
+                                $lines = [
+                                    '**' . e($update->created_at?->format('M j, Y g:i A') ?? 'Unknown date') . '** by ' . e($update->user?->name ?? 'Unknown user'),
+                                    e($update->message),
+                                ];
+
+                                $attachments = collect($update->attachments ?? []);
+
+                                if ($attachments->isNotEmpty()) {
+                                    $lines[] = $attachments
+                                        ->map(fn (string $path): string => '- [Attachment](' . asset('storage/' . $path) . ')')
+                                        ->implode("\n");
+                                }
+
+                                return implode("\n\n", $lines);
+                            })->implode("\n\n---\n\n");
+                        })
+                        ->markdown()
+                        ->columnSpanFull(),
+                ])
+                ->visible(fn (?Tip $record): bool => $record?->tip_source === Tip::SOURCE_CALL_CENTER),
         ]);
     }
 
@@ -490,6 +569,18 @@ class TipResource extends Resource
         return false;
     }
 
+    public static function getNavigationBadge(): ?string
+    {
+        $count = static::getPendingNavigationCount();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return static::getPendingNavigationCount() > 10 ? 'danger' : 'warning';
+    }
+
     public static function shouldRegisterNavigation(): bool
     {
         return static::canViewAny();
@@ -511,22 +602,144 @@ class TipResource extends Resource
 
         return (bool) $user
             && $record->tip_source === Tip::SOURCE_CALL_CENTER
-            && $record->status === Tip::STATUS_PENDING_DIRECTOR_REVIEW
+            && in_array($record->status, static::directorQueueStatuses(), true)
             && ($user->hasRole('admin') || $user->can('review_director_call_tips'));
     }
 
-    private static function canRunSubCityAction(Tip $record): bool
+    private static function canRunInvestigationAction(Tip $record): bool
     {
         $user = auth()->user();
 
-        return (bool) $user
-            && $record->tip_source === Tip::SOURCE_CALL_CENTER
-            && in_array($record->status, [Tip::STATUS_DISPATCHED, Tip::STATUS_UNDER_INVESTIGATION], true)
-            && (
-                $user->hasRole('admin') ||
-                ($user->can('manage_sub_city_call_tips') && filled($user->sub_city) && $user->sub_city === $record->sub_city) ||
-                ($user->can('manage_woreda_call_tips') && filled($user->sub_city) && filled($user->woreda) && $user->sub_city === $record->sub_city && $user->woreda === $record->woreda)
-            );
+        if (! $user || $record->tip_source !== Tip::SOURCE_CALL_CENTER) {
+            return false;
+        }
+
+        if ($user->hasRole('admin')) {
+            return in_array($record->status, [
+                Tip::STATUS_DISPATCHED,
+                Tip::STATUS_UNDER_INVESTIGATION,
+                Tip::STATUS_ESCALATED_TO_SUB_CITY,
+                Tip::STATUS_ESCALATED_TO_HEAD_OFFICE,
+            ], true);
+        }
+
+        if ($user->can('review_director_call_tips')) {
+            return $record->status === Tip::STATUS_UNDER_INVESTIGATION
+                && $record->dispatch_to === 'head_office';
+        }
+
+        if ($user->can('manage_sub_city_call_tips') && filled($user->sub_city) && $user->sub_city === $record->sub_city) {
+            return in_array($record->status, [
+                Tip::STATUS_DISPATCHED,
+                Tip::STATUS_UNDER_INVESTIGATION,
+                Tip::STATUS_ESCALATED_TO_SUB_CITY,
+            ], true);
+        }
+
+        if ($user->can('manage_woreda_call_tips') && filled($user->sub_city) && filled($user->woreda)) {
+            return $record->dispatch_to === 'woreda'
+                && in_array($record->status, [Tip::STATUS_DISPATCHED, Tip::STATUS_UNDER_INVESTIGATION], true)
+                && $user->sub_city === $record->sub_city
+                && $user->woreda === $record->woreda;
+        }
+
+        return false;
+    }
+
+    private static function directorQueueStatuses(): array
+    {
+        return [
+            Tip::STATUS_PENDING_DIRECTOR_REVIEW,
+            Tip::STATUS_ESCALATED_TO_HEAD_OFFICE,
+        ];
+    }
+
+    private static function getPendingNavigationCount(): int
+    {
+        $user = auth()->user();
+
+        if (! $user) {
+            return 0;
+        }
+
+        $query = Tip::query()->where('tip_source', Tip::SOURCE_CALL_CENTER);
+
+        if ($user->hasRole('admin') || $user->can('manage_call_tip_workflow')) {
+            return $query
+                ->whereIn('status', [
+                    Tip::STATUS_PENDING_SUPERVISOR_REVIEW,
+                    Tip::STATUS_PENDING_DIRECTOR_REVIEW,
+                    Tip::STATUS_DISPATCHED,
+                    Tip::STATUS_UNDER_INVESTIGATION,
+                    Tip::STATUS_ESCALATED_TO_SUB_CITY,
+                    Tip::STATUS_ESCALATED_TO_HEAD_OFFICE,
+                ])
+                ->count();
+        }
+
+        if ($user->can('review_supervisor_call_tips')) {
+            return $query
+                ->where('status', Tip::STATUS_PENDING_SUPERVISOR_REVIEW)
+                ->count();
+        }
+
+        if ($user->can('review_director_call_tips')) {
+            return $query
+                ->where(function (Builder $query): void {
+                    $query
+                        ->whereIn('status', static::directorQueueStatuses())
+                        ->orWhere(function (Builder $query): void {
+                            $query
+                                ->where('status', Tip::STATUS_UNDER_INVESTIGATION)
+                                ->where('dispatch_to', 'head_office');
+                        });
+                })
+                ->count();
+        }
+
+        if ($user->can('manage_sub_city_call_tips') && filled($user->sub_city)) {
+            return $query
+                ->where('sub_city', $user->sub_city)
+                ->where(function (Builder $query): void {
+                    $query
+                        ->where('status', Tip::STATUS_ESCALATED_TO_SUB_CITY)
+                        ->orWhere(function (Builder $query): void {
+                            $query
+                                ->whereIn('status', [Tip::STATUS_DISPATCHED, Tip::STATUS_UNDER_INVESTIGATION])
+                                ->where(function (Builder $query): void {
+                                    $query
+                                        ->whereNull('dispatch_to')
+                                        ->orWhere('dispatch_to', 'sub_city');
+                                });
+                        });
+                })
+                ->count();
+        }
+
+        if ($user->can('manage_woreda_call_tips') && filled($user->sub_city) && filled($user->woreda)) {
+            return $query
+                ->where('sub_city', $user->sub_city)
+                ->where('woreda', $user->woreda)
+                ->where('dispatch_to', 'woreda')
+                ->whereIn('status', [Tip::STATUS_DISPATCHED, Tip::STATUS_UNDER_INVESTIGATION])
+                ->count();
+        }
+
+        if ($user->can('create_call_tips') || $user->can('view_own_call_tips')) {
+            return $query
+                ->where('created_by', $user->id)
+                ->whereIn('status', [
+                    Tip::STATUS_PENDING_SUPERVISOR_REVIEW,
+                    Tip::STATUS_PENDING_DIRECTOR_REVIEW,
+                    Tip::STATUS_DISPATCHED,
+                    Tip::STATUS_UNDER_INVESTIGATION,
+                    Tip::STATUS_ESCALATED_TO_SUB_CITY,
+                    Tip::STATUS_ESCALATED_TO_HEAD_OFFICE,
+                ])
+                ->count();
+        }
+
+        return 0;
     }
 
     private static function isAdmin(): bool

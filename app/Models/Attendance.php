@@ -53,6 +53,8 @@ class Attendance extends Model
 
     const STATUS_OVERTIME = 'overtime';
 
+    const STATUS_ON_LEAVE = 'on_leave';
+
     const GRACE_MINUTES = 10;
 
     const HALF_DAY_THRESHOLD_HOURS = 4; // Consider half day if work time is less than this
@@ -217,6 +219,12 @@ class Attendance extends Model
 
         if (! $assignment || ! $shift) {
             $this->attendance_status = $this->attendance_status ?: self::STATUS_PENDING;
+
+            return;
+        }
+
+        if ($this->employee?->isOnApprovedLeave($this->attendance_date ?? now('Africa/Addis_Ababa'))) {
+            $this->attendance_status = self::STATUS_ON_LEAVE;
 
             return;
         }

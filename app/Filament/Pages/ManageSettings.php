@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\SiteSetting;
+use App\Support\Filament\PanelAccess;
 use Filament\Schemas\Schema;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -23,6 +24,16 @@ class ManageSettings extends Page
     protected string $view = 'filament.pages.manage-settings';
 
     public ?array $data = [];
+
+    public static function canAccess(): bool
+    {
+        return PanelAccess::isAdmin();
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canAccess();
+    }
 
     public function mount(): void
     {
